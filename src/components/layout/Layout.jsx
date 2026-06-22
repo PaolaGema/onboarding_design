@@ -27,7 +27,7 @@ export default function Layout() {
     if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas)) {
       navigate(isMobile ? '/onboarding/mi-onboarding' : '/onboarding/bienvenida', { replace: true })
     }
-  }, [currentUser.role])
+  }, [currentUser.id, location.pathname])
 
   if (isMobile) {
     return (
