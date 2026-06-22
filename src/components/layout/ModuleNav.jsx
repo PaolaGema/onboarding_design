@@ -3,16 +3,16 @@ import { LayoutDashboard, Users, FileText, Hand, Route, BookOpen, Settings, User
 import { useUser } from '../../context/UserContext'
 
 const onboardingAdminNav = [
-  { section: 'Mi espacio', items: [
-    { label: 'Bienvenida', path: '/onboarding/bienvenida', icon: Hand, end: true },
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Route },
-  ]},
   { section: 'Administración', items: [
     { label: 'Dashboard', path: '/onboarding', icon: LayoutDashboard, end: true },
     { label: 'Asignaciones', path: '/onboarding/asignaciones', icon: Users },
     { label: 'Rutas', path: '/onboarding/plantillas', icon: FileText },
     { label: 'Base de conocimiento', path: '/onboarding/conocimiento', icon: BookOpen },
     { label: 'Configuración', path: '/onboarding/configuracion', icon: Settings },
+  ]},
+  { section: 'Mi espacio', items: [
+    { label: 'Bienvenida', path: '/onboarding/bienvenida', icon: Hand, end: true },
+    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Route },
   ]},
 ]
 
@@ -24,14 +24,14 @@ const onboardingColabNav = [
 ]
 
 const onboardingManagerNav = [
-  { section: 'Mi espacio', items: [
-    { label: 'Bienvenida', path: '/onboarding/bienvenida', icon: Hand, end: true },
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Route },
-  ]},
   { section: 'Administración', items: [
     { label: 'Dashboard', path: '/onboarding', icon: LayoutDashboard, end: true },
     { label: 'Asignaciones', path: '/onboarding/asignaciones', icon: Users },
     { label: 'Rutas', path: '/onboarding/plantillas', icon: FileText },
+  ]},
+  { section: 'Mi espacio', items: [
+    { label: 'Bienvenida', path: '/onboarding/bienvenida', icon: Hand, end: true },
+    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Route },
   ]},
 ]
 

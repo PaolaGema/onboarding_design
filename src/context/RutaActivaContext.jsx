@@ -1,6 +1,14 @@
 import { createContext, useContext, useState } from 'react'
+import { rutasData } from '../pages/onboarding/JourneyBuilder'
 
 const RutaActivaContext = createContext()
+
+const rutaMobile = {
+  nombre: 'Onboarding Tech — Backend',
+  area: 'Tecnología',
+  activadaEn: '2026-06-20',
+  etapas: JSON.parse(JSON.stringify(rutasData[1].etapas)),
+}
 
 const rutaCompletada = {
   nombre: 'Onboarding RRHH — Generalista',
@@ -41,7 +49,7 @@ const rutaCompletada = {
 }
 
 export function RutaActivaProvider({ children }) {
-  const [rutaActiva, setRutaActiva] = useState(null)
+  const [rutaActiva, setRutaActiva] = useState(rutaMobile)
   const [rutaAdmin] = useState(rutaCompletada)
 
   function activarRuta(etapas, info) {

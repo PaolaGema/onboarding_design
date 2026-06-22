@@ -178,6 +178,45 @@ export default function MiOnboarding() {
   }
 
   if (!started && totalDone === 0) {
+    if (isMobile) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 8px', textAlign: 'center', minHeight: '100%' }}>
+          <img src={viaBebe} alt="Mascota" style={{ width: 60, marginBottom: 10 }} />
+          <h1 style={{ fontSize: 14, fontWeight: 800, color: '#0C2D40', margin: '0 0 4px' }}>¡Hola, {firstName}!</h1>
+          <p style={{ fontSize: 8, color: '#64748b', margin: '0 0 12px', lineHeight: 1.4 }}>
+            Tu aventura comienza aquí. Recorrido paso a paso para integrarte.
+          </p>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {[
+              { val: etapas.length, label: 'etapas', bg: '#0C2D40' },
+              { val: totalAll, label: 'tareas', bg: '#10DC97' },
+              { val: etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.xp, 0), label: 'XP', bg: '#f59e0b' },
+            ].map(p => (
+              <div key={p.label} style={{
+                background: p.bg, borderRadius: 8, padding: '6px 10px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 48,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{p.val}</span>
+                <span style={{ fontSize: 6, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>{p.label}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setStarted(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: '#0C2D40', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 16px',
+              fontSize: 9, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Rocket size={10} />
+            Empezar mi onboarding
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="jb">
         <div className="jb-panels">
