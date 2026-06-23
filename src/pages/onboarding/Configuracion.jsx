@@ -6,7 +6,8 @@ import {
   Trophy, Bot, Megaphone, Bell, ClipboardCheck,
   Calendar, BookOpen, AlertTriangle, Lock, Info,
   Shield, ChevronDown, ChevronRight, Route, Zap,
-  Video, FileText, HelpCircle, Upload, Pencil, MessageSquare
+  Video, FileText, HelpCircle, Upload, Pencil, MessageSquare,
+  Clock, AlertCircle
 } from 'lucide-react'
 
 const initialConfig = [
@@ -96,6 +97,7 @@ export default function Configuracion() {
   const [config, setConfig] = useState(initialConfig)
   const [asignacion, setAsignacion] = useState('auto')
   const [activacion, setActivacion] = useState('fecha')
+  const [horaAsignacion, setHoraAsignacion] = useState('08:00')
   const [expandedCard, setExpandedCard] = useState(null)
   const [troncoExpanded, setTroncoExpanded] = useState(false)
   const [editingTronco, setEditingTronco] = useState(false)
@@ -299,7 +301,7 @@ export default function Configuracion() {
       </div>
 
       {/* ASIGNACIÓN Y ACTIVACIÓN */}
-      <div style={{ display: 'grid', gridTemplateColumns: asignacion === 'manual' ? '1fr 1fr' : '1fr', gap: 14, marginBottom: 16, transition: 'all .2s' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16, transition: 'all .2s' }}>
 
         {/* ASIGNACIÓN DE RUTA */}
         <div style={{
@@ -351,22 +353,74 @@ export default function Configuracion() {
               )
             })}
           </div>
-          {asignacion === 'auto' && (
-            <div style={{
-              marginTop: 12, padding: '10px 14px', borderRadius: 8,
-              background: '#eff6ff', border: '1px solid #dbeafe',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              <Zap size={13} style={{ color: '#3b82f6', flexShrink: 0 }} />
-              <div style={{ fontSize: 10.5, color: '#1e40af', lineHeight: 1.4 }}>
-                El onboarding se activa automáticamente en la fecha de ingreso del colaborador.
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* ACTIVACIÓN DEL ONBOARDING — solo cuando asignación es manual */}
-        {asignacion === 'manual' && (
+        {/* PANEL DERECHO — Hora (auto) o Activación (manual) */}
+        {asignacion === 'auto' ? (
+          <div style={{
+            background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
+            padding: '20px 22px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: '#0C2D40', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Clock size={15} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Hora de asignación</div>
+                <div style={{ fontSize: 10, color: '#94a3b8' }}>¿A qué hora se asigna la ruta?</div>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '14px 16px', borderRadius: 10,
+              background: '#f8fafc', border: '1px solid #e2e8f0',
+              marginBottom: 10,
+            }}>
+              <input
+                type="time"
+                value={horaAsignacion}
+                onChange={e => setHoraAsignacion(e.target.value)}
+                style={{
+                  padding: '10px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0',
+                  fontSize: 15, fontFamily: 'inherit', fontWeight: 700, color: '#0C2D40',
+                  outline: 'none', background: '#fff', cursor: 'pointer',
+                  width: '100%', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = '#3b82f6'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              />
+              <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 8, lineHeight: 1.4 }}>
+                El día de ingreso del colaborador, el sistema le asignará su ruta a las <strong style={{ color: '#0C2D40' }}>{horaAsignacion} hrs</strong> según su área y cargo.
+              </div>
+            </div>
+
+            <div style={{
+              padding: '10px 12px', borderRadius: 8,
+              background: '#fffbeb', border: '1px solid #fde68a',
+              display: 'flex', gap: 8, marginBottom: 10,
+            }}>
+              <AlertCircle size={13} style={{ color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: 10.5, color: '#92400e', lineHeight: 1.4 }}>
+                <strong>Fecha pasada:</strong> Si la fecha de ingreso ya pasó, el colaborador quedará como "Sin ruta" y deberá asignarse manualmente.
+              </div>
+            </div>
+
+            <div style={{
+              padding: '10px 12px', borderRadius: 8,
+              background: '#eff6ff', border: '1px solid #dbeafe',
+              display: 'flex', gap: 8,
+            }}>
+              <Zap size={13} style={{ color: '#3b82f6', flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: 10.5, color: '#1e40af', lineHeight: 1.4 }}>
+                La ruta se selecciona automáticamente según las reglas de área y cargo configuradas en cada plantilla.
+              </div>
+            </div>
+          </div>
+        ) : (
           <div style={{
             background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
             padding: '20px 22px',

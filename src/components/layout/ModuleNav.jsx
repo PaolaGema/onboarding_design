@@ -41,10 +41,18 @@ const personasNav = [
   ]},
 ]
 
+const onboardingAuxiliarNav = [
+  { section: 'Administración', items: [
+    { label: 'Rutas', path: '/onboarding/plantillas', icon: FileText },
+    { label: 'Asignaciones', path: '/onboarding/asignaciones', icon: Users },
+  ]},
+]
+
 const onboardingNavByRole = {
   admin: onboardingAdminNav,
   colaborador: onboardingColabNav,
   manager: onboardingManagerNav,
+  auxiliar: onboardingAuxiliarNav,
 }
 
 const moduleConfig = {

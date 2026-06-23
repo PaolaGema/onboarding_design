@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { useUser } from '../../context/UserContext'
 import {
   Search, Plus, LayoutTemplate, Copy, Pencil, Trash2, X, AlertTriangle, Filter, CheckCircle2,
-  LayoutGrid, List, MoreHorizontal, ChevronDown, Check
+  LayoutGrid, List, MoreHorizontal, ChevronDown, Check, UserPlus, Users
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import rutaImg from '../../assets/imagenes/ruta.webp'
@@ -35,7 +36,15 @@ const plantillasInit = [
 ]
 
 export default function Plantillas() {
-  const [plantillas, setPlantillas] = useState(plantillasInit)
+  const { currentUser } = useUser()
+  const isManager = currentUser.role === 'manager'
+  const isAuxiliar = currentUser.role === 'auxiliar'
+  const isAreaRole = isManager || isAuxiliar
+  const managerArea = 'Marketing'
+
+  const [plantillas, setPlantillas] = useState(
+    isAreaRole ? plantillasInit.filter(p => p.area === managerArea) : plantillasInit
+  )
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todas')
   const [showFilterDrop, setShowFilterDrop] = useState(false)
@@ -46,9 +55,34 @@ export default function Plantillas() {
   const [modal, setModal] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const [form, setForm] = useState({ name: '', area: 'Ventas', cargo: '', status: 'borrador' })
+  const [form, setForm] = useState({ name: '', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
+  const [showResponsables, setShowResponsables] = useState(null)
+  const [responsables, setResponsables] = useState({
+    9: [{ name: 'Ana Martínez Ruiz', initials: 'AM', color: '#c026d3', role: 'Líder de área' }],
+  })
+
+  const equipoMarketing = [
+    { name: 'Laura Díaz Romero', initials: 'LD', color: '#14b8a6', cargo: 'Auxiliar' },
+    { name: 'Andrea Núñez', initials: 'AN', color: '#06b6d4', cargo: 'Community Manager' },
+    { name: 'Carolina Vega', initials: 'CV', color: '#14b8a6', cargo: 'Analista de Marketing' },
+  ]
+
+  function addResponsable(rutaId, persona) {
+    setResponsables(prev => {
+      const list = prev[rutaId] || []
+      if (list.find(r => r.name === persona.name)) return prev
+      return { ...prev, [rutaId]: [...list, { ...persona, role: persona.cargo }] }
+    })
+  }
+
+  function removeResponsable(rutaId, name) {
+    setResponsables(prev => ({
+      ...prev,
+      [rutaId]: (prev[rutaId] || []).filter(r => r.name !== name),
+    }))
+  }
 
   const filtered = plantillas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -139,13 +173,15 @@ export default function Plantillas() {
       {/* HEADER */}
       <div className="pl-header">
         <div>
-          <h1 className="pl-title">Rutas de Onboarding</h1>
-          <p className="pl-subtitle">Administra y organiza tus rutas de onboarding</p>
+          <h1 className="pl-title">{isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}</h1>
+          <p className="pl-subtitle">{isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}</p>
         </div>
-        <button className="pl-btn-new" onClick={openCreate}>
-          <Plus size={15} />
-          Nueva ruta
-        </button>
+        {!isAreaRole && (
+          <button className="pl-btn-new" onClick={openCreate}>
+            <Plus size={15} />
+            Nueva ruta
+          </button>
+        )}
       </div>
 
       {/* KPI STRIP */}
@@ -353,6 +389,103 @@ export default function Plantillas() {
                 <div className="pl-metric-lbl">Asignados</div>
               </div>
             </div>
+
+            {/* RESPONSABLES — solo visible para manager */}
+            {isManager && (
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Responsables</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowResponsables(showResponsables === p.id ? null : p.id) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 3,
+                      fontSize: 9, fontWeight: 600, color: '#3b82f6',
+                      background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <UserPlus size={10} /> Agregar
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {(responsables[p.id] || []).map(r => (
+                    <div key={r.name} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '3px 8px 3px 3px', borderRadius: 20,
+                      background: '#f8fafc', border: '1px solid #f1f5f9',
+                    }}>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: '50%', background: r.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <span style={{ color: '#fff', fontSize: 7, fontWeight: 700 }}>{r.initials}</span>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: '#475569' }}>{r.name.split(' ')[0]}</span>
+                      {r.role !== 'Líder de área' && (
+                        <button onClick={(e) => { e.stopPropagation(); removeResponsable(p.id, r.name) }} style={{
+                          width: 12, height: 12, borderRadius: '50%', border: 'none',
+                          background: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          padding: 0, marginLeft: -2,
+                        }}>
+                          <X size={7} style={{ color: '#94a3b8' }} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {(!responsables[p.id] || responsables[p.id].length === 0) && (
+                    <span style={{ fontSize: 9, color: '#cbd5e1', fontStyle: 'italic' }}>Sin responsables asignados</span>
+                  )}
+                </div>
+
+                {showResponsables === p.id && (
+                  <div style={{
+                    marginTop: 6, padding: 6, borderRadius: 8,
+                    background: '#fff', border: '1px solid #e2e8f0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,.08)',
+                  }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
+                    {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).map(e => (
+                      <button
+                        key={e.name}
+                        onClick={(ev) => { ev.stopPropagation(); addResponsable(p.id, e) }}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '6px 6px', border: 'none', borderRadius: 6,
+                          background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                          textAlign: 'left', transition: 'background .1s',
+                        }}
+                        onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{
+                          width: 22, height: 22, borderRadius: '50%', background: e.color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <span style={{ color: '#fff', fontSize: 8, fontWeight: 700 }}>{e.initials}</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: '#334155' }}>{e.name}</div>
+                          <div style={{ fontSize: 8, color: '#94a3b8' }}>{e.cargo}</div>
+                        </div>
+                      </button>
+                    ))}
+                    {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).length === 0 && (
+                      <div style={{ fontSize: 9, color: '#94a3b8', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* BADGE AUXILIAR — delegado por */}
+            {isAuxiliar && (
+              <div style={{
+                borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 2,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <Users size={11} style={{ color: '#14b8a6' }} />
+                <span style={{ fontSize: 9, color: '#64748b' }}>Acceso delegado por <strong style={{ color: '#0C2D40' }}>{currentUser.delegadoPor}</strong></span>
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6, borderTop: '1px solid #f1f5f9' }}>
               <span className="pl-card-time">{p.updated}</span>

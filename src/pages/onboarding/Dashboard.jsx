@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUser } from '../../context/UserContext'
 import {
   Loader, AlertTriangle, CheckCircle2, LayoutTemplate,
   TrendingUp, Zap, UserPlus, PencilRuler, Settings2,
@@ -71,6 +72,40 @@ const colaboradores = [
   { initials: 'AR', name: 'Psicometría · Psicómetra', route: 'Operaciones', pct: 100, day: '30 / 30', status: 'Completado', statusCls: 'st-done', color: '#f59e0b' },
 ]
 
+/* ── DATA MANAGER (Marketing) ───────────────── */
+
+const managerKpis = [
+  { title: 'Mi equipo', value: '4', label: 'Colaboradores en Marketing', accent: 'var(--blue)', alert: false },
+  { title: 'En onboarding', value: '2', label: 'Realizando su ruta', accent: 'var(--green)', alert: false },
+  { title: 'En riesgo', value: '0', label: 'Sin alertas activas', accent: 'var(--yellow)', alert: false },
+  { title: 'Graduados', value: '2', label: 'Onboarding completado', accent: 'var(--purple)', alert: false },
+]
+
+const managerProgress = [
+  { name: 'Andrea Núñez', route: 'Onboarding Marketing Digital', pct: 55, day: '16 / 30', color: '#06b6d4', progColor: 'var(--blue)' },
+  { name: 'Isabella Mendoza', route: 'Onboarding Marketing Digital', pct: 32, day: '10 / 30', color: '#7c3aed', progColor: 'var(--blue)' },
+]
+
+const managerGraduados = [
+  { name: 'Valeria Rojas', cargo: 'Content Creator', fecha: '12 Feb 2026', color: '#c026d3' },
+  { name: 'Carolina Vega', cargo: 'Analista de Marketing', fecha: '28 Jun 2025', color: '#14b8a6' },
+]
+
+const managerAlerts = [
+  { name: 'Andrea Núñez', sub: 'Tiene 3 tareas pendientes esta semana', color: '#06b6d4', badge: 'Pendiente', badgeCls: 'b-hoy' },
+]
+
+const managerFeed = [
+  { text: <><strong>Andrea Núñez</strong> completó la tarea "Manual de marca"</>, time: 'Hace 1 h' },
+  { text: <><strong>Isabella Mendoza</strong> inició su ruta de onboarding</>, time: 'Hace 2 días' },
+  { text: <><strong>Valeria Rojas</strong> se graduó de su onboarding</>, time: 'Hace 1 semana' },
+]
+
+const managerTareasPendientes = [
+  { name: 'Validar recorrido de Andrea Núñez', tipo: 'Supervisar tarea', color: '#f59e0b' },
+  { name: 'Reunión de bienvenida con Isabella', tipo: 'Reunión pendiente', color: '#3b82f6' },
+]
+
 function initials(name) {
   return name.split(' ').map(n => n[0]).slice(0, 2).join('')
 }
@@ -78,12 +113,199 @@ function initials(name) {
 /* ── COMPONENT ───────────────────────────────── */
 
 export default function Dashboard() {
+  const { currentUser } = useUser()
   const [searchColab, setSearchColab] = useState('')
+  const isManager = currentUser.role === 'manager'
+  const managerArea = 'Marketing'
 
   const filteredColab = colaboradores.filter(c =>
     c.name.toLowerCase().includes(searchColab.toLowerCase()) ||
     c.route.toLowerCase().includes(searchColab.toLowerCase())
   )
+
+  const firstName = currentUser.name.split(' ')[0]
+
+  if (isManager) {
+    return (
+      <div className="content-scroll">
+
+        {/* WELCOME */}
+        <div className="welcome-banner">
+          <div className="welcome-content">
+            <div className="welcome-title">Hola, {firstName}</div>
+            <div className="welcome-sub">
+              Aquí tienes el estado del onboarding de tu equipo de <strong>{managerArea}</strong>.
+              <br />Martes 17 de junio, 2026
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="kpi-strip">
+          {managerKpis.map((k) => (
+            <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`}>
+              <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
+              <div className="kpi-val">{k.value}</div>
+              <div className="kpi-lbl">{k.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="two-col">
+          {/* IZQUIERDA */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* EQUIPO EN PROGRESO */}
+            <div className="sec-card">
+              <div className="sc-hd">
+                <h3>Mi equipo en onboarding <span className="sc-hd-count">{managerProgress.length}</span></h3>
+              </div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {managerProgress.length > 0 ? managerProgress.map((p) => (
+                  <div key={p.name} className="prog-row">
+                    <div className="pr-av" style={{ background: p.color }}>{initials(p.name)}</div>
+                    <div className="pr-info">
+                      <div className="pr-name">{p.name}</div>
+                      <div className="pr-route">{p.route}</div>
+                    </div>
+                    <div className="pr-day">Día {p.day}</div>
+                    <div className="pr-progress">
+                      <div className="pr-pct">{p.pct}%</div>
+                      <div className="pr-bar">
+                        <div className="pr-fill" style={{ width: `${p.pct}%`, background: p.progColor }} />
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+                    No hay colaboradores en onboarding actualmente
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* TAREAS QUE REQUIEREN TU ACCIÓN */}
+            <div className="sec-card">
+              <div className="sc-hd">
+                <h3>Requieren tu acción <span className="sc-hd-count">{managerTareasPendientes.length}</span></h3>
+              </div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {managerTareasPendientes.map((t, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i < managerTareasPendientes.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8,
+                      background: `${t.color}12`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <ClipboardList size={14} style={{ color: t.color }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{t.name}</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{t.tipo}</div>
+                    </div>
+                    <button style={{
+                      fontSize: 10, fontWeight: 600, color: '#3b82f6',
+                      background: '#eff6ff', border: '1px solid #dbeafe',
+                      borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}>Ver</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* GRADUADOS */}
+            <div className="sec-card">
+              <div className="sc-hd">
+                <h3>Graduados de {managerArea} <span className="sc-hd-count">{managerGraduados.length}</span></h3>
+              </div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {managerGraduados.map((g, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i < managerGraduados.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%', background: g.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{initials(g.name)}</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{g.name}</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{g.cargo}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={12} style={{ color: '#16a34a' }} />
+                      <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>{g.fecha}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* DERECHA */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* ALERTAS */}
+            <div className="sec-card">
+              <div className="sc-hd">
+                <h3>Atención requerida <span className="sc-hd-count">{managerAlerts.length}</span></h3>
+              </div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {managerAlerts.length > 0 ? managerAlerts.map((a) => (
+                  <div key={a.name} className="alert-item">
+                    <div className="ai-av" style={{ background: a.color }}>{initials(a.name)}</div>
+                    <div className="ai-info">
+                      <div className="ai-name">{a.name}</div>
+                      <div className="ai-sub">{a.sub}</div>
+                    </div>
+                    <div className="ai-badge">
+                      <span className={`badge ${a.badgeCls}`}>
+                        <span className="badge-dot" />
+                        {a.badge}
+                      </span>
+                    </div>
+                  </div>
+                )) : (
+                  <div style={{ padding: 20, textAlign: 'center' }}>
+                    <CheckCircle2 size={24} style={{ color: '#10DC97', margin: '0 auto 8px' }} />
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Sin alertas en tu equipo</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ACTIVIDAD RECIENTE */}
+            <div className="sec-card">
+              <div className="sc-hd">
+                <h3>Actividad reciente</h3>
+              </div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {managerFeed.map((f, i) => (
+                  <div key={i} className="feed-item">
+                    <div className="feed-dot" />
+                    <div>
+                      <div className="feed-text">{f.text}</div>
+                      <div className="feed-time">{f.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div style={{ height: '8px' }} />
+      </div>
+    )
+  }
 
   return (
     <div className="content-scroll">

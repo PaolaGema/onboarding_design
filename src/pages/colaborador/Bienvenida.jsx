@@ -65,12 +65,14 @@ export default function Bienvenida() {
           ¡Hola, {firstName}! 👋
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: isMobile ? 8 : 14, margin: 0, maxWidth: 520, lineHeight: 1.4 }}>
-          {ruta
-            ? 'Aquí encontrarás todo lo que necesitas para tu onboarding.'
-            : 'Tu ruta de onboarding será asignada pronto.'
+          {currentUser.onbNA
+            ? 'Tu espacio personal en la plataforma de Recursos Humanos.'
+            : ruta
+              ? 'Aquí encontrarás todo lo que necesitas para tu onboarding.'
+              : 'Tu ruta de onboarding será asignada pronto.'
           }
         </p>
-        {ruta && (
+        {ruta && !currentUser.onbNA && (
           <div style={{ marginTop: 6, fontSize: isMobile ? 8 : 12, color: 'rgba(255,255,255,0.5)' }}>
             Ruta: <span style={{ color: '#10DC97', fontWeight: 600 }}>{ruta.nombre}</span>
             {ruta.area && <span> — {ruta.area}</span>}
@@ -78,7 +80,70 @@ export default function Bienvenida() {
         )}
       </div>
 
-      {!ruta ? (
+      {currentUser.onbNA ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 16 }}>
+          <div style={{
+            background: '#fff', borderRadius: isMobile ? 8 : 12,
+            padding: isMobile ? '12px' : '24px 28px',
+            border: '1px solid #e2e8f0',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, marginBottom: isMobile ? 8 : 14 }}>
+              <div style={{
+                width: isMobile ? 26 : 40, height: isMobile ? 26 : 40, borderRadius: isMobile ? 7 : 10,
+                background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <CheckCircle2 size={isMobile ? 12 : 18} style={{ color: '#16a34a' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: isMobile ? 10 : 15, fontWeight: 700, color: '#0C2D40' }}>Todo en orden</div>
+                <div style={{ fontSize: isMobile ? 7 : 11, color: '#64748b' }}>Sin tareas pendientes</div>
+              </div>
+            </div>
+            <p style={{ fontSize: isMobile ? 8 : 13, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
+              El módulo de onboarding es para nuevos colaboradores en proceso de incorporación.
+              Como ya eres parte del equipo, aquí tienes acceso a los recursos generales de la empresa.
+            </p>
+          </div>
+
+          <div style={{
+            background: '#fff', borderRadius: isMobile ? 8 : 12,
+            padding: isMobile ? '10px' : '20px 24px',
+            border: '1px solid #e2e8f0',
+          }}>
+            <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: isMobile ? 6 : 12 }}>
+              Recursos de la empresa
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? 5 : 10 }}>
+              {[
+                { icon: Calendar, label: 'Calendario', desc: 'Feriados y eventos internos', color: '#3b82f6' },
+                { icon: Users, label: 'Organigrama', desc: 'Estructura de la empresa', color: '#8b5cf6' },
+                { icon: BookOpen, label: 'Recursos', desc: 'Manuales, políticas y guías', color: '#10b981' },
+              ].map((item, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
+                  padding: isMobile ? '8px' : '14px 16px', borderRadius: isMobile ? 6 : 10,
+                  background: '#f8fafc', border: '1px solid #f1f5f9', cursor: 'pointer',
+                  transition: 'all .12s',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc' }}
+                >
+                  <div style={{
+                    width: isMobile ? 22 : 34, height: isMobile ? 22 : 34, borderRadius: isMobile ? 5 : 8,
+                    background: `${item.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <item.icon size={isMobile ? 10 : 15} style={{ color: item.color }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 600, color: '#334155' }}>{item.label}</div>
+                    <div style={{ fontSize: isMobile ? 6.5 : 10, color: '#94a3b8', marginTop: 1 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : !ruta ? (
         <div style={{
           background: '#fff', borderRadius: 12, padding: '40px 28px',
           border: '1px solid #e2e8f0', textAlign: 'center',

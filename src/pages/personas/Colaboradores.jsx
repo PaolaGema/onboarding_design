@@ -15,12 +15,12 @@ const colaboradoresData = [
   { id: 6, name: 'Martín Solano', email: 'martin.solano@trabajito.com', depto: 'Tecnología', cargo: 'Frontend Developer', rol: 'Colaborador', ingreso: '03 Feb 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'MS', color: '#10b981' },
   { id: 7, name: 'Luciana Paredes', email: 'luciana.paredes@trabajito.com', depto: 'Ventas', cargo: 'Account Manager', rol: 'Colaborador', ingreso: '17 Jun 2026', status: 'activo', registro: 40, onb: 'sin-ruta', initials: 'LP', color: '#0d9488' },
   { id: 8, name: 'Tomás Ibáñez', email: 'tomas.ibanez@trabajito.com', depto: 'Operaciones', cargo: 'Analista de Procesos', rol: 'Colaborador', ingreso: '17 Jun 2026', status: 'activo', registro: 25, onb: 'sin-ruta', initials: 'TI', color: '#8b5cf6' },
-  { id: 9, name: 'Paola Arce', email: 'paola.arce@trabajito.com', depto: 'Recursos Humanos', cargo: 'Especialista RRHH', rol: 'Sub-admin RRHH', ingreso: '10 Ago 2024', status: 'activo', registro: 100, onb: 'graduado', initials: 'PA', color: '#d946ef' },
-  { id: 10, name: 'Roberto Peña', email: 'roberto.pena@trabajito.com', depto: 'Finanzas', cargo: 'Contador General', rol: 'Supervisor', ingreso: '05 Nov 2024', status: 'activo', registro: 100, onb: 'graduado', initials: 'RP', color: '#0C2D40' },
+  { id: 9, name: 'Paola Arce', email: 'paola.arce@trabajito.com', depto: 'Recursos Humanos', cargo: 'Especialista RRHH', rol: 'Sub-admin RRHH', ingreso: '10 Ago 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'PA', color: '#d946ef' },
+  { id: 10, name: 'Roberto Peña', email: 'roberto.pena@trabajito.com', depto: 'Finanzas', cargo: 'Contador General', rol: 'Supervisor', ingreso: '05 Nov 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'RP', color: '#0C2D40' },
   { id: 11, name: 'Andrea Núñez', email: 'andrea.nunez@trabajito.com', depto: 'Marketing', cargo: 'Community Manager', rol: 'Colaborador', ingreso: '22 Sep 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'AN', color: '#06b6d4' },
-  { id: 12, name: 'Nicolás Zapata', email: 'nicolas.zapata@trabajito.com', depto: 'Ventas', cargo: 'Ejecutivo Senior', rol: 'Líder de área', ingreso: '14 Jul 2024', status: 'activo', registro: 100, onb: 'graduado', initials: 'NZ', color: '#84cc16' },
+  { id: 12, name: 'Nicolás Zapata', email: 'nicolas.zapata@trabajito.com', depto: 'Ventas', cargo: 'Ejecutivo Senior', rol: 'Líder de área', ingreso: '14 Jul 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'NZ', color: '#84cc16' },
   { id: 13, name: 'Carolina Vega', email: 'carolina.vega@trabajito.com', depto: 'Marketing', cargo: 'Analista de Marketing', rol: 'Colaborador', ingreso: '08 Mar 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'CV', color: '#14b8a6' },
-  { id: 14, name: 'Alejandro Ríos', email: 'alejandro.rios@trabajito.com', depto: 'Tecnología', cargo: 'DevOps Engineer', rol: 'Colaborador', ingreso: '22 Nov 2024', status: 'activo', registro: 100, onb: 'graduado', initials: 'AR', color: '#6366f1' },
+  { id: 14, name: 'Alejandro Ríos', email: 'alejandro.rios@trabajito.com', depto: 'Tecnología', cargo: 'DevOps Engineer', rol: 'Colaborador', ingreso: '22 Nov 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'AR', color: '#6366f1' },
   { id: 15, name: 'Daniela Flores', email: 'daniela.flores@trabajito.com', depto: 'Recursos Humanos', cargo: 'Analista de Nóminas', rol: 'Colaborador', ingreso: '15 Ene 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'DF', color: '#e11d48' },
   { id: 16, name: 'Sebastián Torres', email: 'sebastian.torres@trabajito.com', depto: 'Operaciones', cargo: 'Coordinador Logístico', rol: 'Supervisor', ingreso: '03 Sep 2025', status: 'vacaciones', registro: 100, onb: 'graduado', initials: 'ST', color: '#0891b2' },
   { id: 17, name: 'Isabella Mendoza', email: 'isabella.mendoza@trabajito.com', depto: 'Finanzas', cargo: 'Analista Financiera', rol: 'Colaborador', ingreso: '18 Abr 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'IM', color: '#7c3aed' },
@@ -29,7 +29,7 @@ const colaboradoresData = [
   { id: 20, name: 'Gabriel Pacheco', email: 'gabriel.pacheco@trabajito.com', depto: 'Tecnología', cargo: 'Data Analyst', rol: 'Colaborador', ingreso: '30 May 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'GP', color: '#059669' },
   { id: 21, name: 'Valeria Rojas', email: 'valeria.rojas@trabajito.com', depto: 'Marketing', cargo: 'Content Creator', rol: 'Colaborador', ingreso: '07 Ago 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'VR', color: '#c026d3' },
   { id: 22, name: 'Emilio Vargas', email: 'emilio.vargas@trabajito.com', depto: 'Operaciones', cargo: 'Asistente Operativo', rol: 'Colaborador', ingreso: '20 Jun 2026', status: 'licencia', registro: 50, onb: 'sin-ruta', initials: 'EV', color: '#ea580c' },
-  { id: 23, name: 'Camilo Espinoza', email: 'camilo.espinoza@trabajito.com', depto: 'Finanzas', cargo: 'Tesorero', rol: 'Gerente', ingreso: '11 Oct 2024', status: 'activo', registro: 100, onb: 'graduado', initials: 'CE', color: '#2563eb' },
+  { id: 23, name: 'Camilo Espinoza', email: 'camilo.espinoza@trabajito.com', depto: 'Finanzas', cargo: 'Tesorero', rol: 'Gerente', ingreso: '11 Oct 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'CE', color: '#2563eb' },
   { id: 24, name: 'Julieta Sánchez', email: 'julieta.sanchez@trabajito.com', depto: 'Recursos Humanos', cargo: 'Reclutadora', rol: 'Colaborador', ingreso: '28 Jun 2026', status: 'activo', registro: 15, onb: 'sin-ruta', initials: 'JS', color: '#9333ea' },
 ]
 
@@ -424,7 +424,8 @@ export default function Colaboradores() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {[
-                        { label: 'Sin ruta', color: '#94a3b8', bg: 'rgba(148,163,184,.15)', desc: 'Sin ruta asignada aún' },
+                        { label: 'N/A', color: '#cbd5e1', bg: 'rgba(203,213,225,.15)', desc: 'Incorporado antes del sistema' },
+                        { label: 'Sin ruta', color: '#94a3b8', bg: 'rgba(148,163,184,.15)', desc: 'Nuevo ingreso sin ruta asignada' },
                         { label: 'En curso', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', desc: 'Realizando su onboarding' },
                         { label: 'En riesgo', color: '#dc2626', bg: 'rgba(220,38,38,.15)', desc: '+3 días sin actividad' },
                         { label: 'Graduado', color: '#10DC97', bg: 'rgba(16,220,151,.15)', desc: 'Completó todas las etapas' },
@@ -476,14 +477,14 @@ export default function Colaboradores() {
                   <span style={{
                     fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: c.onb === 'graduado' ? '#f0fdf4' : c.onb === 'en-curso' ? '#eff6ff' : c.onb === 'en-riesgo' ? '#fef2f2' : '#f8fafc',
-                    color: c.onb === 'graduado' ? '#16a34a' : c.onb === 'en-curso' ? '#2563eb' : c.onb === 'en-riesgo' ? '#dc2626' : '#64748b',
+                    background: { 'graduado': '#f0fdf4', 'en-curso': '#eff6ff', 'en-riesgo': '#fef2f2', 'sin-ruta': '#f8fafc', 'n-a': '#f8fafc' }[c.onb],
+                    color: { 'graduado': '#16a34a', 'en-curso': '#2563eb', 'en-riesgo': '#dc2626', 'sin-ruta': '#64748b', 'n-a': '#b0b8c4' }[c.onb],
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                      background: c.onb === 'graduado' ? '#16a34a' : c.onb === 'en-curso' ? '#2563eb' : c.onb === 'en-riesgo' ? '#dc2626' : '#94a3b8',
+                      background: { 'graduado': '#16a34a', 'en-curso': '#2563eb', 'en-riesgo': '#dc2626', 'sin-ruta': '#94a3b8', 'n-a': '#cbd5e1' }[c.onb],
                     }} />
-                    {{ 'sin-ruta': 'Sin ruta', 'en-curso': 'En curso', 'en-riesgo': 'En riesgo', 'graduado': 'Graduado' }[c.onb]}
+                    {{ 'sin-ruta': 'Sin ruta', 'en-curso': 'En curso', 'en-riesgo': 'En riesgo', 'graduado': 'Graduado', 'n-a': 'N/A' }[c.onb]}
                   </span>
                 </td>
                 <td><span className="as-fecha">{c.ingreso}</span></td>
@@ -509,9 +510,14 @@ export default function Colaboradores() {
                   >
                     <MoreHorizontal size={16} />
                   </button>
-                  {menuOpen === c.id && (
+                  {menuOpen === c.id && (() => {
+                    const idx = paginated.indexOf(c)
+                    const openUp = idx >= paginated.length - 2
+                    return (
                     <div style={{
-                      position: 'absolute', right: 0, top: '100%', zIndex: 20,
+                      position: 'absolute', right: 0,
+                      ...(openUp ? { bottom: '100%' } : { top: '100%' }),
+                      zIndex: 20,
                       background: '#fff', borderRadius: 10, padding: 4,
                       boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
                       minWidth: 180, animation: 'plSlideUp .12s',
@@ -543,7 +549,8 @@ export default function Colaboradores() {
                         </button>
                       ))}
                     </div>
-                  )}
+                    )
+                  })()}
                 </td>
               </tr>
             ))}

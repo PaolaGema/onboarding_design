@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUser } from '../../context/UserContext'
 import {
   Search, Plus, UserPlus, X, AlertTriangle, Eye,
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, HelpCircle, Filter, CheckCircle2
@@ -34,6 +35,8 @@ const asignacionesInit = [
   { id: 10, nombre: 'Rodrigo Peña', area: 'Dirección', ruta: 'Onboarding Liderazgo', dia: 28, totalDias: 30, pct: 90, status: 'en-curso', fechaInicio: '20 May 2026', color: '#d946ef' },
   { id: 11, nombre: 'Paula Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#3b82f6' },
   { id: 12, nombre: 'Emilio Castañeda', area: 'Recursos Humanos', ruta: 'Onboarding RRHH — Generalista', dia: 5, totalDias: 30, pct: 20, status: 'en-curso', fechaInicio: '12 Jun 2026', color: '#f97316' },
+  { id: 13, nombre: 'Andrea Núñez', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 16, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '01 Jun 2026', color: '#06b6d4' },
+  { id: 14, nombre: 'Isabella Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 10, totalDias: 30, pct: 32, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#7c3aed' },
 ]
 
 const statusLabels = {
@@ -66,7 +69,13 @@ function barColor(status, pct) {
 }
 
 export default function Asignaciones() {
-  const [asignaciones, setAsignaciones] = useState(asignacionesInit)
+  const { currentUser } = useUser()
+  const isAreaRole = currentUser.role === 'manager' || currentUser.role === 'auxiliar'
+  const managerArea = 'Marketing'
+
+  const [asignaciones, setAsignaciones] = useState(
+    isAreaRole ? asignacionesInit.filter(a => a.area === managerArea) : asignacionesInit
+  )
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
   const [page, setPage] = useState(1)
@@ -139,13 +148,15 @@ export default function Asignaciones() {
       {/* HEADER */}
       <div className="pl-header">
         <div>
-          <h1 className="pl-title">Asignaciones</h1>
-          <p className="pl-subtitle">Gestiona los onboardings asignados a colaboradores</p>
+          <h1 className="pl-title">{isAreaRole ? `Asignaciones — ${managerArea}` : 'Asignaciones'}</h1>
+          <p className="pl-subtitle">{isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}</p>
         </div>
-        <button className="pl-btn-new" onClick={() => setModal(true)}>
-          <UserPlus size={15} />
-          Asignar ruta
-        </button>
+        {!isAreaRole && (
+          <button className="pl-btn-new" onClick={() => setModal(true)}>
+            <UserPlus size={15} />
+            Asignar ruta
+          </button>
+        )}
       </div>
 
       {/* KPI STRIP */}

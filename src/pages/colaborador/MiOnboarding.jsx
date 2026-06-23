@@ -11,6 +11,7 @@ import {
   MessageSquare, Award, PackageOpen, ArrowLeft
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
+import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
 import manualPdf from '../../assets/documentos/manual_funciones.pdf'
 import viaContinuar from '../../assets/imagenes/continuar_via.webp'
 import viaTrofeo from '../../assets/imagenes/via_trofeo.webp'
@@ -71,6 +72,8 @@ export default function MiOnboarding() {
   const [selContext, setSelContext] = useState(null)
   const [etapasOpen, setEtapasOpen] = useState(true)
   const [infoOpen, setInfoOpen] = useState(true)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [confettiPieces, setConfettiPieces] = useState([])
 
   const etapaRefs = useRef({})
   const setEtapaRef = useCallback((ei, el) => { etapaRefs.current[ei] = el }, [])
@@ -85,6 +88,22 @@ export default function MiOnboarding() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  function launchConfetti() {
+    const colors = ['#10DC97', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#0C2D40']
+    const pieces = Array.from({ length: 80 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.8,
+      duration: 2 + Math.random() * 1.5,
+      size: 6 + Math.random() * 6,
+      rotation: Math.random() * 360,
+      type: Math.random() > 0.5 ? 'rect' : 'circle',
+    }))
+    setConfettiPieces(pieces)
+    setTimeout(() => setConfettiPieces([]), 4000)
+  }
+
   function toggleDone(tareaId) {
     setEtapas(prev => {
       const next = prev.map(et => ({
@@ -94,6 +113,11 @@ export default function MiOnboarding() {
           tareas: a.tareas.map(t => t.id === tareaId ? { ...t, done: !t.done } : t),
         })),
       }))
+      const allTareas = next.flatMap(e => flatTareas(e))
+      const allDone = allTareas.length > 0 && allTareas.every(t => t.done)
+      if (allDone) {
+        setTimeout(() => { setShowCelebration(true); launchConfetti() }, 300)
+      }
       if (currentUser.role === 'colaborador') actualizarEtapas(next)
       return next
     })
@@ -101,6 +125,39 @@ export default function MiOnboarding() {
 
   const positions = [0, 60, 90, 60, 0, -60, -90, -60]
   const firstName = currentUser.name.split(' ')[0]
+
+  if (currentUser.onbNA) {
+    return (
+      <div className="jb">
+        <div className="jb-panels">
+          <div className="jb-canvas">
+            <div className="jb-canvas-body jb-pizarra" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
+              <div className="jb-welcome-screen">
+                <div className="jb-welcome-hero">
+                  <div className="jb-welcome-text">
+                    <h1 className="jb-welcome-title">¡Hola, {firstName}!</h1>
+                    <p className="jb-welcome-desc" style={{ maxWidth: 420 }}>
+                      Este módulo es para nuevos colaboradores que están en proceso de incorporación. Como ya eres parte del equipo, no tienes tareas pendientes aquí.
+                    </p>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '14px 18px', borderRadius: 12,
+                      background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      marginTop: 8,
+                    }}>
+                      <CheckCircle2 size={18} style={{ color: '#16a34a' }} />
+                      <span style={{ fontSize: 13, color: '#166534', fontWeight: 600 }}>Sin tareas pendientes</span>
+                    </div>
+                  </div>
+                  <img src={viaAntiguo} alt="Mascota" className="jb-welcome-mascot" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!ruta) {
     return (
@@ -135,7 +192,7 @@ export default function MiOnboarding() {
     )
   }
 
-  if (isGraduado && !started) {
+  if ((isGraduado || (totalAll > 0 && totalDone === totalAll)) && !started) {
     return (
       <div className="jb">
         <div className="jb-panels">
@@ -326,6 +383,568 @@ export default function MiOnboarding() {
             </div>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  if (selTarea && isMobile) {
+    const Icon = iconMap[selTarea.tipo] || FileText
+    const color = colorMap[selTarea.tipo] || '#94a3b8'
+
+    const renderMobileContent = () => {
+      switch (selTarea.tipo) {
+        case 'video': {
+          const embedUrl = selTarea.videoUrl || 'https://www.youtube.com/embed/WnD2H9rHNec'
+          const videoId = embedUrl.match(/embed\/([a-zA-Z0-9_-]+)/)?.[1] || 'WnD2H9rHNec'
+          const hasQuiz = selTarea.verificarQuiz !== false
+          const quizQuestions = [
+            { id: 1, texto: '¿Cuál es el objetivo principal del video?', opciones: ['Aumentar las ventas', 'Dar la bienvenida al equipo', 'Presentar el producto', 'Explicar las políticas'], correcta: 1 },
+            { id: 2, texto: '¿Qué valor se destaca como fundamental?', opciones: ['Competitividad', 'Innovación', 'Trabajo en equipo', 'Velocidad'], correcta: 2 },
+            { id: 3, texto: '¿Qué se espera del colaborador?', opciones: ['Trabajar horas extra', 'Compromiso y proactividad', 'Solo cumplir tareas', 'Reportar diariamente'], correcta: 1 },
+          ]
+          const tid = selTarea.id
+          const isQuizStarted = !!quizStarted[tid]
+          const isQuizDone = !!quizSubmitted[tid]
+          const answers = quizAnswers[tid] || {}
+          const allAnswered = quizQuestions.every((_, i) => answers[i] !== undefined)
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0f172a' }}>
+                <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                    title={selTarea.name}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {hasQuiz && !isQuizStarted && !isQuizDone && (
+                <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <HelpCircle size={16} style={{ color: '#d97706' }} />
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                  <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Responde para verificar que comprendiste el video.</p>
+                  <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{quizQuestions.length} preguntas · 70% para aprobar</div>
+                  <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
+                    background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    <HelpCircle size={9} /> Empezar quiz
+                  </button>
+                </div>
+              )}
+
+              {hasQuiz && isQuizStarted && !isQuizDone && (
+                <div style={{ border: '1px solid #fde68a', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '5px 8px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <HelpCircle size={9} style={{ color: '#d97706' }} />
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Quiz</span>
+                    </div>
+                    <span style={{ fontSize: 7, color: '#b45309' }}>{Object.keys(answers).length}/{quizQuestions.length}</span>
+                  </div>
+                  <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {quizQuestions.map((q, qIdx) => (
+                      <div key={q.id}>
+                        <p style={{ fontSize: 8, fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{qIdx + 1}. {q.texto}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {q.opciones.map((opt, oIdx) => {
+                            const selected = answers[qIdx] === oIdx
+                            return (
+                              <button key={oIdx} onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))} style={{
+                                display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', borderRadius: 5,
+                                border: selected ? '1.5px solid #d97706' : '1px solid #f1f5f9',
+                                background: selected ? '#fef3c7' : '#fff',
+                                cursor: 'pointer', fontSize: 8, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                              }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, border: selected ? '3px solid #d97706' : '1.5px solid #cbd5e1', background: '#fff' }} />
+                                {opt}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <button onClick={() => {
+                      const correct = quizQuestions.filter((q, i) => answers[i] === q.correcta).length
+                      setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: quizQuestions.length } }))
+                    }} disabled={!allAnswered} style={{
+                      padding: '5px 12px', borderRadius: 6, background: allAnswered ? '#d97706' : '#e2e8f0',
+                      color: allAnswered ? '#fff' : '#94a3b8', border: 'none', fontSize: 8, fontWeight: 700,
+                      cursor: allAnswered ? 'pointer' : 'default', fontFamily: 'inherit',
+                    }}>Enviar respuestas</button>
+                  </div>
+                </div>
+              )}
+
+              {hasQuiz && isQuizDone && (() => {
+                const result = quizSubmitted[tid]
+                const passed = (result.correct / result.total) >= 0.7
+                return (
+                  <div style={{
+                    border: `1px solid ${passed ? '#bbf7d0' : '#fecaca'}`, borderRadius: 8, padding: 10, textAlign: 'center',
+                    background: passed ? '#f0fdf4' : '#fef2f2', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  }}>
+                    <CheckCircle2 size={14} style={{ color: passed ? '#16a34a' : '#ef4444' }} />
+                    <div style={{ fontSize: 9, fontWeight: 700, color: passed ? '#166534' : '#991b1b' }}>
+                      {passed ? '¡Quiz aprobado!' : 'Quiz no aprobado'}
+                    </div>
+                    <div style={{ fontSize: 7.5, color: passed ? '#166534' : '#991b1b' }}>
+                      {result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)
+                    </div>
+                    {!passed && (
+                      <button onClick={() => { setQuizStarted(prev => ({ ...prev, [tid]: false })); setQuizSubmitted(prev => ({ ...prev, [tid]: null })); setQuizAnswers(prev => ({ ...prev, [tid]: {} })) }} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 2, padding: '4px 10px', borderRadius: 5,
+                        background: '#ef4444', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>Reintentar</button>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )
+        }
+        case 'audio':
+          return (
+            <div style={{ padding: 10, borderRadius: 8, background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Play size={12} style={{ color: '#fff', marginLeft: 1 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{selTarea.name}</div>
+                <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.6)' }}>Audio · 5:20 min</div>
+              </div>
+            </div>
+          )
+        case 'documento': {
+          const isManual = selTarea.name.toLowerCase().includes('manual')
+          const pdfUrl = isManual ? manualPdf : null
+          const hasDocQuiz = selTarea.verificarQuiz !== false
+          const docQuizQs = [
+            { id: 1, texto: '¿Cuál es el horario de trabajo del manual?', opciones: ['6:00 a 14:00', '8:00 a 17:00 con almuerzo', '9:00 a 18:00', 'Horario libre'], correcta: 1 },
+            { id: 2, texto: '¿A quién reportar una ausencia?', opciones: ['A cualquier compañero', 'A tu líder y RRHH', 'No es necesario', 'Solo a RRHH'], correcta: 1 },
+          ]
+          const tid = selTarea.id
+          const isDocQuizStarted = !!quizStarted[tid]
+          const isDocQuizDone = !!quizSubmitted[tid]
+          const docAns = quizAnswers[tid] || {}
+          const allDocAns = docQuizQs.every((_, i) => docAns[i] !== undefined)
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ border: '1px solid #fed7aa', borderRadius: 8, overflow: 'hidden', background: '#fffbf5' }}>
+                <div style={{ padding: '6px 10px', background: '#fff7ed', borderBottom: '1px solid #fed7aa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <FileText size={10} style={{ color: '#ea580c' }} />
+                    <span style={{ fontSize: 8, fontWeight: 700, color: '#9a3412' }}>{selTarea.name}.pdf</span>
+                  </div>
+                  {pdfUrl ? (
+                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 7, fontWeight: 700, color: '#ea580c', background: '#fff', border: '1px solid #fed7aa', borderRadius: 4, padding: '2px 6px', textDecoration: 'none' }}>
+                      <Download size={8} /> PDF
+                    </a>
+                  ) : (
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 7, fontWeight: 700, color: '#ea580c', background: '#fff', border: '1px solid #fed7aa', borderRadius: 4, padding: '2px 6px', cursor: 'pointer' }}>
+                      <Download size={8} /> PDF
+                    </button>
+                  )}
+                </div>
+                {pdfUrl ? (
+                  <iframe src={pdfUrl} title={selTarea.name} style={{ width: '100%', height: 200, border: 'none' }} />
+                ) : (
+                  <div style={{ padding: 10 }}>
+                    {[100, 90, 95, 70, 85].map((w, i) => (
+                      <div key={i} style={{ height: 6, background: '#f1f5f9', borderRadius: 3, marginBottom: 4, width: `${w}%` }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {hasDocQuiz && !isDocQuizStarted && !isDocQuizDone && (
+                <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <HelpCircle size={16} style={{ color: '#d97706' }} />
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                  <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Verifica que comprendiste el documento.</p>
+                  <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{docQuizQs.length} preguntas</div>
+                  <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
+                    background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    <HelpCircle size={9} /> Empezar quiz
+                  </button>
+                </div>
+              )}
+
+              {hasDocQuiz && isDocQuizStarted && !isDocQuizDone && (
+                <div style={{ border: '1px solid #fde68a', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '5px 8px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <HelpCircle size={9} style={{ color: '#d97706' }} />
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Quiz</span>
+                    </div>
+                    <span style={{ fontSize: 7, color: '#b45309' }}>{Object.keys(docAns).length}/{docQuizQs.length}</span>
+                  </div>
+                  <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {docQuizQs.map((q, qIdx) => (
+                      <div key={q.id}>
+                        <p style={{ fontSize: 8, fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{qIdx + 1}. {q.texto}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {q.opciones.map((opt, oIdx) => {
+                            const selected = docAns[qIdx] === oIdx
+                            return (
+                              <button key={oIdx} onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))} style={{
+                                display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', borderRadius: 5,
+                                border: selected ? '1.5px solid #d97706' : '1px solid #f1f5f9',
+                                background: selected ? '#fef3c7' : '#fff',
+                                cursor: 'pointer', fontSize: 8, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                              }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, border: selected ? '3px solid #d97706' : '1.5px solid #cbd5e1', background: '#fff' }} />
+                                {opt}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <button onClick={() => {
+                      const correct = docQuizQs.filter((q, i) => docAns[i] === q.correcta).length
+                      setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: docQuizQs.length } }))
+                    }} disabled={!allDocAns} style={{
+                      padding: '5px 12px', borderRadius: 6, background: allDocAns ? '#d97706' : '#e2e8f0',
+                      color: allDocAns ? '#fff' : '#94a3b8', border: 'none', fontSize: 8, fontWeight: 700,
+                      cursor: allDocAns ? 'pointer' : 'default', fontFamily: 'inherit',
+                    }}>Enviar respuestas</button>
+                  </div>
+                </div>
+              )}
+
+              {hasDocQuiz && isDocQuizDone && (() => {
+                const result = quizSubmitted[tid]
+                return (
+                  <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#166534' }}>Quiz completado</div>
+                    <div style={{ fontSize: 7.5, color: '#166534' }}>{result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)</div>
+                  </div>
+                )
+              })()}
+            </div>
+          )
+        }
+        case 'recorrido': {
+          const stops = [
+            { name: 'Recepción y entrada principal', guia: 'Carlos Méndez', rol: 'Seguridad' },
+            { name: 'Tu área de trabajo', guia: 'Nicolás Zapata', rol: 'Líder de área' },
+            { name: 'Sala de reuniones', guia: 'Nicolás Zapata', rol: 'Líder de área' },
+            { name: 'Comedor y áreas comunes', guia: 'Paola Arce', rol: 'RRHH' },
+            { name: 'Área de impresoras', guia: 'Paola Arce', rol: 'RRHH' },
+            { name: 'Estacionamiento', guia: 'Carlos Méndez', rol: 'Seguridad' },
+            { name: 'Sala de capacitación', guia: 'Alejandro Ríos', rol: 'TI' },
+            { name: 'Enfermería', guia: 'Paola Arce', rol: 'RRHH' },
+            { name: 'Terraza y áreas verdes', guia: 'Paola Arce', rol: 'RRHH' },
+            { name: 'Salida de emergencia', guia: 'Carlos Méndez', rol: 'Seguridad' },
+          ]
+          const doneSet = recorridoStops[selTarea.id] || {}
+          const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
+          const allStopsDone = doneCount >= stops.length
+          const toggleStop = (i) => {
+            setRecorridoStops(prev => {
+              const current = typeof prev[selTarea.id] === 'object' ? prev[selTarea.id] : {}
+              return { ...prev, [selTarea.id]: { ...current, [i]: !current[i] } }
+            })
+          }
+          return (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 7, fontWeight: 600, padding: '2px 5px', borderRadius: 4, background: '#eff6ff', color: '#2563eb' }}>Recorrido libre</span>
+                <span style={{ fontSize: 7, color: '#94a3b8' }}>{doneCount}/{stops.length}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {stops.map((stop, i) => {
+                  const isDone = !!doneSet[i]
+                  return (
+                    <div key={i} onClick={() => !selTarea.done && toggleStop(i)} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 6,
+                      background: isDone ? '#faf5ff' : '#f8fafc', border: '1px solid #f1f5f9',
+                      cursor: selTarea.done ? 'default' : 'pointer',
+                    }}>
+                      <div style={{
+                        width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                        background: isDone ? '#7c3aed' : '#fff',
+                        border: isDone ? 'none' : '1.5px solid #d1d5db',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isDone && <CheckCircle2 size={7} style={{ color: '#fff' }} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 8, fontWeight: isDone ? 600 : 400, color: isDone ? '#7c3aed' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stop.name}</div>
+                        <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{stop.guia} · {stop.rol}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize: 7, color: allStopsDone ? '#16a34a' : '#94a3b8', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+                {allStopsDone ? <><CheckCircle2 size={8} /> Recorrido completado</> : <><MapPin size={8} /> Marca cada lugar cuando lo visites</>}
+              </div>
+            </>
+          )
+        }
+        case 'subida':
+          return (
+            <div style={{ border: '2px dashed #f9a8d4', borderRadius: 8, padding: 14, textAlign: 'center', background: '#fdf2f8' }}>
+              <Upload size={18} style={{ color: '#ec4899', marginBottom: 4 }} />
+              <p style={{ fontSize: 9, fontWeight: 700, color: '#9d174d', margin: '0 0 2px' }}>Arrastra tus archivos aquí</p>
+              <p style={{ fontSize: 7, color: '#be185d', margin: 0 }}>o haz clic para seleccionar</p>
+            </div>
+          )
+        case 'completar-perfil':
+          return (
+            <div style={{ border: '1px solid #a7f3d0', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 10px', background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <ClipboardList size={10} style={{ color: '#059669' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#065f46' }}>Completa tu perfil</span>
+              </div>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {['Teléfono', 'Contacto emergencia', 'Dirección'].map((field, i) => (
+                  <div key={i}>
+                    <label style={{ fontSize: 7, fontWeight: 600, color: '#64748b', marginBottom: 2, display: 'block' }}>{field}</label>
+                    <div style={{ height: 22, borderRadius: 5, border: '1px solid #e2e8f0', background: '#f8fafc' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        case 'tarea-otro':
+          return (
+            <div style={{ border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 10px', background: '#fef2f2', borderBottom: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <UserCheck size={10} style={{ color: '#dc2626' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#991b1b' }}>Tarea supervisada</span>
+              </div>
+              <div style={{ padding: 8, fontSize: 8, color: '#475569', lineHeight: 1.5 }}>Requiere validación del supervisor</div>
+            </div>
+          )
+        case 'tarea-rrhh':
+          return (
+            <div style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 10px', background: '#0C2D40', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <ShieldCheck size={10} style={{ color: '#fff' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>Tarea de RRHH</span>
+              </div>
+              <div style={{ padding: 8, fontSize: 8, color: '#475569', lineHeight: 1.5 }}>Gestionada por Recursos Humanos</div>
+            </div>
+          )
+        case 'enlace':
+          return (
+            <div style={{ border: '1px solid #c7d2fe', borderRadius: 8, padding: 12, textAlign: 'center', background: '#eef2ff' }}>
+              <ExternalLink size={16} style={{ color: '#6366f1', marginBottom: 4 }} />
+              <p style={{ fontSize: 9, fontWeight: 700, color: '#3730a3', margin: '0 0 6px' }}>Recurso externo</p>
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}>
+                <ExternalLink size={9} /> Abrir enlace
+              </button>
+            </div>
+          )
+        case 'quiz': {
+          const quizQs = [
+            { id: 1, texto: '¿Cuáles son las áreas principales?', opciones: ['Solo oficinas', 'Recepción, área de trabajo, salas', 'Solo el comedor', 'No hubo recorrido'], correcta: 1 },
+            { id: 2, texto: '¿A quién acudir por acceso a sistemas?', opciones: ['RRHH', 'Tu líder directo', 'El área de TI', 'Seguridad'], correcta: 2 },
+          ]
+          const tid = selTarea.id
+          const isStarted = !!quizStarted[tid]
+          const isDone = !!quizSubmitted[tid]
+          const ans = quizAnswers[tid] || {}
+          const allAns = quizQs.every((_, i) => ans[i] !== undefined)
+          if (!isStarted && !isDone) {
+            return (
+              <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 12, background: '#fffbeb', textAlign: 'center' }}>
+                <HelpCircle size={16} style={{ color: '#d97706', marginBottom: 4 }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e', marginBottom: 6 }}>Evaluación</div>
+                <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 12px', borderRadius: 6, background: '#d97706', color: '#fff', border: 'none', fontSize: 8, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <HelpCircle size={9} /> Empezar
+                </button>
+              </div>
+            )
+          }
+          if (isStarted && !isDone) {
+            return (
+              <div style={{ border: '1px solid #fde68a', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ padding: '5px 8px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Evaluación</span>
+                  <span style={{ fontSize: 7, color: '#b45309' }}>{Object.keys(ans).length}/{quizQs.length}</span>
+                </div>
+                <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {quizQs.map((q, qIdx) => (
+                    <div key={q.id}>
+                      <p style={{ fontSize: 8, fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{qIdx + 1}. {q.texto}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {q.opciones.map((opt, oIdx) => {
+                          const selected = ans[qIdx] === oIdx
+                          return (
+                            <button key={oIdx} onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))} style={{
+                              display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', borderRadius: 5,
+                              border: selected ? '1.5px solid #d97706' : '1px solid #f1f5f9',
+                              background: selected ? '#fef3c7' : '#fff',
+                              cursor: 'pointer', fontSize: 8, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                            }}>
+                              <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, border: selected ? '3px solid #d97706' : '1.5px solid #cbd5e1', background: '#fff' }} />
+                              {opt}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => { const correct = quizQs.filter((q, i) => ans[i] === q.correcta).length; setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: quizQs.length } })) }} disabled={!allAns} style={{
+                    padding: '5px 12px', borderRadius: 6, background: allAns ? '#d97706' : '#e2e8f0', color: allAns ? '#fff' : '#94a3b8',
+                    border: 'none', fontSize: 8, fontWeight: 700, cursor: allAns ? 'pointer' : 'default', fontFamily: 'inherit',
+                  }}>Enviar</button>
+                </div>
+              </div>
+            )
+          }
+          if (isDone) {
+            const result = quizSubmitted[tid]
+            return (
+              <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4' }}>
+                <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#166534', marginTop: 2 }}>{result.correct}/{result.total} correctas</div>
+              </div>
+            )
+          }
+          return null
+        }
+        case 'confirmacion':
+          return (
+            <div style={{ borderRadius: 8, padding: 14, textAlign: 'center', background: 'linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)', border: '1px solid #fde68a' }}>
+              <Award size={22} style={{ color: '#d97706', marginBottom: 4 }} />
+              <p style={{ fontSize: 10, fontWeight: 800, color: '#92400e', margin: '0 0 3px' }}>Certificado de graduación</p>
+              <div style={{ fontSize: 7, fontWeight: 700, color: '#d97706' }}>+{selTarea.xp} XP al completar</div>
+            </div>
+          )
+        case 'form-custom':
+          return (
+            <div style={{ border: '1px solid #a7f3d0', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 10px', background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <ClipboardList size={10} style={{ color: '#059669' }} />
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#065f46' }}>Formulario</span>
+              </div>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {['Campo 1', 'Campo 2'].map((field, i) => (
+                  <div key={i}>
+                    <label style={{ fontSize: 7, fontWeight: 600, color: '#64748b', marginBottom: 2, display: 'block' }}>{field}</label>
+                    <div style={{ height: 22, borderRadius: 5, border: '1px solid #e2e8f0', background: '#f8fafc' }} />
+                  </div>
+                ))}
+                <button style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: '#059669', color: '#fff', border: 'none', fontSize: 8, fontWeight: 700, cursor: 'pointer' }}>
+                  <Send size={9} /> Enviar
+                </button>
+              </div>
+            </div>
+          )
+        default:
+          return null
+      }
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '0 2px' }}>
+        {/* Mobile topbar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '6px 2px', marginBottom: 4,
+        }}>
+          <button onClick={() => { setSelTarea(null); setSelContext(null) }} style={{
+            width: 22, height: 22, borderRadius: 6, border: '1px solid #e2e8f0',
+            background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+          }}>
+            <ArrowLeft size={10} />
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 8, fontWeight: 700, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selTarea.name}</div>
+            {selContext && (
+              <div style={{ fontSize: 6.5, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selContext.etapa} › {selContext.actividad}
+              </div>
+            )}
+          </div>
+          {selTarea.done ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: '#f0fdf4', border: '1px solid #bbf7d0', flexShrink: 0 }}>
+              <CheckCircle2 size={8} style={{ color: '#16a34a' }} />
+              <span style={{ fontSize: 7, fontWeight: 600, color: '#166534' }}>Hecha</span>
+            </div>
+          ) : (
+            <button onClick={() => {
+              if (selTarea.tipo === 'recorrido') {
+                const doneSet = recorridoStops[selTarea.id] || {}
+                const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
+                if (doneCount < 10) { setShowAlert('Completa todas las paradas'); setTimeout(() => setShowAlert(false), 2500); return }
+              }
+              if ((selTarea.tipo === 'video' || selTarea.tipo === 'documento') && selTarea.verificarQuiz !== false) {
+                if (!quizSubmitted[selTarea.id]) { setShowAlert('Completa el quiz primero'); setTimeout(() => setShowAlert(false), 2500); return }
+              }
+              toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done }))
+            }} style={{
+              display: 'flex', alignItems: 'center', gap: 3,
+              background: '#0C2D40', color: '#fff', border: 'none',
+              borderRadius: 6, padding: '4px 8px',
+              fontSize: 7, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+            }}>
+              <CheckCircle2 size={8} />
+              Completar
+            </button>
+          )}
+        </div>
+
+        {/* Alert */}
+        {showAlert && (
+          <div style={{
+            position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)',
+            background: '#0C2D40', color: '#fff', padding: '5px 12px',
+            borderRadius: 6, fontSize: 8, fontWeight: 600, zIndex: 100,
+            display: 'flex', alignItems: 'center', gap: 4,
+            boxShadow: '0 4px 16px rgba(0,0,0,.2)',
+          }}>
+            <MapPin size={9} style={{ color: '#f59e0b' }} />
+            {showAlert}
+          </div>
+        )}
+
+        {/* Task header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 7, background: `${color}12`, color,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Icon size={13} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#0C2D40' }}>{selTarea.name}</div>
+            <div style={{ display: 'flex', gap: 3, marginTop: 2, flexWrap: 'wrap' }}>
+              {selTarea.obligatoria && (
+                <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#92400e', textTransform: 'uppercase' }}>Obligatoria</span>
+              )}
+              <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: `${color}12`, color }}>{selTarea.tipo.replace('-', ' ')}</span>
+              {selTarea.xp > 0 && (
+                <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#d97706' }}>+{selTarea.xp} XP</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Description */}
+        {selTarea.desc && (
+          <div style={{ padding: '6px 8px', borderRadius: 6, background: '#f8fafc', border: '1px solid #f1f5f9', marginBottom: 8 }}>
+            <p style={{ fontSize: 7.5, color: '#475569', lineHeight: 1.5, margin: 0 }}>{selTarea.desc}</p>
+          </div>
+        )}
+
+        {/* Content */}
+        {renderMobileContent()}
       </div>
     )
   }
@@ -1348,6 +1967,83 @@ export default function MiOnboarding() {
           </div>
         </div>
       </div>
+
+      {/* CONFETTI */}
+      {confettiPieces.length > 0 && (
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999, overflow: 'hidden' }}>
+          {confettiPieces.map(p => (
+            <div
+              key={p.id}
+              style={{
+                position: 'absolute',
+                left: `${p.x}%`,
+                top: -20,
+                width: p.type === 'circle' ? p.size : p.size * 0.6,
+                height: p.size,
+                borderRadius: p.type === 'circle' ? '50%' : 2,
+                background: p.color,
+                transform: `rotate(${p.rotation}deg)`,
+                animation: `confettiFall ${p.duration}s ${p.delay}s ease-in forwards`,
+              }}
+            />
+          ))}
+          <style>{`
+            @keyframes confettiFall {
+              0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+              100% { transform: translateY(100vh) rotate(720deg) scale(0.5); opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* MODAL CELEBRACIÓN */}
+      {showCelebration && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'plFadeIn .3s',
+        }} onClick={() => setShowCelebration(false)}>
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: '36px 40px',
+            maxWidth: 400, width: '90%', textAlign: 'center',
+            boxShadow: '0 24px 60px rgba(0,0,0,.15)',
+            animation: 'plSlideUp .3s',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
+            <img src={viaTrofeo} alt="Trofeo" style={{ width: 80, margin: '0 auto 12px', display: 'block' }} />
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0C2D40', margin: '0 0 6px' }}>
+              ¡Felicidades, {firstName}!
+            </h2>
+            <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5, margin: '0 0 20px' }}>
+              Has completado todas las tareas de tu ruta de onboarding. ¡Excelente trabajo!
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
+              <div style={{ background: '#10DC97', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{totalAll}/{totalAll}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>tareas</span>
+              </div>
+              <div style={{ background: '#f59e0b', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{totalXP}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>XP</span>
+              </div>
+              <div style={{ background: '#0C2D40', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>100%</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>completado</span>
+              </div>
+            </div>
+            <button onClick={() => setShowCelebration(false)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: '#0C2D40', color: '#fff', border: 'none',
+              borderRadius: 10, padding: '10px 24px',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              <Trophy size={14} />
+              ¡Genial!
+            </button>
+          </div>
+        </div>
+      )}
 
       {false && (() => {
         const Icon = iconMap[selTarea.tipo] || FileText

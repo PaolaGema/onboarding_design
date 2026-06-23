@@ -4,12 +4,12 @@ import { House, Calendar, UserRound, MessageCircleMore, ClipboardCheck, Settings
 import { useUser } from '../../context/UserContext'
 
 const allNavItems = [
-  { icon: House, label: 'Inicio', path: null, roles: ['admin', 'manager', 'colaborador'] },
-  { icon: Calendar, label: 'Mi calendario', path: null, roles: ['admin', 'manager', 'colaborador'] },
+  { icon: House, label: 'Inicio', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: Calendar, label: 'Mi calendario', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
   { icon: UserRound, label: 'Gestión de personas', path: '/personas/colaboradores', roles: ['admin', 'manager'] },
-  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'colaborador'] },
-  { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: ['admin', 'manager', 'colaborador'] },
-  { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: ['admin', 'manager', 'colaborador'] },
+  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
 ]
 
 const bottomItems = [

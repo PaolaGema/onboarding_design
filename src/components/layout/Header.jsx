@@ -52,34 +52,51 @@ export default function Header({ floating }) {
             overflow: 'hidden', zIndex: 50, animation: 'fadeInDown .15s ease-out',
           }}>
             <div style={{ padding: '8px 6px' }}>
-              {users.map(user => {
-                const isActive = user.id === currentUser.id
+              {[
+                { label: 'Administrador', filter: u => u.role === 'admin' },
+                { label: 'Jefe de área', filter: u => u.role === 'manager' },
+                { label: 'Auxiliar', filter: u => u.role === 'auxiliar' },
+                { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
+              ].map((group, gi) => {
+                const groupUsers = users.filter(group.filter)
+                if (groupUsers.length === 0) return null
                 return (
-                  <button
-                    key={user.id}
-                    onClick={() => { setCurrentUser(user); setShowSwitcher(false) }}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '9px 10px', border: 'none',
-                      background: isActive ? '#e2e8f0' : 'transparent',
-                      borderRadius: 10, cursor: 'pointer', transition: 'background .12s',
-                      textAlign: 'left', fontFamily: 'inherit', marginBottom: 2,
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc' }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%', background: user.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      border: isActive ? '2px solid #0C2D40' : '2px solid transparent',
-                    }}>
-                      <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{user.initials}</span>
+                  <div key={group.label}>
+                    {gi > 0 && <div style={{ height: 1, background: '#f1f5f9', margin: '4px 10px' }} />}
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#b0b8c4', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 10px 2px' }}>
+                      {group.label}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? '#0C2D40' : '#475569' }}>{user.name}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{user.roleLabel}</div>
-                    </div>
-                  </button>
+                    {groupUsers.map(user => {
+                      const isActive = user.id === currentUser.id
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={() => { setCurrentUser(user); setShowSwitcher(false) }}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '9px 10px', border: 'none',
+                            background: isActive ? '#e2e8f0' : 'transparent',
+                            borderRadius: 10, cursor: 'pointer', transition: 'background .12s',
+                            textAlign: 'left', fontFamily: 'inherit', marginBottom: 2,
+                          }}
+                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc' }}
+                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%', background: user.color,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                            border: isActive ? '2px solid #0C2D40' : '2px solid transparent',
+                          }}>
+                            <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{user.initials}</span>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? '#0C2D40' : '#475569' }}>{user.name}</div>
+                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{user.roleLabel}</div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 )
               })}
             </div>
@@ -165,43 +182,51 @@ export default function Header({ floating }) {
               }}
             >
               <div style={{ padding: '8px 6px' }}>
-                {users.map(user => {
-                  const isActive = user.id === currentUser.id
+                {[
+                  { label: 'Administrador', filter: u => u.role === 'admin' },
+                  { label: 'Jefe de área', filter: u => u.role === 'manager' },
+                  { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
+                ].map((group, gi) => {
+                  const groupUsers = users.filter(group.filter)
+                  if (groupUsers.length === 0) return null
                   return (
-                    <button
-                      key={user.id}
-                      onClick={() => { setCurrentUser(user); setShowSwitcher(false) }}
-                      style={{
-                        width: '100%',
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 10px',
-                        border: 'none',
-                        background: isActive ? '#e2e8f0' : 'transparent',
-                        borderRadius: 10,
-                        cursor: 'pointer',
-                        transition: 'background .12s',
-                        textAlign: 'left',
-                        fontFamily: 'inherit',
-                        marginBottom: 2,
-                      }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc' }}
-                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: user.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                        border: isActive ? '2px solid #0C2D40' : '2px solid transparent',
-                        transition: 'border-color .15s',
-                      }}>
-                        <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{user.initials}</span>
+                    <div key={group.label}>
+                      {gi > 0 && <div style={{ height: 1, background: '#f1f5f9', margin: '4px 10px' }} />}
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#b0b8c4', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 10px 2px' }}>
+                        {group.label}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? '#0C2D40' : '#475569' }}>{user.name}</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{user.roleLabel}</div>
-                      </div>
-                    </button>
+                      {groupUsers.map(user => {
+                        const isActive = user.id === currentUser.id
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => { setCurrentUser(user); setShowSwitcher(false) }}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '9px 10px', border: 'none',
+                              background: isActive ? '#e2e8f0' : 'transparent',
+                              borderRadius: 10, cursor: 'pointer', transition: 'background .12s',
+                              textAlign: 'left', fontFamily: 'inherit', marginBottom: 2,
+                            }}
+                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc' }}
+                            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                          >
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%', background: user.color,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              border: isActive ? '2px solid #0C2D40' : '2px solid transparent',
+                              transition: 'border-color .15s',
+                            }}>
+                              <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{user.initials}</span>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 600, color: isActive ? '#0C2D40' : '#475569' }}>{user.name}</div>
+                              <div style={{ fontSize: 10, color: '#94a3b8' }}>{user.roleLabel}</div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   )
                 })}
               </div>
