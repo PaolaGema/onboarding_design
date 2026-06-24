@@ -22,7 +22,7 @@ const quickAccess = [
   { icon: LayoutTemplate, color: 'var(--purple)', bg: 'var(--purple-bg)', label: 'Rutas', desc: 'Crear y editar rutas', sub: '7 activas' },
   { icon: UserPlus, color: 'var(--blue)', bg: 'var(--blue-bg)', label: 'Asignación', desc: 'Asignar rutas a colaboradores', sub: '2 pendientes' },
   { icon: PencilRuler, color: 'var(--navy)', bg: '#e0e7ef', label: 'Journey Builder', desc: 'Diseñar rutas paso a paso', sub: 'Editor visual' },
-  { icon: Settings2, color: 'var(--green)', bg: 'var(--green-bg)', label: 'Configuración', desc: 'XP, notificaciones y permisos', sub: 'Ajustes globales' },
+  { icon: Settings2, color: 'var(--green)', bg: 'var(--green-bg)', label: 'Configuración', desc: 'Puntos, notificaciones y permisos', sub: 'Ajustes globales' },
 ]
 
 const progressData = [

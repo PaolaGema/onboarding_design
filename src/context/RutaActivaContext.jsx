@@ -20,9 +20,9 @@ const rutaCompletada = {
       name: 'Tronco común', days: 'Día 1', duracion: 1,
       actividades: [
         { name: 'Bienvenida corporativa', tareas: [
-          { id: 'g1', name: 'Video del CEO', tipo: 'video', xp: 15, obligatoria: true, done: true, desc: 'Video de bienvenida del CEO.' },
-          { id: 'g2', name: 'Manual del colaborador', tipo: 'documento', xp: 10, obligatoria: true, done: true, desc: 'Políticas, beneficios y código de conducta.' },
-          { id: 'g3', name: 'Quiz de cultura', tipo: 'quiz', xp: 20, obligatoria: true, done: true, desc: 'Cuestionario sobre valores y cultura.' },
+          { id: 'g1', name: 'Video del CEO', tipo: 'video', puntos: 15, obligatoria: true, done: true, desc: 'Video de bienvenida del CEO.' },
+          { id: 'g2', name: 'Manual del colaborador', tipo: 'documento', puntos: 10, obligatoria: true, done: true, desc: 'Políticas, beneficios y código de conducta.' },
+          { id: 'g3', name: 'Quiz de cultura', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Cuestionario sobre valores y cultura.' },
         ]},
       ],
     },
@@ -30,9 +30,9 @@ const rutaCompletada = {
       name: 'Conoce RRHH', days: 'Día 2 — Día 14', duracion: 13,
       actividades: [
         { name: 'Procesos del área', tareas: [
-          { id: 'g4', name: 'Estructura del área', tipo: 'video', xp: 10, obligatoria: true, done: true, desc: 'Organigrama y roles del equipo.' },
-          { id: 'g5', name: 'Sistemas de gestión', tipo: 'video', xp: 15, obligatoria: true, done: true, desc: 'Capacitación en herramientas de RRHH.' },
-          { id: 'g6', name: 'Quiz de procesos', tipo: 'quiz', xp: 20, obligatoria: true, done: true, desc: 'Evaluación de procesos internos.' },
+          { id: 'g4', name: 'Estructura del área', tipo: 'video', puntos: 10, obligatoria: true, done: true, desc: 'Organigrama y roles del equipo.' },
+          { id: 'g5', name: 'Sistemas de gestión', tipo: 'video', puntos: 15, obligatoria: true, done: true, desc: 'Capacitación en herramientas de RRHH.' },
+          { id: 'g6', name: 'Quiz de procesos', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Evaluación de procesos internos.' },
         ]},
       ],
     },
@@ -40,8 +40,8 @@ const rutaCompletada = {
       name: 'Certificación', days: 'Día 15 — Día 30', duracion: 16,
       actividades: [
         { name: 'Graduación', tareas: [
-          { id: 'g7', name: 'Evaluación final', tipo: 'quiz', xp: 50, obligatoria: true, done: true, desc: 'Examen integral.' },
-          { id: 'g8', name: 'Certificado', tipo: 'confirmacion', xp: 100, obligatoria: true, done: true, desc: 'Certificado de graduación.' },
+          { id: 'g7', name: 'Evaluación final', tipo: 'quiz', puntos: 50, obligatoria: true, done: true, desc: 'Examen integral.' },
+          { id: 'g8', name: 'Certificado', tipo: 'confirmacion', puntos: 100, obligatoria: true, done: true, desc: 'Certificado de graduación.' },
         ]},
       ],
     },

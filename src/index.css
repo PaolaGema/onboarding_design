@@ -1574,7 +1574,7 @@ select.pl-input:focus {
 .jb-mobile .jb-duo-node { width: 42px; height: 42px; }
 .jb-mobile .jb-duo-node-wrap { margin: 4px 0; }
 .jb-mobile .jb-duo-label { font-size: 7px; max-width: 70px; }
-.jb-mobile .jb-duo-xp { font-size: 7px; padding: 1px 4px; }
+.jb-mobile .jb-duo-puntos { font-size: 7px; padding: 1px 4px; }
 .jb-mobile .jb-act-label { font-size: 8px; padding: 3px 8px; margin: 6px 0; }
 .jb-mobile .jb-colab-mascot-img { width: 50px; }
 
@@ -2708,8 +2708,8 @@ select.pl-input:focus {
   box-shadow: 0 0 0 5px rgba(12, 45, 64, .15);
 }
 
-/* XP badge */
-.jb-duo-xp {
+/* Puntos badge */
+.jb-duo-puntos {
   position: absolute;
   top: -6px;
   right: -8px;

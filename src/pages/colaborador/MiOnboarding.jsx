@@ -78,7 +78,7 @@ export default function MiOnboarding() {
   const etapaRefs = useRef({})
   const setEtapaRef = useCallback((ei, el) => { etapaRefs.current[ei] = el }, [])
 
-  const totalXP = etapas.flatMap(e => flatTareas(e)).filter(t => t.done).reduce((s, t) => s + t.xp, 0)
+  const totalPuntos = etapas.flatMap(e => flatTareas(e)).filter(t => t.done).reduce((s, t) => s + t.puntos, 0)
   const totalDone = etapas.flatMap(e => flatTareas(e)).filter(t => t.done).length
   const totalAll = etapas.flatMap(e => flatTareas(e)).length
   const pct = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0
@@ -211,8 +211,8 @@ export default function MiOnboarding() {
                         <span className="jb-welcome-pill-label">tareas</span>
                       </div>
                       <div className="jb-welcome-pill" style={{ background: '#f59e0b' }}>
-                        <span className="jb-welcome-pill-num">{totalXP}</span>
-                        <span className="jb-welcome-pill-label">XP</span>
+                        <span className="jb-welcome-pill-num">{totalPuntos}</span>
+                        <span className="jb-welcome-pill-label">Pts</span>
                       </div>
                       <div className="jb-welcome-pill" style={{ background: '#0C2D40' }}>
                         <span className="jb-welcome-pill-num">100%</span>
@@ -247,7 +247,7 @@ export default function MiOnboarding() {
             {[
               { val: etapas.length, label: 'etapas', bg: '#0C2D40' },
               { val: totalAll, label: 'tareas', bg: '#10DC97' },
-              { val: etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.xp, 0), label: 'XP', bg: '#f59e0b' },
+              { val: etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.puntos, 0), label: 'Puntos', bg: '#f59e0b' },
             ].map(p => (
               <div key={p.label} style={{
                 background: p.bg, borderRadius: 8, padding: '6px 10px',
@@ -297,8 +297,8 @@ export default function MiOnboarding() {
                         <span className="jb-welcome-pill-label">tareas</span>
                       </div>
                       <div className="jb-welcome-pill" style={{ background: '#f59e0b' }}>
-                        <span className="jb-welcome-pill-num">{etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.xp, 0)}</span>
-                        <span className="jb-welcome-pill-label">XP</span>
+                        <span className="jb-welcome-pill-num">{etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.puntos, 0)}</span>
+                        <span className="jb-welcome-pill-label">Pts</span>
                       </div>
                     </div>
                     <button className="jb-welcome-btn" onClick={() => setStarted(true)}>
@@ -345,7 +345,7 @@ export default function MiOnboarding() {
                     <div style={{ height: '100%', width: `${pct}%`, background: '#10DC97', borderRadius: 99, transition: 'width .4s' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>{totalXP} XP ganados</span>
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>{totalPuntos} Puntos ganados</span>
                     <span style={{ fontSize: 10, color: '#94a3b8' }}>{totalAll - totalDone} pendientes</span>
                   </div>
                 </div>
@@ -369,8 +369,8 @@ export default function MiOnboarding() {
                       <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Siguiente tarea</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#0C2D40', marginTop: 2 }}>{nextTarea.name}</div>
                     </div>
-                    {nextTarea.xp > 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6 }}>+{nextTarea.xp} XP</span>
+                    {nextTarea.puntos > 0 && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6 }}>+{nextTarea.puntos} Pts</span>
                     )}
                   </div>
                 )}
@@ -822,7 +822,7 @@ export default function MiOnboarding() {
             <div style={{ borderRadius: 8, padding: 14, textAlign: 'center', background: 'linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)', border: '1px solid #fde68a' }}>
               <Award size={22} style={{ color: '#d97706', marginBottom: 4 }} />
               <p style={{ fontSize: 10, fontWeight: 800, color: '#92400e', margin: '0 0 3px' }}>Certificado de graduación</p>
-              <div style={{ fontSize: 7, fontWeight: 700, color: '#d97706' }}>+{selTarea.xp} XP al completar</div>
+              <div style={{ fontSize: 7, fontWeight: 700, color: '#d97706' }}>+{selTarea.puntos} Pts al completar</div>
             </div>
           )
         case 'form-custom':
@@ -929,8 +929,8 @@ export default function MiOnboarding() {
                 <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#92400e', textTransform: 'uppercase' }}>Obligatoria</span>
               )}
               <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: `${color}12`, color }}>{selTarea.tipo.replace('-', ' ')}</span>
-              {selTarea.xp > 0 && (
-                <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#d97706' }}>+{selTarea.xp} XP</span>
+              {selTarea.puntos > 0 && (
+                <span style={{ fontSize: 6, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#d97706' }}>+{selTarea.puntos} Pts</span>
               )}
             </div>
           </div>
@@ -1571,7 +1571,7 @@ export default function MiOnboarding() {
               <Award size={40} style={{ color: '#d97706', marginBottom: 10 }} />
               <p style={{ fontSize: 15, fontWeight: 800, color: '#92400e', margin: '0 0 6px' }}>Certificado de graduación</p>
               <p style={{ fontSize: 12, color: '#b45309', margin: '0 0 14px', lineHeight: 1.5 }}>Al completar todas las tareas obligatorias recibirás tu certificado de onboarding.</p>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: 'rgba(217,119,6,0.1)', fontSize: 11, fontWeight: 700, color: '#d97706' }}><Trophy size={13} /> +{selTarea.xp} XP al completar</div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: 'rgba(217,119,6,0.1)', fontSize: 11, fontWeight: 700, color: '#d97706' }}><Trophy size={13} /> +{selTarea.puntos} Pts al completar</div>
             </div>
           )
 
@@ -1670,7 +1670,7 @@ export default function MiOnboarding() {
                     <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                       {selTarea.obligatoria && (<span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#fef3c7', color: '#92400e', textTransform: 'uppercase' }}>Obligatoria</span>)}
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: `${color}12`, color }}>{selTarea.tipo.replace('-', ' ')}</span>
-                      {selTarea.xp > 0 && (<span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#fef3c7', color: '#d97706' }}>+{selTarea.xp} XP</span>)}
+                      {selTarea.puntos > 0 && (<span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#fef3c7', color: '#d97706' }}>+{selTarea.puntos} Pts</span>)}
                     </div>
                   </div>
                 </div>
@@ -1702,7 +1702,7 @@ export default function MiOnboarding() {
           <div style={{ display: 'flex', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fef3c7', padding: '3px 6px', borderRadius: 5 }}>
               <Star size={8} style={{ color: '#d97706' }} />
-              <span style={{ fontSize: 7, fontWeight: 800, color: '#92400e' }}>{totalXP}</span>
+              <span style={{ fontSize: 7, fontWeight: 800, color: '#92400e' }}>{totalPuntos}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#f0fdf4', padding: '3px 6px', borderRadius: 5 }}>
               <Trophy size={8} style={{ color: '#16a34a' }} />
@@ -1727,7 +1727,7 @@ export default function MiOnboarding() {
               background: '#fef3c7', padding: '6px 12px', borderRadius: 8,
             }}>
               <Star size={13} style={{ color: '#d97706' }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#92400e' }}>{totalXP} XP</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#92400e' }}>{totalPuntos} Pts</span>
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
@@ -1931,7 +1931,7 @@ export default function MiOnboarding() {
                                 <div className="jb-duo-circle">
                                   {tarea.done ? <CheckCircle2 size={22} /> : <Icon size={18} />}
                                 </div>
-                                {tarea.xp > 0 && <span className="jb-duo-xp">+{tarea.xp}</span>}
+                                {tarea.puntos > 0 && <span className="jb-duo-puntos">+{tarea.puntos}</span>}
                               </button>
                               <span className={`jb-duo-label ${status}`}>{tarea.name}</span>
                               {tarea.obligatoria && (
@@ -2024,8 +2024,8 @@ export default function MiOnboarding() {
                 <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>tareas</span>
               </div>
               <div style={{ background: '#f59e0b', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{totalXP}</span>
-                <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>XP</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{totalPuntos}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>Pts</span>
               </div>
               <div style={{ background: '#0C2D40', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>100%</span>
@@ -2517,7 +2517,7 @@ export default function MiOnboarding() {
                     padding: '6px 14px', borderRadius: 8,
                     background: 'rgba(217,119,6,0.1)', fontSize: 11, fontWeight: 700, color: '#d97706',
                   }}>
-                    <Trophy size={13} /> +{selTarea.xp} XP al completar
+                    <Trophy size={13} /> +{selTarea.puntos} Pts al completar
                   </div>
                 </div>
               )
@@ -2603,11 +2603,11 @@ export default function MiOnboarding() {
                             fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                             background: `${color}12`, color,
                           }}>{selTarea.tipo.replace('-', ' ')}</span>
-                          {selTarea.xp > 0 && (
+                          {selTarea.puntos > 0 && (
                             <span style={{
                               fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                               background: '#fef3c7', color: '#d97706',
-                            }}>+{selTarea.xp} XP</span>
+                            }}>+{selTarea.puntos} Pts</span>
                           )}
                         </div>
                       </div>

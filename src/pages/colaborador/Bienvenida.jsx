@@ -39,7 +39,7 @@ export default function Bienvenida() {
     : []
   const totalTareas = allTareas.length
   const totalDone = allTareas.filter(t => t.done).length
-  const totalXP = allTareas.reduce((s, t) => s + (t.xp || 0), 0)
+  const totalPuntos = allTareas.reduce((s, t) => s + (t.puntos || 0), 0)
   const pct = totalTareas > 0 ? Math.round((totalDone / totalTareas) * 100) : 0
 
   const totalDias = ruta
@@ -163,7 +163,7 @@ export default function Bienvenida() {
             {[
               { icon: CheckCircle2, label: 'Tareas', value: `${totalDone}/${totalTareas}`, color: '#10b981' },
               { icon: Clock, label: 'Días', value: `${totalDias}`, color: '#f59e0b' },
-              { icon: Star, label: 'XP', value: `${totalXP}`, color: '#8b5cf6' },
+              { icon: Star, label: 'Puntos', value: `${totalPuntos}`, color: '#8b5cf6' },
             ].map((stat, i) => (
               <div key={i} style={{
                 background: '#fff', borderRadius: isMobile ? 8 : 12, padding: isMobile ? '8px 6px' : '20px 22px',

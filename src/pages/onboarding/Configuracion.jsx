@@ -13,8 +13,8 @@ import {
 const initialConfig = [
   {
     key: 'gamificacion',
-    label: 'Gamificación (XP y niveles)',
-    desc: 'Activa el sistema de puntos XP para motivar a los colaboradores a completar sus tareas.',
+    label: 'Gamificación (Puntos y niveles)',
+    desc: 'Activa el sistema de puntos para motivar a los colaboradores a completar sus tareas.',
     icon: Trophy,
     color: '#f59e0b',
     enabled: true,

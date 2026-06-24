@@ -30,34 +30,34 @@ export const rutasData = {
     etapas: [
       { name: 'Mi primera semana', locked: false, days: 'Día 1 — Día 7', actividades: [
         { name: 'Conoce tu área', tareas: [
-          { id: 't6', name: 'Recorrido presencial', tipo: 'recorrido', obligatoria: true, xp: 15, desc: 'Recorrido guiado por las instalaciones del área de ventas. Durante este recorrido conocerás los espacios clave donde desarrollarás tu trabajo diario, las áreas comunes disponibles para tu uso, los puntos de acceso y seguridad, y las personas responsables de cada zona. Te recomendamos usar calzado cómodo ya que el recorrido dura aproximadamente 45 minutos. Al finalizar cada parada, marca el lugar como visitado para registrar tu avance. Si tienes alguna duda durante el recorrido, no dudes en consultar a tu acompañante asignado.', responsable: 'Líder de área', fechaRel: 'Día 2', confirmacion: false, done: false },
-          { id: 't7', name: 'Video "Así trabajamos"', tipo: 'video', obligatoria: false, xp: 10, desc: 'Video explicando la metodología y flujo de trabajo del equipo.', responsable: 'Colaborador', fechaRel: 'Día 2', confirmacion: false, done: false },
-          { id: 't8', name: 'Evaluación — Conoce tu área', tipo: 'quiz', obligatoria: true, xp: 15, desc: 'Evaluación integral sobre lo aprendido en esta actividad: instalaciones, metodología de trabajo y estructura del equipo.', responsable: 'Colaborador', fechaRel: 'Día 3', confirmacion: false, done: false },
+          { id: 't6', name: 'Recorrido presencial', tipo: 'recorrido', obligatoria: true, puntos: 15, desc: 'Recorrido guiado por las instalaciones del área de ventas. Durante este recorrido conocerás los espacios clave donde desarrollarás tu trabajo diario, las áreas comunes disponibles para tu uso, los puntos de acceso y seguridad, y las personas responsables de cada zona. Te recomendamos usar calzado cómodo ya que el recorrido dura aproximadamente 45 minutos. Al finalizar cada parada, marca el lugar como visitado para registrar tu avance. Si tienes alguna duda durante el recorrido, no dudes en consultar a tu acompañante asignado.', responsable: 'Líder de área', fechaRel: 'Día 2', confirmacion: false, done: false },
+          { id: 't7', name: 'Video "Así trabajamos"', tipo: 'video', obligatoria: false, puntos: 10, desc: 'Video explicando la metodología y flujo de trabajo del equipo.', responsable: 'Colaborador', fechaRel: 'Día 2', confirmacion: false, done: false },
+          { id: 't8', name: 'Evaluación — Conoce tu área', tipo: 'quiz', obligatoria: true, puntos: 15, desc: 'Evaluación integral sobre lo aprendido en esta actividad: instalaciones, metodología de trabajo y estructura del equipo.', responsable: 'Colaborador', fechaRel: 'Día 3', confirmacion: false, done: false },
         ]},
         { name: 'Tu equipo clave', tareas: [
-          { id: 't9', name: 'Manual de funciones', tipo: 'documento', obligatoria: false, xp: 10, desc: 'Lee el manual de funciones de la empresa para conocer las responsabilidades, procesos y lineamientos de tu cargo.', responsable: 'Colaborador', fechaRel: 'Día 3', confirmacion: false, done: false },
+          { id: 't9', name: 'Manual de funciones', tipo: 'documento', obligatoria: false, puntos: 10, desc: 'Lee el manual de funciones de la empresa para conocer las responsabilidades, procesos y lineamientos de tu cargo.', responsable: 'Colaborador', fechaRel: 'Día 3', confirmacion: false, done: false },
         ]},
       ]},
       { name: 'Conoce Ventas', locked: false, days: 'Día 8 — Día 15', actividades: [
         { name: 'Producto & CRM', tareas: [
-          { id: 't11', name: 'Demo del producto', tipo: 'video', obligatoria: true, xp: 15, desc: 'Video demostrativo del producto principal.', responsable: 'Colaborador', fechaRel: 'Día 8', confirmacion: false, done: false },
-          { id: 't12', name: 'Tutorial CRM', tipo: 'video', obligatoria: true, xp: 15, desc: 'Capacitación en el uso del sistema CRM.', responsable: 'Colaborador', fechaRel: 'Día 9', confirmacion: false, done: false },
-          { id: 't13', name: 'Práctica en CRM', tipo: 'form-custom', obligatoria: true, xp: 20, desc: 'Ejercicio práctico: registrar un lead y una oportunidad.', responsable: 'Colaborador', fechaRel: 'Día 10', confirmacion: false, done: false },
-          { id: 't14', name: 'Quiz de producto', tipo: 'quiz', obligatoria: true, xp: 25, desc: 'Evaluación de conocimiento sobre el producto y CRM.', responsable: 'Colaborador', fechaRel: 'Día 11', confirmacion: false, done: false },
+          { id: 't11', name: 'Demo del producto', tipo: 'video', obligatoria: true, puntos: 15, desc: 'Video demostrativo del producto principal.', responsable: 'Colaborador', fechaRel: 'Día 8', confirmacion: false, done: false },
+          { id: 't12', name: 'Tutorial CRM', tipo: 'video', obligatoria: true, puntos: 15, desc: 'Capacitación en el uso del sistema CRM.', responsable: 'Colaborador', fechaRel: 'Día 9', confirmacion: false, done: false },
+          { id: 't13', name: 'Práctica en CRM', tipo: 'form-custom', obligatoria: true, puntos: 20, desc: 'Ejercicio práctico: registrar un lead y una oportunidad.', responsable: 'Colaborador', fechaRel: 'Día 10', confirmacion: false, done: false },
+          { id: 't14', name: 'Quiz de producto', tipo: 'quiz', obligatoria: true, puntos: 25, desc: 'Evaluación de conocimiento sobre el producto y CRM.', responsable: 'Colaborador', fechaRel: 'Día 11', confirmacion: false, done: false },
         ]},
         { name: 'Pitch comercial', tareas: [
-          { id: 't15', name: 'Guía de pitch', tipo: 'lectura', obligatoria: true, xp: 10, desc: 'Documento con la estructura y argumentos del pitch comercial.', responsable: 'Colaborador', fechaRel: 'Día 12', confirmacion: true, done: false },
+          { id: 't15', name: 'Guía de pitch', tipo: 'lectura', obligatoria: true, puntos: 10, desc: 'Documento con la estructura y argumentos del pitch comercial.', responsable: 'Colaborador', fechaRel: 'Día 12', confirmacion: true, done: false },
         ]},
       ]},
       { name: 'Primer mes', locked: false, days: 'Día 16 — Día 30', actividades: [
         { name: 'Autonomía', tareas: [
-          { id: 't17', name: 'Primera llamada real', tipo: 'tarea-otro', obligatoria: true, xp: 30, desc: 'Realizar la primera llamada supervisada a un prospecto.', responsable: 'Líder de área', fechaRel: 'Día 16', confirmacion: false, done: false },
-          { id: 't19', name: 'Enlace a recursos ventas', tipo: 'enlace', obligatoria: false, xp: 5, desc: 'Biblioteca de recursos y materiales de apoyo.', responsable: 'Colaborador', fechaRel: 'Día 22', confirmacion: false, done: false },
+          { id: 't17', name: 'Primera llamada real', tipo: 'tarea-otro', obligatoria: true, puntos: 30, desc: 'Realizar la primera llamada supervisada a un prospecto.', responsable: 'Líder de área', fechaRel: 'Día 16', confirmacion: false, done: false },
+          { id: 't19', name: 'Enlace a recursos ventas', tipo: 'enlace', obligatoria: false, puntos: 5, desc: 'Biblioteca de recursos y materiales de apoyo.', responsable: 'Colaborador', fechaRel: 'Día 22', confirmacion: false, done: false },
         ]},
         { name: 'Certificación', tareas: [
-          { id: 't20', name: 'Evaluación final', tipo: 'quiz', obligatoria: true, xp: 50, desc: 'Examen integral de conocimientos y habilidades.', responsable: 'Colaborador', fechaRel: 'Día 28', confirmacion: false, done: false },
-          { id: 't21', name: 'Tarea RRHH: Cerrar expediente', tipo: 'tarea-rrhh', obligatoria: true, xp: 0, desc: 'Verificar que toda la documentación está completa.', responsable: 'RR.HH.', fechaRel: 'Día 29', confirmacion: false, done: false },
-          { id: 't22', name: 'Certificado de onboarding', tipo: 'confirmacion', obligatoria: true, xp: 100, desc: 'Entrega del certificado de graduación del onboarding.', responsable: 'Colaborador', fechaRel: 'Día 30', confirmacion: true, done: false },
+          { id: 't20', name: 'Evaluación final', tipo: 'quiz', obligatoria: true, puntos: 50, desc: 'Examen integral de conocimientos y habilidades.', responsable: 'Colaborador', fechaRel: 'Día 28', confirmacion: false, done: false },
+          { id: 't21', name: 'Tarea RRHH: Cerrar expediente', tipo: 'tarea-rrhh', obligatoria: true, puntos: 0, desc: 'Verificar que toda la documentación está completa.', responsable: 'RR.HH.', fechaRel: 'Día 29', confirmacion: false, done: false },
+          { id: 't22', name: 'Certificado de onboarding', tipo: 'confirmacion', obligatoria: true, puntos: 100, desc: 'Entrega del certificado de graduación del onboarding.', responsable: 'Colaborador', fechaRel: 'Día 30', confirmacion: true, done: false },
         ]},
       ]},
     ],
@@ -333,7 +333,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
       name: `Nueva tarea — ${tipo.label}`,
       tipo: tipoKey,
       obligatoria: false,
-      xp: 10,
+      puntos: 10,
       desc: '',
       responsable: tipo.resp,
       fechaRel: etapa.days.split('—')[0]?.trim() || 'Día 1',
@@ -677,7 +677,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                             <div className="jb-duo-circle">
                               <Icon size={18} />
                             </div>
-                            {gamificacion && tarea.xp > 0 && <span className="jb-duo-xp">+{tarea.xp}</span>}
+                            {gamificacion && tarea.puntos > 0 && <span className="jb-duo-puntos">+{tarea.puntos}</span>}
                           </button>
                           <span className={`jb-duo-label ${status}`}>{tarea.name}</span>
                         </div>
@@ -1068,12 +1068,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                     </div>
                   </div>
 
-                  {/* XP + duración estimada */}
+                  {/* Puntos + duración estimada */}
                   <div style={{ display: (gamificacion || ['video', 'audio', 'lectura'].includes(tareaForm.tipo)) ? 'grid' : 'none', gridTemplateColumns: gamificacion && ['video', 'audio', 'lectura'].includes(tareaForm.tipo) ? '1fr 1fr' : '1fr', gap: 10 }}>
                     {gamificacion && (
                       <label className="pl-label" style={{ margin: 0 }}>
-                        Puntos XP
-                        <input type="number" className="pl-input" style={{ background: '#fff' }} value={tareaForm.xp} onChange={e => updateForm('xp', Number(e.target.value))} />
+                        Puntos
+                        <input type="number" className="pl-input" style={{ background: '#fff' }} value={tareaForm.puntos} onChange={e => updateForm('puntos', Number(e.target.value))} />
                       </label>
                     )}
                     {['video', 'audio', 'lectura'].includes(tareaForm.tipo) && (
@@ -1086,8 +1086,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                   {gamificacion && (
                     <div style={{ fontSize: 10, color: tareaForm.verificarQuiz ? '#f59e0b' : '#94a3b8' }}>
                       {tareaForm.verificarQuiz
-                        ? 'Los XP se otorgan solo si aprueba el quiz de verificación'
-                        : 'Los XP se otorgan cuando el colaborador marque como completada'
+                        ? 'Los puntos se otorgan solo si aprueba el quiz de verificación'
+                        : 'Los puntos se otorgan cuando el colaborador marque como completada'
                       }
                     </div>
                   )}
@@ -1095,8 +1095,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
 
                 <div style={{ fontSize: 10, color: tareaForm.verificarQuiz ? '#f59e0b' : '#94a3b8', marginTop: -2, marginBottom: 4, display: 'none' }}>
                   {tareaForm.verificarQuiz
-                    ? 'Los XP se otorgan solo si aprueba el quiz de verificación'
-                    : 'Los XP se otorgan cuando el colaborador marque como completada'
+                    ? 'Los puntos se otorgan solo si aprueba el quiz de verificación'
+                    : 'Los puntos se otorgan cuando el colaborador marque como completada'
                   }
                 </div>
 
@@ -1165,7 +1165,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                     <div className="jb-field-toggle" onClick={() => updateForm('verificarQuiz', !tareaForm.verificarQuiz)}>
                       <div>
                         <span>Verificar comprensión con quiz</span>
-                        <div className="jb-toggle-hint">{gamificacion ? 'Agrega un quiz para asegurar que el colaborador entendió el contenido. Los XP se otorgan según el resultado.' : 'Agrega un quiz para asegurar que el colaborador entendió el contenido.'}</div>
+                        <div className="jb-toggle-hint">{gamificacion ? 'Agrega un quiz para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega un quiz para asegurar que el colaborador entendió el contenido.'}</div>
                       </div>
                       <div className={`jb-toggle ${tareaForm.verificarQuiz ? 'on' : ''}`}>
                         <div className="jb-toggle-dot" />
@@ -1408,7 +1408,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
             <div className="pl-modal-body">
               <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px' }}>Cada ajuste puede heredar la configuración global, personalizarse o desactivarse.</p>
               {[
-                { label: 'Gamificación (XP y niveles)', hint: 'Los colaboradores ganan puntos al completar tareas' },
+                { label: 'Gamificación (Puntos y niveles)', hint: 'Los colaboradores ganan puntos al completar tareas' },
                 { label: 'Notificaciones automáticas', hint: 'Recordatorios por email y push' },
                 { label: 'Plazos estrictos', hint: 'Bloquea avance si hay tareas vencidas' },
                 { label: 'Permitir saltar tareas opcionales', hint: 'El colaborador puede omitir tareas no obligatorias' },
@@ -1520,7 +1520,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
       {/* MODAL VISTA PREVIA */}
       {showPreview && (() => {
         const allTareas = rutaState.etapas.flatMap(e => e.actividades.flatMap(a => a.tareas))
-        const totalXp = allTareas.reduce((s, t) => s + (t.xp || 0), 0)
+        const totalPuntos = allTareas.reduce((s, t) => s + (t.puntos || 0), 0)
         return (
           <div className="pl-overlay" onClick={() => setShowPreview(false)}>
             <div className="pl-modal" style={{ maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
@@ -1597,14 +1597,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                                   }}>
                                     <TpIcon size={18} style={{ color: '#fff' }} />
                                   </div>
-                                  {gamificacion && tarea.xp > 0 && (
+                                  {gamificacion && tarea.puntos > 0 && (
                                     <div style={{
                                       position: 'absolute', top: -4, right: -8,
                                       background: '#10b981', color: '#fff',
                                       fontSize: 8, fontWeight: 800, padding: '1px 5px',
                                       borderRadius: 8, lineHeight: 1.4,
                                     }}>
-                                      +{tarea.xp}
+                                      +{tarea.puntos}
                                     </div>
                                   )}
                                 </div>
@@ -1667,7 +1667,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                       fontSize: 10, fontWeight: 700, color: '#92400e',
                       background: '#fef3c7', padding: '3px 8px', borderRadius: 6,
                     }}>
-                      {totalXp} XP
+                      {totalPuntos} Pts
                     </span>
                   )}
                 </div>
