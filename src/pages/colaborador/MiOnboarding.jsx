@@ -49,17 +49,17 @@ const chatResponses = {
 }
 const chatSuggestions = Object.keys(chatResponses)
 
-export default function MiOnboarding() {
+export default function MiOnboarding({ forcePhone = false }) {
   const { currentUser } = useUser()
   const { rutaActiva, rutaAdmin, actualizarEtapas } = useRutaActiva()
   const { asistenteIA } = useConfig()
-  const isMobile = currentUser.id === 4
+  const isMobile = forcePhone || currentUser.id === 4
 
-  const ruta = currentUser.role === 'colaborador' ? rutaActiva : (rutaAdmin || rutaActiva)
+  const ruta = forcePhone ? rutaActiva : (currentUser.role === 'colaborador' ? rutaActiva : rutaAdmin)
   const isGraduado = ruta?.graduado === true
 
   const [etapas, setEtapas] = useState([])
-  const [started, setStarted] = useState(false)
+  const [started, setStarted] = useState(forcePhone)
   const [rutaLoaded, setRutaLoaded] = useState(false)
 
   if (ruta && !rutaLoaded) {
