@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, LayoutTemplate, Copy, Pencil, Trash2, X, AlertTriangle, Filter, CheckCircle2,
   LayoutGrid, List, MoreHorizontal, ChevronDown, Check, UserPlus, Users, Archive, Route
@@ -24,18 +25,6 @@ const cargosPorArea = {
 }
 const areas = Object.keys(cargosPorArea)
 
-const plantillasInit = [
-  { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', cargo: 'Pasante Comercial', etapas: 12, tareas: 34, asignados: 8, status: 'activa', updated: 'Hace 2 días', color: '#3b82f6' },
-  { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', cargo: 'Ejecutivo Comercial', etapas: 10, tareas: 28, asignados: 5, status: 'activa', updated: 'Hace 5 días', color: '#10b981' },
-  { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', cargo: 'Director de Área', etapas: 8, tareas: 22, asignados: 2, status: 'activa', updated: 'Hace 1 semana', color: '#8b5cf6' },
-  { id: 4, name: 'Onboarding Operaciones', area: 'Operaciones', cargo: 'Analista de Procesos', etapas: 9, tareas: 25, asignados: 3, status: 'activa', updated: 'Hace 1 semana', color: '#f59e0b' },
-  { id: 5, name: 'Onboarding Tech — Backend', area: 'Tecnología', cargo: 'Desarrollador Backend', etapas: 14, tareas: 40, asignados: 4, status: 'activa', updated: 'Hace 3 días', color: '#06b6d4' },
-  { id: 6, name: 'Onboarding Finanzas', area: 'Finanzas', cargo: 'Analista Financiera', etapas: 7, tareas: 18, asignados: 0, status: 'borrador', updated: 'Ayer', color: '#f97316' },
-  { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', cargo: 'Diseñadora UX/UI', etapas: 11, tareas: 30, asignados: 2, status: 'activa', updated: 'Hace 4 días', color: '#ec4899' },
-  { id: 8, name: 'Onboarding RRHH — Generalista', area: 'Recursos Humanos', cargo: 'Generalista RRHH', etapas: 6, tareas: 15, asignados: 0, status: 'borrador', updated: 'Hace 2 semanas', color: '#0d9488' },
-  { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', cargo: 'Content Creator', etapas: 10, tareas: 26, asignados: 1, status: 'activa', updated: 'Hace 6 días', color: '#d946ef' },
-  { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', etapas: 5, tareas: 12, asignados: 0, status: 'archivada', updated: 'Hace 3 meses', color: '#64748b' },
-]
 
 export default function Plantillas() {
   const { currentUser } = useUser()
@@ -45,9 +34,13 @@ export default function Plantillas() {
   const isAreaRole = isManager || isAuxiliar
   const managerArea = 'Marketing'
 
-  const [plantillas, setPlantillas] = useState(
-    isAreaRole ? plantillasInit.filter(p => p.area === managerArea) : plantillasInit
-  )
+  const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, addFeedEntry } = useOnboardingData()
+  const plantillas = isAreaRole ? allPlantillas.filter(p => p.area === managerArea) : allPlantillas
+  function setPlantillas(next) {
+    if (!isAreaRole) { setAllPlantillas(next); return }
+    const others = allPlantillas.filter(p => p.area !== managerArea)
+    setAllPlantillas([...others, ...next])
+  }
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todas')
   const [filterArea, setFilterArea] = useState('todas')
@@ -144,6 +137,7 @@ export default function Plantillas() {
         color,
       }
       setPlantillas([...plantillas, newPlantilla])
+      addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
       setModal(null)
       setActiveJourney({ ...newPlantilla, isNew: true })
     } else {
@@ -662,16 +656,106 @@ export default function Plantillas() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ padding: 30, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No se encontraron rutas</div>
+            <div style={{ padding: '12px 16px 16px' }}>
+              <div style={{
+                borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                background: '#fafbfc', padding: '20px',
+                display: 'flex', alignItems: 'center', gap: 20,
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: '#f1f5f9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Route size={22} style={{ color: '#94a3b8' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                    {plantillas.length === 0 ? 'Aún no has creado rutas de onboarding' : 'No se encontraron rutas'}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                    {plantillas.length === 0
+                      ? 'Define el camino que seguirán los nuevos colaboradores: etapas, tareas y recursos, organizados por área y cargo.'
+                      : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
+                  </p>
+                  {plantillas.length === 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {['🗺️ Etapas', '✅ Tareas', '👤 Por área y cargo'].map(tag => (
+                        <span key={tag} style={{
+                          fontSize: 10, fontWeight: 600, color: '#475569',
+                          background: '#f1f5f9', border: '1px solid #e2e8f0',
+                          padding: '3px 10px', borderRadius: 20,
+                        }}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {plantillas.length === 0 && !isAreaRole && (
+                  <button onClick={openCreate} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 18px', borderRadius: 10, border: 'none',
+                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+                  }}>
+                    <Plus size={13} /> Crear primera ruta
+                  </button>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}
 
       {viewMode === 'grid' && filtered.length === 0 && (
-        <div className="pl-empty">
-          <LayoutTemplate size={40} strokeWidth={1.2} />
-          <div className="pl-empty-title">No se encontraron rutas</div>
-          <div className="pl-empty-desc">Intenta con otro término de búsqueda o filtro</div>
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{
+            borderRadius: 12, border: '1.5px dashed #e2e8f0',
+            background: '#fafbfc', padding: '20px',
+            display: 'flex', alignItems: 'center', gap: 20,
+          }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+              background: '#f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Route size={22} style={{ color: '#94a3b8' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                {plantillas.length === 0 ? 'Aún no has creado rutas de onboarding' : 'No se encontraron rutas'}
+              </div>
+              <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                {plantillas.length === 0
+                  ? 'Define el camino que seguirán los nuevos colaboradores: etapas, tareas y recursos, organizados por área y cargo.'
+                  : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
+              </p>
+              {plantillas.length === 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {['🗺️ Etapas', '✅ Tareas', '👤 Por área y cargo'].map(tag => (
+                    <span key={tag} style={{
+                      fontSize: 10, fontWeight: 600, color: '#475569',
+                      background: '#f1f5f9', border: '1px solid #e2e8f0',
+                      padding: '3px 10px', borderRadius: 20,
+                    }}>{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {plantillas.length === 0 && !isAreaRole && (
+              <button onClick={openCreate} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '10px 18px', borderRadius: 10, border: 'none',
+                background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                flexShrink: 0, whiteSpace: 'nowrap',
+                boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+              }}>
+                <Plus size={13} /> Crear primera ruta
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -810,7 +894,7 @@ export default function Plantillas() {
               <div className="pl-modal-header">
                 <div>
                   <h2 style={{ margin: 0, fontSize: 15 }}>Etapas</h2>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{etapasModal.name}</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{etapasModal.name}</span>
                 </div>
                 <button className="pl-modal-close" onClick={() => setEtapasModal(null)}><X size={18} /></button>
               </div>
@@ -867,7 +951,7 @@ export default function Plantillas() {
               <div className="pl-modal-header">
                 <div>
                   <h2 style={{ margin: 0, fontSize: 15 }}>Tareas</h2>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{tareasModal.name} · {tareasModal.tareas} tareas</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{tareasModal.name} · {tareasModal.tareas} tareas</span>
                 </div>
                 <button className="pl-modal-close" onClick={() => setTareasModal(null)}><X size={18} /></button>
               </div>
@@ -937,7 +1021,7 @@ export default function Plantillas() {
               <div className="pl-modal-header">
                 <div>
                   <h2 style={{ margin: 0, fontSize: 15 }}>Colaboradores asignados</h2>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{asignadosModal.name} · {list.length} persona{list.length !== 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{asignadosModal.name} · {list.length} persona{list.length !== 1 ? 's' : ''}</span>
                 </div>
                 <button className="pl-modal-close" onClick={() => { setAsignadosModal(null); setAsignadosSearch('') }}>
                   <X size={18} />

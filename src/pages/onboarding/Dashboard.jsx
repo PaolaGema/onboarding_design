@@ -1,14 +1,16 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import JourneyBuilder from './JourneyBuilder'
+import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import {
   Loader, AlertTriangle, CheckCircle2, LayoutTemplate,
   TrendingUp, Zap, UserPlus, PencilRuler, Settings2,
   CalendarPlus, Activity, Rocket, Sparkles, Download,
   Smartphone, Plus, ClipboardList, Clock, CircleAlert,
   Search, Route, Users, Star, CalendarHeart,
-  X, ChevronDown, ChevronLeft, ChevronRight, Check, Filter, Calendar,
+  X, ChevronDown, Check,
   Shield, BookOpen, FileText as FileTextIcon, ArrowRight
 } from 'lucide-react'
 
@@ -26,143 +28,13 @@ const cargosPorArea = {
 }
 const areas = Object.keys(cargosPorArea)
 
-const rutasAsignar = [
-  { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', etapas: 12, tareas: 34, color: '#3b82f6' },
-  { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', etapas: 10, tareas: 28, color: '#10b981' },
-  { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', etapas: 8, tareas: 22, color: '#8b5cf6' },
-  { id: 4, name: 'Onboarding Operaciones', area: 'Operaciones', etapas: 9, tareas: 25, color: '#f59e0b' },
-  { id: 5, name: 'Onboarding Tech — Backend', area: 'Tecnología', etapas: 14, tareas: 40, color: '#06b6d4' },
-  { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', etapas: 11, tareas: 30, color: '#ec4899' },
-  { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', etapas: 10, tareas: 26, color: '#d946ef' },
-]
-
-const colaboradoresDisponibles = [
-  { name: 'Luciana Paredes', depto: 'Ventas', cargo: 'Pasante Comercial', sucursal: 'La Paz', ingreso: '2026-06-24', initials: 'LP', color: '#0d9488' },
-  { name: 'Tomás Ibáñez', depto: 'Operaciones', cargo: 'Analista de Procesos', sucursal: 'La Paz', ingreso: '2026-06-24', initials: 'TI', color: '#f59e0b' },
-  { name: 'Renata Soria', depto: 'Tecnología', cargo: 'Frontend Developer', sucursal: 'Cochabamba', ingreso: '2026-06-30', initials: 'RS', color: '#8b5cf6' },
-  { name: 'Emilio Castañeda', depto: 'Comercial', cargo: 'Ejecutivo Comercial', sucursal: 'Santa Cruz (Central)', ingreso: '2026-07-01', initials: 'EC', color: '#3b82f6' },
-  { name: 'Gabriela Mora', depto: 'Diseño', cargo: 'Diseñadora UX/UI', sucursal: 'Cochabamba', ingreso: '2026-06-17', initials: 'GM', color: '#ec4899' },
-  { name: 'Andrés Villanueva', depto: 'Tecnología', cargo: 'Backend Developer', sucursal: 'Santa Cruz (Central)', ingreso: '2026-07-07', initials: 'AV', color: '#06b6d4' },
-  { name: 'Natalia Guzmán', depto: 'Ventas', cargo: 'SDR Junior', sucursal: 'La Paz', ingreso: '2026-06-10', initials: 'NG', color: '#f97316' },
-  { name: 'Sebastián Rojas', depto: 'Finanzas', cargo: 'Analista Financiero', sucursal: 'Tarija', ingreso: '2026-07-14', initials: 'SR', color: '#ef4444' },
-  { name: 'Carolina Vega', depto: 'Marketing', cargo: 'Content Creator', sucursal: 'Santa Cruz (Central)', ingreso: '2026-06-20', initials: 'CV', color: '#14b8a6' },
-  { name: 'Diego Paredes', depto: 'Ventas', cargo: 'Account Manager', sucursal: 'Cochabamba', ingreso: '2026-07-01', initials: 'DP', color: '#d946ef' },
-]
-
-const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
-const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-function MiniCalendar({ value, onChange }) {
-  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
-  const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth())
-
-  const firstDay = new Date(viewYear, viewMonth, 1)
-  const startDay = (firstDay.getDay() + 6) % 7
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
-
-  const cells = []
-  for (let i = 0; i < startDay; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
-
-  function prevMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1) }
-    else setViewMonth(viewMonth - 1)
-  }
-  function nextMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1) }
-    else setViewMonth(viewMonth + 1)
-  }
-
-  function isDisabled(day) { return new Date(viewYear, viewMonth, day) < today }
-  function isSelected(day) {
-    if (!value || !day) return false
-    const sel = new Date(value + 'T00:00:00')
-    return sel.getFullYear() === viewYear && sel.getMonth() === viewMonth && sel.getDate() === day
-  }
-  function isToday(day) { return today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day }
-  function select(day) {
-    if (isDisabled(day)) return
-    onChange(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
-  }
-
-  const canPrev = viewYear > today.getFullYear() || (viewYear === today.getFullYear() && viewMonth > today.getMonth())
-  const selectedLabel = value
-    ? (() => { const d = new Date(value + 'T00:00:00'); return `${d.getDate()} de ${MONTHS[d.getMonth()]} ${d.getFullYear()}` })()
-    : null
-
-  return (
-    <>
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-        <button onClick={prevMonth} disabled={!canPrev} style={{ width: 24, height: 24, borderRadius: 6, border: 'none', background: 'transparent', cursor: canPrev ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', color: canPrev ? '#475569' : '#e2e8f0' }}>
-          <ChevronLeft size={13} />
-        </button>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>{MONTHS[viewMonth]} {viewYear}</span>
-        <button onClick={nextMonth} style={{ width: 24, height: 24, borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
-          <ChevronRight size={13} />
-        </button>
-      </div>
-      <div style={{ padding: '6px 8px 8px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, marginBottom: 2 }}>
-          {DAYS.map(d => (<div key={d} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: '#94a3b8', padding: '3px 0' }}>{d}</div>))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
-          {cells.map((day, i) => (
-            <button key={i} disabled={!day || isDisabled(day)} onClick={() => day && select(day)} style={{
-              width: '100%', aspectRatio: '1', borderRadius: 6, border: 'none', fontSize: 11,
-              fontWeight: isSelected(day) ? 700 : isToday(day) ? 600 : 400, fontFamily: 'inherit',
-              background: isSelected(day) ? '#0C2D40' : isToday(day) ? '#f1f5f9' : 'transparent',
-              color: !day ? 'transparent' : isSelected(day) ? '#fff' : isDisabled(day) ? '#d1d5db' : isToday(day) ? '#0C2D40' : '#334155',
-              cursor: !day || isDisabled(day) ? 'default' : 'pointer', transition: 'all .1s', position: 'relative',
-            }}>
-              {day || ''}
-              {isToday(day) && !isSelected(day) && (<div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: '#10DC97' }} />)}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-    {selectedLabel && (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-        <Calendar size={12} style={{ color: '#16a34a' }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#166534' }}>{selectedLabel}</span>
-      </div>
-    )}
-    </>
-  )
-}
-
 /* ── DATA ────────────────────────────────────── */
-
-const kpis = [
-  { title: 'Activos', value: '23', label: 'Onboardings en curso', accent: 'var(--blue)', alert: false },
-  { title: 'Completados', value: '142', label: 'Graduaciones totales', accent: 'var(--green)', alert: false },
-  { title: 'Atrasados', value: '5', label: 'Con tareas vencidas', accent: 'var(--yellow)', alert: false },
-  { title: 'En riesgo', value: '3', label: '+3 días sin actividad', accent: 'var(--red)', alert: true },
-  { title: 'Tiempo promedio', value: '30d', label: 'Para completar onboarding', accent: 'var(--purple)', alert: false },
-]
 
 const quickAccess = [
   { icon: LayoutTemplate, color: 'var(--purple)', bg: 'var(--purple-bg)', label: 'Rutas', desc: 'Crear y editar rutas', sub: '7 activas', path: '/onboarding/plantillas' },
   { icon: UserPlus, color: 'var(--blue)', bg: 'var(--blue-bg)', label: 'Asignación', desc: 'Asignar rutas a colaboradores', sub: '2 pendientes', path: '/onboarding/asignaciones' },
   { icon: PencilRuler, color: 'var(--navy)', bg: '#e0e7ef', label: 'Biblioteca de recursos', desc: 'Documentos y materiales', sub: 'Contenido', path: '/onboarding/conocimiento' },
   { icon: Settings2, color: 'var(--green)', bg: 'var(--green-bg)', label: 'Configuración', desc: 'Puntos, notificaciones y permisos', sub: 'Ajustes globales', path: '/onboarding/configuracion' },
-]
-
-const progressData = [
-  { name: 'Diego Morales', route: 'Onboarding Tech', pct: 68, day: '14 / 30', color: '#3b82f6', progColor: 'var(--blue)' },
-  { name: 'Camila Herrera', route: 'Onboarding Ventas', pct: 42, day: '18 / 30', color: '#f97316', progColor: 'var(--blue)' },
-  { name: 'Valentina Cruz', route: 'Onboarding Diseño', pct: 25, day: '20 / 30', color: '#ec4899', progColor: 'var(--yellow)' },
-  { name: 'Facundo Medina', route: 'Onboarding Tech', pct: 15, day: '21 / 30', color: '#ef4444', progColor: 'var(--yellow)' },
-  { name: 'Sofía Ramírez', route: 'Onboarding Ventas', pct: 0, day: '1 / 30', color: '#f59e0b', progColor: 'var(--border-dark)' },
-]
-
-const alertsData = [
-  { name: 'Valentina Cruz', sub: 'Sin actividad hace 4 días · Diseño & UX', color: '#ec4899', badge: 'En riesgo', badgeCls: 'b-riesgo' },
-  { name: 'Facundo Medina', sub: 'Sin actividad hace 3 días · Tech Backend', color: '#ef4444', badge: 'En riesgo', badgeCls: 'b-riesgo' },
-  { name: 'Luciana Paredes', sub: 'Ingresa en 7 días · Sin ruta asignada', color: '#0d9488', badge: 'Sin ruta', badgeCls: 'b-hoy' },
-  { name: 'Tomás Ibáñez', sub: 'Ingresa en 7 días · Sin ruta asignada', color: '#f59e0b', badge: 'Sin ruta', badgeCls: 'b-hoy' },
 ]
 
 const upcomingData = [
@@ -231,9 +103,6 @@ const managerTareasPendientes = [
   { name: 'Reunión de bienvenida con Isabella', tipo: 'Reunión pendiente', color: '#3b82f6' },
 ]
 
-function initials(name) {
-  return name.split(' ').map(n => n[0]).slice(0, 2).join('')
-}
 
 /* ── COMPONENT ───────────────────────────────── */
 
@@ -246,29 +115,37 @@ export default function Dashboard() {
   const [formRuta, setFormRuta] = useState({ name: '', area: 'Ventas', cargo: '' })
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
-  const [asignarStep, setAsignarStep] = useState(1)
-  const [selectedColabs, setSelectedColabs] = useState([])
-  const [colabSearch, setColabSearch] = useState('')
-  const [colabFilterDepto, setColabFilterDepto] = useState('Todas')
-  const [colabFilterSucursal, setColabFilterSucursal] = useState('Todas')
-  const [colabFilterCargo, setColabFilterCargo] = useState('Todos')
-  const [colabFechaDesde, setColabFechaDesde] = useState('')
-  const [colabFechaHasta, setColabFechaHasta] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
-  const [fDropSucursal, setFDropSucursal] = useState(false)
-  const [fDropArea, setFDropArea] = useState(false)
-  const [fDropCargo, setFDropCargo] = useState(false)
-  const [onbSelected, setOnbSelected] = useState(null)
-  const [onbFecha, setOnbFecha] = useState('')
-  const [onbSearch, setOnbSearch] = useState('')
-  const [onbArea, setOnbArea] = useState('Todas')
-  const [onbCargo, setOnbCargo] = useState('Todos')
-  const [onbSede, setOnbSede] = useState('Todas')
-  const [showRutaFilters, setShowRutaFilters] = useState(false)
-  const [rfDropSede, setRfDropSede] = useState(false)
-  const [rfDropArea, setRfDropArea] = useState(false)
-  const [rfDropCargo, setRfDropCargo] = useState(false)
   const [activeJourney, setActiveJourney] = useState(null)
+  const { isDemoFresh, loadSampleData, asignaciones: ctxAsignaciones, plantillas, recursos, configToggles, tronco } = useOnboardingData()
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('onb_demo_welcome_seen'))
+  const [showCelebration, setShowCelebration] = useState(false)
+
+  const step1Done = Object.values(configToggles).some(v => v === true) || tronco?.configured === true
+  const step2Done = recursos.some(c => c.docs.length > 0)
+  const step3Done = plantillas.length > 0
+  const step4Done = ctxAsignaciones.length > 0
+  const allStepsDone = step1Done && step2Done && step3Done && step4Done
+
+  useEffect(() => {
+    if (allStepsDone && !localStorage.getItem('onb_celebration_seen')) {
+      localStorage.setItem('onb_celebration_seen', '1')
+      setShowCelebration(true)
+    }
+  }, [allStepsDone])
+
+  const confettiPieces = useMemo(() => {
+    const colors = ['#0C2D40', '#f8b400', '#93c5fd', '#e2e8f0', '#fcd34d']
+    return Array.from({ length: 65 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      color: colors[i % colors.length],
+      size: 5 + Math.random() * 7,
+      duration: 2.8 + Math.random() * 2,
+      delay: Math.random() * 1.8,
+      rotate: Math.random() * 360,
+      isCircle: Math.random() > 0.5,
+    }))
+  }, [])
   const isManager = currentUser.role === 'manager'
   const managerArea = 'Marketing'
 
@@ -345,7 +222,7 @@ export default function Dashboard() {
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
                 {managerProgress.length > 0 ? managerProgress.map((p) => (
                   <div key={p.name} className="prog-row">
-                    <div className="pr-av" style={{ background: p.color }}>{initials(p.name)}</div>
+                    <div className="pr-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(p.name)}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
                     <div className="pr-info">
                       <div className="pr-name">{p.name}</div>
                       <div className="pr-route">{p.route}</div>
@@ -411,11 +288,8 @@ export default function Dashboard() {
                     padding: '10px 0',
                     borderBottom: i < managerGraduados.length - 1 ? '1px solid #f1f5f9' : 'none',
                   }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%', background: g.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{initials(g.name)}</span>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#0C2D40', border: '1.5px solid #e2e8f0' }}>
+                      <img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(g.name)}`} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{g.name}</div>
@@ -442,7 +316,7 @@ export default function Dashboard() {
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
                 {managerAlerts.length > 0 ? managerAlerts.map((a) => (
                   <div key={a.name} className="alert-item">
-                    <div className="ai-av" style={{ background: a.color }}>{initials(a.name)}</div>
+                    <div className="ai-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(a.name)}`} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
                     <div className="ai-info">
                       <div className="ai-name">{a.name}</div>
                       <div className="ai-sub">{a.sub}</div>
@@ -497,8 +371,16 @@ export default function Dashboard() {
         <div className="welcome-content">
           <div className="welcome-title">Bienvenido al panel de Onboarding</div>
           <div className="welcome-sub">
-            Tienes <strong>7 onboardings activos</strong> y <strong>2 alertas</strong> que requieren tu atención.
-            <br />Martes 17 de junio, 2026
+            {isDemoFresh
+              ? 'Configura el módulo y empieza a gestionar onboardings.'
+              : (() => {
+                  const activos = ctxAsignaciones.filter(a => a.status === 'en-curso').length
+                  const alertas = ctxAsignaciones.filter(a => a.status === 'en-riesgo' || a.status === 'atrasado').length
+                  return activos > 0
+                    ? <>Tienes <strong>{activos} onboarding{activos !== 1 ? 's' : ''} activo{activos !== 1 ? 's' : ''}</strong>{alertas > 0 && <> y <strong>{alertas} alerta{alertas !== 1 ? 's' : ''}</strong> que requieren tu atención</>}.</>
+                    : 'No hay onboardings activos en este momento.'
+                })()
+            }
           </div>
         </div>
         <div className="welcome-actions">
@@ -506,23 +388,118 @@ export default function Dashboard() {
             <Plus size={13} />
             Nueva ruta
           </button>
-          <button className="btn-outline-light" onClick={() => { setAsignarStep(1); setSelectedColabs([]); setColabSearch(''); setColabFilterDepto('Todas'); setColabFilterSucursal('Todas'); setColabFilterCargo('Todos'); setColabFechaDesde(''); setColabFechaHasta(''); setShowFilters(false); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas'); setOnbCargo('Todos'); setOnbSede('Todas'); setModalAsignar(true) }}>
+          <button className="btn-outline-light" onClick={() => setModalAsignar(true)}>
             <UserPlus size={13} />
             Asignar ruta
           </button>
         </div>
       </div>
 
-      {/* ── KPI STRIP ──────────────────────── */}
-      <div className="kpi-strip">
-        {kpis.map((k) => (
-          <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`}>
-            <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
-            <div className="kpi-val">{k.value}</div>
-            <div className="kpi-lbl">{k.label}</div>
+      {/* ── BANNER PRIMEROS PASOS ──────────────────────── */}
+      {(() => {
+        const steps = [
+          { label: 'Configurar módulo', sub: 'Funcionalidades y permisos', done: step1Done, path: '/onboarding/configuracion' },
+          { label: 'Subir recursos', sub: 'Documentos y materiales', done: step2Done, path: '/onboarding/conocimiento' },
+          { label: 'Crear una ruta', sub: 'Diseña el recorrido', done: step3Done, path: '/onboarding/plantillas' },
+          { label: 'Asignar la ruta', sub: 'Activa un onboarding', done: step4Done, path: '/onboarding/asignaciones' },
+        ]
+        if (allStepsDone) return null
+        const doneCount = [step1Done, step2Done, step3Done, step4Done].filter(Boolean).length
+        const nextStep = steps.find(s => !s.done)
+        const firstName = currentUser?.name?.split(' ')[0] || 'Admin'
+        return (
+          <div style={{ background: '#fff', border: '1px solid #dde6ee', borderTop: '3px solid #0C2D40', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(12,45,64,.07)' }}>
+            {/* cabecera */}
+            <div style={{ padding: '14px 22px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>
+                  {doneCount === 0
+                    ? `¡Hola, ${firstName}! Configura tu módulo para empezar`
+                    : doneCount < 3
+                    ? `¡Vas bien, ${firstName}! Te faltan ${4 - doneCount} pasos más`
+                    : `¡Casi lista, ${firstName}! Un paso más y todo está listo`}
+                </div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Completa los pasos para activar tu módulo de onboarding</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{ width: 100, height: 4, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(doneCount / 4) * 100}%`, background: '#10b981', borderRadius: 4, transition: 'width .5s ease' }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>{doneCount}/4</span>
+              </div>
+            </div>
+            {/* pasos */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              {steps.map((s, i) => {
+                const isNext = s === nextStep
+                return (
+                  <button key={s.label} onClick={() => navigate(s.path)} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
+                    padding: '15px 18px', border: 'none',
+                    borderRight: i < 3 ? '1px solid #f1f5f9' : 'none',
+                    background: s.done ? '#f6fdf8' : isNext ? '#eef4f9' : '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                    transition: 'background .15s', position: 'relative',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = s.done ? '#edfaf3' : '#e8f0f7' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = s.done ? '#f6fdf8' : isNext ? '#eef4f9' : '#fff' }}
+                  >
+                    {isNext && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#0C2D40' }} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 800,
+                        background: s.done ? '#16a34a' : isNext ? '#0C2D40' : '#e2e8f0',
+                        color: s.done ? '#fff' : isNext ? '#fff' : '#94a3b8',
+                      }}>
+                        {s.done ? '✓' : i + 1}
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#16a34a' : isNext ? '#0C2D40' : '#94a3b8' }}>
+                        {s.label}
+                      </span>
+                    </div>
+                    <div style={{ paddingLeft: 30, fontSize: 10, color: s.done ? '#86efac' : '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
+                    {isNext && (
+                      <div style={{ paddingLeft: 30, marginTop: 2 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#0C2D40', padding: '2px 8px', borderRadius: 20 }}>Ir ahora →</span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        ))}
-      </div>
+        )
+      })()}
+
+      {ctxAsignaciones.length > 0 && (<>
+
+      {/* ── KPI STRIP ──────────────────────── */}
+      {(() => {
+        const enCurso = ctxAsignaciones.filter(a => a.status === 'en-curso').length
+        const completados = ctxAsignaciones.filter(a => a.status === 'completado').length
+        const atrasados = ctxAsignaciones.filter(a => a.status === 'atrasado').length
+        const enRiesgo = ctxAsignaciones.filter(a => a.status === 'en-riesgo').length
+        const dynKpis = [
+          { title: 'Activos', value: String(enCurso), label: 'Onboardings en curso', accent: 'var(--blue)', alert: false },
+          { title: 'Completados', value: String(completados), label: 'Graduaciones totales', accent: 'var(--green)', alert: false },
+          { title: 'Atrasados', value: String(atrasados), label: 'Con tareas vencidas', accent: 'var(--yellow)', alert: false },
+          { title: 'En riesgo', value: String(enRiesgo), label: '+3 días sin actividad', accent: 'var(--red)', alert: enRiesgo > 0 },
+          { title: 'Tiempo promedio', value: ctxAsignaciones.length > 0 ? '30d' : '—', label: 'Para completar onboarding', accent: 'var(--purple)', alert: false },
+        ]
+        return (
+          <div className="kpi-strip">
+            {dynKpis.map((k) => (
+              <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`}>
+                <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
+                <div className="kpi-val">{k.value}</div>
+                <div className="kpi-lbl">{k.label}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* ── TWO COLUMN ─────────────────────── */}
       <div className="two-col">
@@ -554,30 +531,39 @@ export default function Dashboard() {
           </div>
 
           {/* EN PROGRESO */}
-          <div className="sec-card">
-            <div className="sc-hd">
-              <h3>Onboardings en progreso <span className="sc-hd-count">23</span></h3>
-              <a href="#">Ver todos →</a>
-            </div>
-            <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-              {progressData.map((p) => (
-                <div key={p.name} className="prog-row">
-                  <div className="pr-av" style={{ background: p.color }}>{initials(p.name)}</div>
-                  <div className="pr-info">
-                    <div className="pr-name">{p.name}</div>
-                    <div className="pr-route">{p.route}</div>
-                  </div>
-                  <div className="pr-day">Día {p.day}</div>
-                  <div className="pr-progress">
-                    <div className="pr-pct">{p.pct}%</div>
-                    <div className="pr-bar">
-                      <div className="pr-fill" style={{ width: `${p.pct}%`, background: p.progColor }} />
-                    </div>
-                  </div>
+          {(() => {
+            const enProgreso = ctxAsignaciones.filter(a => a.status === 'en-curso').sort((a, b) => b.pct - a.pct).slice(0, 5)
+            return (
+              <div className="sec-card">
+                <div className="sc-hd">
+                  <h3>Onboardings en progreso <span className="sc-hd-count">{enProgreso.length}</span></h3>
+                  <a href="#" onClick={e => { e.preventDefault(); navigate('/onboarding/asignaciones') }}>Ver todos →</a>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                  {enProgreso.length > 0 ? enProgreso.map((a) => (
+                    <div key={a.id} className="prog-row">
+                      <div className="pr-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(a.nombre)}`} alt={a.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
+                      <div className="pr-info">
+                        <div className="pr-name">{a.nombre}</div>
+                        <div className="pr-route">{a.ruta}</div>
+                      </div>
+                      <div className="pr-day">Día {a.dia} / {a.totalDias}</div>
+                      <div className="pr-progress">
+                        <div className="pr-pct">{a.pct}%</div>
+                        <div className="pr-bar">
+                          <div className="pr-fill" style={{ width: `${a.pct}%`, background: a.pct < 30 ? 'var(--yellow)' : 'var(--blue)' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+                      No hay onboardings activos aún
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* RUTAS ACTIVAS */}
           <div className="sec-card">
@@ -619,29 +605,38 @@ export default function Dashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* ALERTAS */}
-          <div className="sec-card">
-            <div className="sc-hd">
-              <h3>Necesitan atención <span className="sc-hd-count">17</span></h3>
-              <a href="#">Ver todos →</a>
-            </div>
-            <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-              {alertsData.map((a) => (
-                <div key={a.name} className="alert-item">
-                  <div className="ai-av" style={{ background: a.color }}>{initials(a.name)}</div>
-                  <div className="ai-info">
-                    <div className="ai-name">{a.name}</div>
-                    <div className="ai-sub">{a.sub}</div>
-                  </div>
-                  <div className="ai-badge">
-                    <span className={`badge ${a.badgeCls}`}>
-                      <span className="badge-dot" />
-                      {a.badge}
-                    </span>
-                  </div>
+          {(() => {
+            const conAlertas = ctxAsignaciones.filter(a => a.status === 'en-riesgo' || a.status === 'atrasado')
+            return (
+              <div className="sec-card">
+                <div className="sc-hd">
+                  <h3>Necesitan atención <span className="sc-hd-count">{conAlertas.length}</span></h3>
+                  <a href="#" onClick={e => { e.preventDefault(); navigate('/onboarding/asignaciones') }}>Ver todos →</a>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                  {conAlertas.length > 0 ? conAlertas.map((a) => (
+                    <div key={a.id} className="alert-item">
+                      <div className="ai-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(a.nombre)}`} alt={a.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
+                      <div className="ai-info">
+                        <div className="ai-name">{a.nombre}</div>
+                        <div className="ai-sub">{a.status === 'en-riesgo' ? 'Sin actividad reciente' : 'Tiene tareas vencidas'} · {a.area}</div>
+                      </div>
+                      <div className="ai-badge">
+                        <span className={`badge ${a.status === 'en-riesgo' ? 'b-riesgo' : 'b-atrasado'}`}>
+                          <span className="badge-dot" />
+                          {a.status === 'en-riesgo' ? 'En riesgo' : 'Atrasado'}
+                        </span>
+                      </div>
+                    </div>
+                  )) : (
+                    <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+                      Sin alertas activas
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* PRÓXIMOS INGRESOS */}
           <div className="sec-card">
@@ -660,7 +655,7 @@ export default function Dashboard() {
                     <div className="ui-name">{u.name}</div>
                     <div className="ui-sub">{u.sub}</div>
                   </div>
-                  <div className="ui-av" style={{ background: u.color }}>{initials(u.name)}</div>
+                  <div className="ui-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(u.name)}`} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
                 </div>
               ))}
             </div>
@@ -686,6 +681,8 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      </>)} {/* fin ctxAsignaciones.length > 0 */}
 
       <div style={{ height: '8px' }} />
 
@@ -719,7 +716,7 @@ export default function Dashboard() {
                     <ChevronDown size={14} className="pl-dropdown-chevron" />
                   </button>
                   {dropArea && (
-                    <div className="pl-dropdown-menu">
+                    <div className="pl-dropdown-menu up">
                       {areas.map(a => (
                         <button key={a} type="button" className={`pl-dropdown-item${formRuta.area === a ? ' selected' : ''}`} onClick={() => { setFormRuta({ ...formRuta, area: a, cargo: '' }); setDropArea(false) }}>
                           <span>{a}</span>
@@ -738,7 +735,7 @@ export default function Dashboard() {
                     <ChevronDown size={14} className="pl-dropdown-chevron" />
                   </button>
                   {dropCargo && (
-                    <div className="pl-dropdown-menu">
+                    <div className="pl-dropdown-menu up">
                       {(cargosPorArea[formRuta.area] || []).map(c => (
                         <button key={c} type="button" className={`pl-dropdown-item${formRuta.cargo === c ? ' selected' : ''}`} onClick={() => { setFormRuta({ ...formRuta, cargo: c }); setDropCargo(false) }}>
                           <span>{c}</span>
@@ -761,404 +758,154 @@ export default function Dashboard() {
       )}
 
       {/* MODAL ASIGNAR RUTA */}
-      {modalAsignar && (() => {
-        const hasActiveFilters = colabFilterDepto !== 'Todas' || colabFilterSucursal !== 'Todas' || colabFilterCargo !== 'Todos' || colabFechaDesde || colabFechaHasta
-        const filteredColabs = colaboradoresDisponibles.filter(c => {
-          const matchSearch = c.name.toLowerCase().includes(colabSearch.toLowerCase()) ||
-            c.cargo.toLowerCase().includes(colabSearch.toLowerCase())
-          const matchDepto = colabFilterDepto === 'Todas' || c.depto === colabFilterDepto
-          const matchSucursal = colabFilterSucursal === 'Todas' || c.sucursal === colabFilterSucursal
-          const matchCargo = colabFilterCargo === 'Todos' || c.cargo === colabFilterCargo
-          const matchDesde = !colabFechaDesde || c.ingreso >= colabFechaDesde
-          const matchHasta = !colabFechaHasta || c.ingreso <= colabFechaHasta
-          return matchSearch && matchDepto && matchSucursal && matchCargo && matchDesde && matchHasta
-        })
-        const cargosDisponibles = [...new Set(colaboradoresDisponibles
-          .filter(c => colabFilterDepto === 'Todas' || c.depto === colabFilterDepto)
-          .map(c => c.cargo))]
-        function clearFilters() {
-          setColabFilterDepto('Todas'); setColabFilterSucursal('Todas'); setColabFilterCargo('Todos'); setColabFechaDesde(''); setColabFechaHasta('')
-        }
-        function toggleColab(c) {
-          setSelectedColabs(prev =>
-            prev.find(s => s.name === c.name)
-              ? prev.filter(s => s.name !== c.name)
-              : [...prev, c]
-          )
-        }
-        const isColabSelected = (c) => selectedColabs.some(s => s.name === c.name)
+      {modalAsignar && (
+        <AsignarRutaModal
+          onClose={() => setModalAsignar(false)}
+          onConfirm={() => { setModalAsignar(false); navigate('/onboarding/asignaciones') }}
+        />
+      )}
 
-        return (
-        <div className="pl-overlay" onClick={() => setModalAsignar(false)}>
-          <div className="pl-modal jb-modal" style={{ width: 980, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      {/* MODAL BIENVENIDA — se muestra solo si isDemoFresh y no fue cerrado antes */}
+      {showWelcome && isDemoFresh && !isManager && (
+        <div className="pl-overlay" style={{ zIndex: 60 }} onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false) }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,.18)', overflow: 'hidden', animation: 'plSlideUp .25s ease-out' }}>
 
             {/* HEADER */}
-            <div className="pl-modal-header" style={{ borderBottom: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 15 }}>Asignar ruta de onboarding</h2>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Selecciona colaboradores, elige la ruta y fecha de inicio</span>
-                </div>
+            <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #164e63 100%)', padding: '36px 32px 28px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>👋</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+                Bienvenida al módulo de Onboarding
               </div>
-              <button className="pl-modal-close" onClick={() => setModalAsignar(false)}>
-                <X size={18} />
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }}>
+                Desde aquí podrás gestionar la experiencia de ingreso de todos tus colaboradores.
+              </div>
+            </div>
+
+            {/* PASOS */}
+            <div style={{ padding: '24px 32px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Para comenzar necesitas</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { n: '1', text: 'Configurar el módulo', sub: 'Activa gamificación, asistente IA y define cómo se asignarán las rutas.', path: '/onboarding/configuracion' },
+                  { n: '2', text: 'Subir recursos', sub: 'Documentos, videos y materiales que tus colaboradores consultarán.', path: '/onboarding/conocimiento' },
+                  { n: '3', text: 'Crear una ruta', sub: 'El camino paso a paso que seguirá cada nuevo ingreso.', path: '/onboarding/plantillas' },
+                  { n: '4', text: 'Asignar la ruta', sub: 'Elige un colaborador y activa su onboarding.', path: '/onboarding/asignaciones' },
+                ].map(s => (
+                  <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#0C2D40', flexShrink: 0 }}>{s.n}</div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{s.text}</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            <div style={{ padding: '0 32px 28px', display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false); navigate('/onboarding/configuracion') }}
+                style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Rocket size={15} />
+                Empezar configuración
+              </button>
+              <button
+                onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false) }}
+                style={{ height: 44, padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                Explorar
               </button>
             </div>
 
-            {/* CONTENIDO: 3 COLUMNAS */}
-            <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          </div>
+        </div>
+      )}
 
-              {/* COL 1: COLABORADORES */}
-              <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>1.</span> Colaboradores</span>
-                  <button onClick={() => setShowFilters(true)} style={{
-                    padding: '3px 8px', borderRadius: 6,
-                    border: hasActiveFilters ? '1px solid #0C2D40' : '1px solid #e2e8f0',
-                    background: hasActiveFilters ? '#f0f9ff' : '#fff',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 600,
-                    color: hasActiveFilters ? '#0C2D40' : '#94a3b8',
-                  }}>
-                    <Filter size={10} />
-                    {hasActiveFilters
-                      ? `${[colabFilterDepto !== 'Todas', colabFilterSucursal !== 'Todas', colabFilterCargo !== 'Todos', !!colabFechaDesde, !!colabFechaHasta].filter(Boolean).length} filtros`
-                      : 'Filtros'}
-                  </button>
+      {/* CELEBRACIÓN — confetti + modal al completar los 4 pasos */}
+      {showCelebration && (
+        <>
+          <style>{`
+            @keyframes confettiFall {
+              0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+              80%  { opacity: 1; }
+              100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
+            }
+          `}</style>
+
+          {/* confetti */}
+          <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 80, overflow: 'hidden' }}>
+            {confettiPieces.map(p => (
+              <div key={p.id} style={{
+                position: 'absolute',
+                left: `${p.x}%`,
+                top: -12,
+                width: p.isCircle ? p.size : p.size * 0.6,
+                height: p.isCircle ? p.size : p.size * 1.4,
+                borderRadius: p.isCircle ? '50%' : 2,
+                background: p.color,
+                animation: `confettiFall ${p.duration}s ${p.delay}s ease-in forwards`,
+                transform: `rotate(${p.rotate}deg)`,
+              }} />
+            ))}
+          </div>
+
+          {/* modal */}
+          <div className="pl-overlay" style={{ zIndex: 85 }} onClick={() => setShowCelebration(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,.18)', overflow: 'hidden', animation: 'plSlideUp .3s ease-out' }}>
+
+              {/* header */}
+              <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '36px 32px 28px', textAlign: 'center' }}>
+                <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+                  ¡Lo lograste, {currentUser?.name?.split(' ')[0]}!
                 </div>
-
-                <div className="pl-search-wrap" style={{ flex: 'none' }}>
-                  <Search size={12} className="pl-search-ico" />
-                  <input type="text" className="pl-search" style={{ fontSize: 11 }} placeholder="Buscar..." value={colabSearch} onChange={e => setColabSearch(e.target.value)} />
-                </div>
-
-                {/* CHIPS FILTROS */}
-                {hasActiveFilters && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {colabFilterSucursal !== 'Todas' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {colabFilterSucursal}
-                        <button onClick={() => setColabFilterSucursal('Todas')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#1e40af' }} /></button>
-                      </span>
-                    )}
-                    {colabFilterDepto !== 'Todas' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#f0fdf4', color: '#166534', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {colabFilterDepto}
-                        <button onClick={() => { setColabFilterDepto('Todas'); setColabFilterCargo('Todos') }} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#166534' }} /></button>
-                      </span>
-                    )}
-                    {colabFilterCargo !== 'Todos' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {colabFilterCargo}
-                        <button onClick={() => setColabFilterCargo('Todos')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#92400e' }} /></button>
-                      </span>
-                    )}
-                    <button onClick={clearFilters} style={{ fontSize: 8, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
-                  </div>
-                )}
-
-                {/* LISTA */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {filteredColabs.map(c => {
-                    const sel = isColabSelected(c)
-                    return (
-                      <button key={c.name} onClick={() => toggleColab(c)} style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '8px 10px', borderRadius: 6, width: '100%',
-                        border: 'none',
-                        background: sel ? '#d1fae5' : 'transparent',
-                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                        transition: 'all .12s',
-                        borderBottom: '1px solid #f8fafc',
-                      }}
-                        onMouseEnter={e => { if (!sel) e.currentTarget.style.background = '#f8fafc' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = sel ? '#d1fae5' : 'transparent' }}
-                      >
-                        <div style={{
-                          width: 15, height: 15, borderRadius: 4, border: sel ? '2px solid #10DC97' : '1.5px solid #d1d5db',
-                          background: sel ? '#10DC97' : '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        }}>
-                          {sel && <Check size={8} style={{ color: '#fff' }} />}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11, fontWeight: sel ? 600 : 500, color: sel ? '#0C2D40' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                          <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.depto} · {c.sucursal}</div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                  {filteredColabs.length === 0 && (
-                    <div style={{ padding: 16, textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>Sin resultados</div>
-                  )}
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', lineHeight: 1.6 }}>
+                  Tu módulo de onboarding está configurado y listo para funcionar.
                 </div>
               </div>
 
-              {/* COL 2: RUTA */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9', minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>2.</span> Ruta</span>
-                  <button onClick={() => setShowRutaFilters(true)} style={{
-                    padding: '3px 8px', borderRadius: 6,
-                    border: (onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos') ? '1px solid #0C2D40' : '1px solid #e2e8f0',
-                    background: (onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos') ? '#f0f9ff' : '#fff',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-                    fontFamily: 'inherit', fontSize: 10, fontWeight: 600,
-                    color: (onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos') ? '#0C2D40' : '#94a3b8',
-                  }}>
-                    <Filter size={10} />
-                    {(onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos')
-                      ? `${[onbSede !== 'Todas', onbArea !== 'Todas', onbCargo !== 'Todos'].filter(Boolean).length} filtros`
-                      : 'Filtros'}
-                  </button>
-                </div>
-                <div className="pl-search-wrap" style={{ flex: 'none' }}>
-                  <Search size={12} className="pl-search-ico" />
-                  <input type="text" className="pl-search" style={{ fontSize: 11 }} placeholder="Buscar ruta..." value={onbSearch} onChange={e => setOnbSearch(e.target.value)} />
-                </div>
-
-                {/* CHIPS FILTROS RUTA */}
-                {(onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos') && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {onbSede !== 'Todas' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#fce7f3', color: '#9d174d', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {onbSede}
-                        <button onClick={() => setOnbSede('Todas')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#fbcfe8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#9d174d' }} /></button>
-                      </span>
-                    )}
-                    {onbArea !== 'Todas' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {onbArea}
-                        <button onClick={() => setOnbArea('Todas')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#1e40af' }} /></button>
-                      </span>
-                    )}
-                    {onbCargo !== 'Todos' && (
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        {onbCargo}
-                        <button onClick={() => setOnbCargo('Todos')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#92400e' }} /></button>
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* MODAL FILTROS RUTA */}
-                {showRutaFilters && (
-                  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowRutaFilters(false)}>
-                    <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Filter size={16} style={{ color: '#0C2D40' }} />
-                          <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar rutas</span>
-                        </div>
-                        <button onClick={() => setShowRutaFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <X size={14} style={{ color: '#64748b' }} />
-                        </button>
+              {/* logros */}
+              <div style={{ padding: '22px 28px 8px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Lo que configuraste</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    'Módulo configurado con tus preferencias',
+                    'Recursos subidos a la biblioteca',
+                    'Ruta de onboarding creada',
+                    'Primera asignación realizada',
+                  ].map(item => (
+                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ color: '#fff', fontSize: 10, fontWeight: 800 }}>✓</span>
                       </div>
-                      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setRfDropSede(false); setRfDropArea(false); setRfDropCargo(false) }}>
-                        {/* SEDE */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Sucursal</span>
-                          <div className="pl-dropdown-wrap">
-                            <button type="button" className={`pl-dropdown-trigger${rfDropSede ? ' open' : ''}${onbSede === 'Todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropSede(!rfDropSede); setRfDropArea(false); setRfDropCargo(false) }}>
-                              <span>{onbSede === 'Todas' ? 'Seleccione una sucursal' : onbSede}</span>
-                              <ChevronDown size={14} className="pl-dropdown-chevron" />
-                            </button>
-                            {rfDropSede && (
-                              <div className="pl-dropdown-menu">
-                                {['Todas', ...new Set(colaboradoresDisponibles.map(c => c.sucursal))].map(s => (
-                                  <button key={s} type="button" className={`pl-dropdown-item${onbSede === s ? ' selected' : ''}`} onClick={() => { setOnbSede(s); setRfDropSede(false) }}>
-                                    <span>{s === 'Todas' ? 'Todas las sucursales' : s}</span>
-                                    {onbSede === s && <Check size={14} />}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {/* ÁREA */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Área</span>
-                          <div className="pl-dropdown-wrap">
-                            <button type="button" className={`pl-dropdown-trigger${rfDropArea ? ' open' : ''}${onbArea === 'Todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropArea(!rfDropArea); setRfDropSede(false); setRfDropCargo(false) }}>
-                              <span>{onbArea === 'Todas' ? 'Seleccione un área' : onbArea}</span>
-                              <ChevronDown size={14} className="pl-dropdown-chevron" />
-                            </button>
-                            {rfDropArea && (
-                              <div className="pl-dropdown-menu" style={{ top: 'auto', bottom: 'calc(100% + 6px)' }}>
-                                {['Todas', ...new Set(rutasAsignar.map(r => r.area))].map(a => (
-                                  <button key={a} type="button" className={`pl-dropdown-item${onbArea === a ? ' selected' : ''}`} onClick={() => { setOnbArea(a); setRfDropArea(false) }}>
-                                    <span>{a === 'Todas' ? 'Todas las áreas' : a}</span>
-                                    {onbArea === a && <Check size={14} />}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {/* CARGO */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Cargo destino</span>
-                          <div className="pl-dropdown-wrap">
-                            <button type="button" className={`pl-dropdown-trigger${rfDropCargo ? ' open' : ''}${onbCargo === 'Todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropCargo(!rfDropCargo); setRfDropSede(false); setRfDropArea(false) }}>
-                              <span>{onbCargo === 'Todos' ? 'Seleccione un cargo' : onbCargo}</span>
-                              <ChevronDown size={14} className="pl-dropdown-chevron" />
-                            </button>
-                            {rfDropCargo && (
-                              <div className="pl-dropdown-menu" style={{ top: 'auto', bottom: 'calc(100% + 6px)' }}>
-                                {['Todos', 'Pasante', 'Ejecutivo', 'Gerente', 'Analista', 'Developer'].map(c => (
-                                  <button key={c} type="button" className={`pl-dropdown-item${onbCargo === c ? ' selected' : ''}`} onClick={() => { setOnbCargo(c); setRfDropCargo(false) }}>
-                                    <span>{c === 'Todos' ? 'Todos los cargos' : c}</span>
-                                    {onbCargo === c && <Check size={14} />}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
-                        <button onClick={() => { setOnbSede('Todas'); setOnbArea('Todas'); setOnbCargo('Todos') }} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
-                        <button onClick={() => setShowRutaFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
-                      </div>
+                      <span style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>{item}</span>
                     </div>
-                  </div>
-                )}
-
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {rutasAsignar
-                    .filter(r => (onbArea === 'Todas' || r.area === onbArea) && (onbCargo === 'Todos' || r.name.toLowerCase().includes(onbCargo.toLowerCase())) && r.name.toLowerCase().includes(onbSearch.toLowerCase()))
-                    .map(r => (
-                    <button key={r.id} onClick={() => setOnbSelected(r.id)} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 10px', borderRadius: 6, width: '100%',
-                      border: 'none',
-                      background: onbSelected === r.id ? '#d1fae5' : 'transparent',
-                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all .12s',
-                      borderBottom: '1px solid #f8fafc',
-                    }}
-                      onMouseEnter={e => { if (onbSelected !== r.id) e.currentTarget.style.background = '#f8fafc' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = onbSelected === r.id ? '#d1fae5' : 'transparent' }}
-                    >
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: onbSelected === r.id ? 600 : 500, color: onbSelected === r.id ? '#0C2D40' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                        <div style={{ fontSize: 9, color: '#b0b8c4' }}>{r.area} · {r.etapas} etapas</div>
-                      </div>
-                      {onbSelected === r.id && <Check size={12} style={{ color: r.color, flexShrink: 0 }} />}
-                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* COL 3: FECHA */}
-              <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
-                <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
+              {/* footer */}
+              <div style={{ padding: '20px 28px 28px', display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setShowCelebration(false)}
+                  style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }}
+                >
+                  ¡Vamos al dashboard! 🚀
+                </button>
+                <button
+                  onClick={() => { setShowCelebration(false); navigate('/onboarding/asignaciones') }}
+                  style={{ height: 44, padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
+                >
+                  Ver asignaciones
+                </button>
               </div>
-            </div>
 
-            {/* MODAL DE FILTROS */}
-            {showFilters && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowFilters(false)}>
-                <div style={{ background: '#fff', borderRadius: 16, width: 440, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Filter size={16} style={{ color: '#0C2D40' }} />
-                      <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar colaboradores</span>
-                    </div>
-                    <button onClick={() => setShowFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={14} style={{ color: '#64748b' }} />
-                    </button>
-                  </div>
-                  <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} onClick={() => { setFDropSucursal(false); setFDropArea(false); setFDropCargo(false) }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Sucursal</span>
-                      <div className="pl-dropdown-wrap">
-                        <button type="button" className={`pl-dropdown-trigger${fDropSucursal ? ' open' : ''}${colabFilterSucursal === 'Todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setFDropSucursal(!fDropSucursal); setFDropArea(false); setFDropCargo(false) }}>
-                          <span>{colabFilterSucursal === 'Todas' ? 'Seleccione una sucursal' : colabFilterSucursal}</span>
-                          <ChevronDown size={14} className="pl-dropdown-chevron" />
-                        </button>
-                        {fDropSucursal && (
-                          <div className="pl-dropdown-menu">
-                            {['Todas', ...new Set(colaboradoresDisponibles.map(c => c.sucursal))].map(s => (
-                              <button key={s} type="button" className={`pl-dropdown-item${colabFilterSucursal === s ? ' selected' : ''}`} onClick={() => { setColabFilterSucursal(s); setFDropSucursal(false) }}>
-                                <span>{s === 'Todas' ? 'Todas las sucursales' : s}</span>
-                                {colabFilterSucursal === s && <Check size={14} />}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Área</span>
-                      <div className="pl-dropdown-wrap">
-                        <button type="button" className={`pl-dropdown-trigger${fDropArea ? ' open' : ''}${colabFilterDepto === 'Todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setFDropArea(!fDropArea); setFDropSucursal(false); setFDropCargo(false) }}>
-                          <span>{colabFilterDepto === 'Todas' ? 'Seleccione un área' : colabFilterDepto}</span>
-                          <ChevronDown size={14} className="pl-dropdown-chevron" />
-                        </button>
-                        {fDropArea && (
-                          <div className="pl-dropdown-menu">
-                            {['Todas', ...new Set(colaboradoresDisponibles.map(c => c.depto))].map(a => (
-                              <button key={a} type="button" className={`pl-dropdown-item${colabFilterDepto === a ? ' selected' : ''}`} onClick={() => { setColabFilterDepto(a); setColabFilterCargo('Todos'); setFDropArea(false) }}>
-                                <span>{a === 'Todas' ? 'Todas las áreas' : a}</span>
-                                {colabFilterDepto === a && <Check size={14} />}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Cargo</span>
-                      <div className="pl-dropdown-wrap">
-                        <button type="button" className={`pl-dropdown-trigger${fDropCargo ? ' open' : ''}${colabFilterCargo === 'Todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setFDropCargo(!fDropCargo); setFDropSucursal(false); setFDropArea(false) }}>
-                          <span>{colabFilterCargo === 'Todos' ? 'Seleccione un cargo' : colabFilterCargo}</span>
-                          <ChevronDown size={14} className="pl-dropdown-chevron" />
-                        </button>
-                        {fDropCargo && (
-                          <div className="pl-dropdown-menu">
-                            {['Todos', ...cargosDisponibles].map(c => (
-                              <button key={c} type="button" className={`pl-dropdown-item${colabFilterCargo === c ? ' selected' : ''}`} onClick={() => { setColabFilterCargo(c); setFDropCargo(false) }}>
-                                <span>{c === 'Todos' ? 'Todos los cargos' : c}</span>
-                                {colabFilterCargo === c && <Check size={14} />}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, gridColumn: 'span 2' }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Fecha de ingreso</span>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input type="date" value={colabFechaDesde} onChange={e => setColabFechaDesde(e.target.value)} className="pl-input" style={{ flex: 1 }} />
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>hasta</span>
-                        <input type="date" value={colabFechaHasta} onChange={e => setColabFechaHasta(e.target.value)} className="pl-input" style={{ flex: 1 }} />
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
-                    <button onClick={clearFilters} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
-                    <button onClick={() => setShowFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* FOOTER */}
-            <div className="pl-modal-footer" style={{ padding: '8px 26px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-              <button className="pl-btn-cancel" onClick={() => setModalAsignar(false)}>Cancelar</button>
-              <button className="pl-btn-save" disabled={selectedColabs.length === 0 || !onbSelected || !onbFecha}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...(selectedColabs.length === 0 || !onbSelected || !onbFecha ? { opacity: 0.5, cursor: 'default' } : {}) }}
-                onClick={() => { setModalAsignar(false); navigate('/onboarding/asignaciones') }}>
-                <Rocket size={13} />
-                Asignar a {selectedColabs.length || '...'} colaborador{selectedColabs.length !== 1 ? 'es' : ''}
-              </button>
             </div>
           </div>
-        </div>
-        )
-      })()}
+        </>
+      )}
     </div>
   )
 }

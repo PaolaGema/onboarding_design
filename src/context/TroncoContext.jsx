@@ -1,21 +1,17 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext } from 'react'
+import { useOnboardingData } from './OnboardingDataContext'
 
 const TroncoContext = createContext()
 
-const defaultTronco = {
-  configured: false,
-  etapas: [],
-}
-
 export function TroncoProvider({ children }) {
-  const [tronco, setTronco] = useState(defaultTronco)
+  const { tronco, setTronco } = useOnboardingData()
 
   function saveTronco(etapas) {
     setTronco({ configured: true, etapas })
   }
 
   function resetTronco() {
-    setTronco(defaultTronco)
+    setTronco({ configured: false, etapas: [] })
   }
 
   return (

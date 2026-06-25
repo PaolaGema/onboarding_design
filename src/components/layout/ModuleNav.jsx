@@ -3,8 +3,12 @@ import { LayoutDashboard, Users, FileText, Hand, Route, BookOpen, Settings, User
 import { useUser } from '../../context/UserContext'
 
 const sectionInfo = {
-  'Administración': 'Herramientas para gestionar el onboarding de tu empresa: ver el panel general, asignar rutas, crear rutas, administrar recursos y configurar el módulo.',
-  'Mi espacio': 'Tu espacio personal dentro de la plataforma: ve tu bienvenida y accede a tu ruta de onboarding.',
+  'Administración': 'Opciones para administrar el módulo de onboarding.',
+  'Mi espacio': 'Tu onboarding personal como colaborador.',
+}
+const sectionInfoTitle = {
+  'Administración': 'Administración',
+  'Mi espacio': 'Mi espacio',
 }
 
 const onboardingAdminNav = [
@@ -90,7 +94,7 @@ export default function ModuleNav() {
 
       <nav className="flex flex-col" style={{ paddingLeft: '1.25rem', paddingRight: '1rem' }}>
         {sections.map((group, gi) => (
-          <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0 }}>
+          <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0, paddingTop: gi > 0 ? '0.75rem' : 0, borderTop: gi > 0 ? '1px solid #e5e7eb' : 'none' }}>
             <div style={{
               fontSize: 10, fontWeight: 700, color: '#94a3b8',
               textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -99,24 +103,26 @@ export default function ModuleNav() {
             }}>
               {group.section}
               {sectionInfo[group.section] && (
-                <div style={{ position: 'relative', display: 'inline-flex' }}
-                  onMouseEnter={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '1'}
+                <div style={{ display: 'inline-flex' }}
+                  onMouseEnter={e => {
+                    const tip = e.currentTarget.querySelector('[data-tip]')
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    tip.style.left = (rect.right + 8) + 'px'
+                    tip.style.top = rect.top + 'px'
+                    tip.style.opacity = '1'
+                  }}
                   onMouseLeave={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '0'}
                 >
                   <Info size={10} style={{ color: '#cbd5e1', cursor: 'help' }} />
                   <div data-tip style={{
-                    position: 'absolute', left: 0, top: 'calc(100% + 8px)',
+                    position: 'fixed',
                     background: '#0C2D40', color: '#fff', borderRadius: 8, padding: '8px 12px',
-                    fontSize: 10, lineHeight: 1.5, width: 200, zIndex: 50,
+                    fontSize: 10, lineHeight: 1.5, width: 200, zIndex: 9999, textTransform: 'none', letterSpacing: 'normal',
                     boxShadow: '0 4px 16px rgba(0,0,0,.15)', opacity: 0,
                     transition: 'opacity .15s', pointerEvents: 'none',
                   }}>
+                    <strong style={{ color: '#10DC97', display: 'block', marginBottom: 3 }}>{sectionInfoTitle[group.section]}</strong>
                     {sectionInfo[group.section]}
-                    <div style={{
-                      position: 'absolute', top: -4, left: 8,
-                      width: 8, height: 8, background: '#0C2D40',
-                      transform: 'rotate(45deg)',
-                    }} />
                   </div>
                 </div>
               )}

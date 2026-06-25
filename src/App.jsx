@@ -3,6 +3,7 @@ import { UserProvider } from './context/UserContext'
 import { TroncoProvider } from './context/TroncoContext'
 import { RutaActivaProvider } from './context/RutaActivaContext'
 import { ConfigProvider } from './context/ConfigContext'
+import { OnboardingDataProvider } from './context/OnboardingDataContext'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/onboarding/Dashboard'
 import Asignaciones from './pages/onboarding/Asignaciones'
@@ -16,6 +17,7 @@ import Colaboradores from './pages/personas/Colaboradores'
 export default function App() {
   return (
     <UserProvider>
+      <OnboardingDataProvider>
       <ConfigProvider>
       <TroncoProvider>
       <RutaActivaProvider>
@@ -39,6 +41,7 @@ export default function App() {
       </RutaActivaProvider>
       </TroncoProvider>
       </ConfigProvider>
+      </OnboardingDataProvider>
     </UserProvider>
   )
 }

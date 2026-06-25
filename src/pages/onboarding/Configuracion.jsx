@@ -2,11 +2,12 @@ import { useState } from 'react'
 import JourneyBuilder from './JourneyBuilder'
 import { useTronco } from '../../context/TroncoContext'
 import { useConfig } from '../../context/ConfigContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Trophy, Bot, Megaphone, Bell, ClipboardCheck,
   Calendar, BookOpen, AlertTriangle, Lock, Info,
   Shield, ChevronDown, ChevronRight, Route, Zap,
-  Video, FileText, HelpCircle, Upload, Pencil, MessageSquare,
+  Video, FileText, Upload, Pencil, MessageSquare,
   Clock, AlertCircle, X
 } from 'lucide-react'
 
@@ -92,8 +93,8 @@ const initialConfig = [
 ]
 
 const modoAsignacion = [
-  { key: 'auto', label: 'Automática', desc: 'En la fecha de ingreso del colaborador, el sistema le asigna la ruta según su área y cargo.' },
-  { key: 'manual', label: 'Manual', desc: 'Un admin debe ir a Colaboradores y asignar la ruta manualmente a cada persona.' },
+  { key: 'manual', label: 'Manual', desc: 'Un administrador asigna la ruta a cada colaborador desde el módulo de Asignaciones.', icon: Pencil },
+  { key: 'auto', label: 'Automática', desc: 'El sistema asigna la ruta automáticamente en la fecha de ingreso, según el área y cargo.', icon: Zap },
 ]
 
 const modoActivacion = [
@@ -103,17 +104,20 @@ const modoActivacion = [
 ]
 
 export default function Configuracion() {
-  const [config, setConfig] = useState(initialConfig)
-  const [asignacion, setAsignacion] = useState('auto')
-  const [activacion, setActivacion] = useState('fecha')
-  const [horaAsignacion, setHoraAsignacion] = useState('08:00')
+  const { configToggles, setConfigToggles } = useOnboardingData()
+  const [config, setConfig] = useState(() =>
+    initialConfig.map(c => ({ ...c, enabled: configToggles[c.key] ?? c.enabled }))
+  )
+  const [asignacion, setAsignacion] = useState(configToggles.asignacion || 'manual')
+  const [activacion, setActivacion] = useState(configToggles.activacion || 'manual')
+  const [horaAsignacion, setHoraAsignacion] = useState(configToggles.horaAsignacion || '08:00')
   const [expandedCard, setExpandedCard] = useState(null)
   const [troncoExpanded, setTroncoExpanded] = useState(true)
+  const [asignacionExpanded, setAsignacionExpanded] = useState(true)
   const [editingTronco, setEditingTronco] = useState(false)
   const { tronco, saveTronco } = useTronco()
   const { setGamificacion, setAsistenteIA } = useConfig()
   const troncoConfigured = tronco.configured
-
   const [toggleConfirm, setToggleConfirm] = useState(null)
 
   function requestToggle(key) {
@@ -127,15 +131,32 @@ export default function Configuracion() {
     const { key, willEnable } = toggleConfirm
     setConfig(prev => {
       const next = prev.map(c => c.key === key ? { ...c, enabled: willEnable } : c)
-      if (key === 'gamificacion') {
-        setGamificacion(next.find(c => c.key === 'gamificacion').enabled)
-      }
-      if (key === 'buddy') {
-        setAsistenteIA(next.find(c => c.key === 'buddy').enabled)
-      }
+      if (key === 'gamificacion') setGamificacion(willEnable)
+      if (key === 'buddy') setAsistenteIA(willEnable)
+      setConfigToggles(ct => ({ ...ct, [key]: willEnable }))
       return next
     })
+    if (willEnable && ['buddy', 'menciones', 'riesgo', 'extension'].includes(key)) {
+      setExpandedCard(key)
+    } else if (!willEnable) {
+      setExpandedCard(prev => prev === key ? null : prev)
+    }
     setToggleConfirm(null)
+  }
+
+  function updateAsignacion(val) {
+    setAsignacion(val)
+    setConfigToggles(ct => ({ ...ct, asignacion: val }))
+  }
+
+  function updateActivacion(val) {
+    setActivacion(val)
+    setConfigToggles(ct => ({ ...ct, activacion: val }))
+  }
+
+  function updateHora(val) {
+    setHoraAsignacion(val)
+    setConfigToggles(ct => ({ ...ct, horaAsignacion: val }))
   }
 
   function toggleSubItem(configKey, listKey, idx) {
@@ -177,7 +198,7 @@ export default function Configuracion() {
       }}>
         <Info size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
         <div style={{ fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
-          <strong>Global vs. Ruta:</strong> Lo que configures aquí son los valores por defecto. Cada ruta puede heredarlos, personalizarlos o desactivarlos. Si desactivas algo aquí, ninguna ruta podrá usarlo.
+          Lo que configures aquí son los valores por defecto para toda la empresa. Cada ruta puede heredarlos, personalizarlos o desactivarlos — pero si apagas algo aquí, ninguna ruta podrá usarlo.
         </div>
       </div>
 
@@ -201,7 +222,7 @@ export default function Configuracion() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Inducción general</div>
             <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
-              Estas tareas se agregan al inicio de toda ruta de onboarding, sin importar el departamento. No pueden ser eliminadas por los jefes ni por los colaboradores.
+              Se aplican automáticamente en todas las rutas de onboarding, sin excepción. Los jefes de área y colaboradores no pueden eliminarlas.
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -287,26 +308,50 @@ export default function Configuracion() {
                 </div>
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                <Shield size={36} style={{ color: '#cbd5e1', margin: '0 auto 12px' }} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40', marginBottom: 6 }}>
-                  Aún no tienes un inducción general
+              <div style={{
+                borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                background: '#fafbfc', padding: '24px',
+                display: 'flex', alignItems: 'center', gap: 24,
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: '#f1f5f9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Shield size={22} style={{ color: '#94a3b8' }} />
                 </div>
-                <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, margin: '0 auto 20px', maxWidth: 380 }}>
-                  Define las etapas y tareas que todos los nuevos colaboradores deben completar sin importar su área — como bienvenida corporativa, documentación, cultura, etc.
-                </p>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                    Aún no tienes una inducción general
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                    Define las etapas y tareas que todos los nuevos colaboradores deben completar sin importar su área — bienvenida, documentación, cultura, etc.
+                  </p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['👋 Bienvenida', '📄 Documentación', '🎯 Cultura'].map(tag => (
+                      <span key={tag} style={{
+                        fontSize: 10, fontWeight: 600, color: '#475569',
+                        background: '#f1f5f9', border: '1px solid #e2e8f0',
+                        padding: '3px 10px', borderRadius: 20,
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   onClick={() => setEditingTronco(true)}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '12px 24px', borderRadius: 10, border: 'none',
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 18px', borderRadius: 10, border: 'none',
                     background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                    fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-                    boxShadow: '0 2px 8px rgba(12,45,64,0.2)',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
                   }}
                 >
-                  <Shield size={15} />
-                  Crear inducción general
+                  <Shield size={13} />
+                  Crear inducción
                 </button>
               </div>
             )}
@@ -317,92 +362,139 @@ export default function Configuracion() {
       {/* ASIGNACIÓN DE RUTA */}
       <div style={{
         background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
-        padding: '20px 22px', marginBottom: 16,
+        padding: '20px 24px', marginBottom: 16,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+          onClick={() => setAsignacionExpanded(!asignacionExpanded)}
+        >
           <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: '#3b82f6', color: '#fff',
+            width: 36, height: 36, borderRadius: 10,
+            background: '#0C2D40', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}>
-            <Route size={15} />
+            <Route size={17} />
           </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Asignación de ruta</div>
-            <div style={{ fontSize: 10, color: '#94a3b8' }}>¿Cómo se asigna la ruta al colaborador?</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Asignación de ruta</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+              ¿Cómo y cuándo se asigna la ruta al nuevo colaborador?
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: '#475569', background: '#f1f5f9',
+              padding: '3px 10px', borderRadius: 6,
+            }}>
+              {asignacion === 'manual' ? 'Manual' : 'Automática'}
+            </span>
+            {asignacionExpanded
+              ? <ChevronDown size={16} style={{ color: '#94a3b8' }} />
+              : <ChevronRight size={16} style={{ color: '#94a3b8' }} />}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: asignacion === 'auto' ? 14 : 0 }}>
-          {modoAsignacion.map(m => {
-            const selected = asignacion === m.key
-            return (
-              <button
-                key={m.key}
-                onClick={() => { setAsignacion(m.key); if (m.key === 'auto') setActivacion('fecha') }}
-                style={{
-                  flex: 1, padding: '14px 16px', borderRadius: 10,
-                  border: `1.5px solid ${selected ? '#3b82f6' : '#e2e8f0'}`,
-                  background: selected ? '#eff6ff' : '#fff',
-                  cursor: 'pointer', textAlign: 'left',
-                  transition: 'all .15s', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center', gap: 12,
-                }}
-              >
-                <div style={{
-                  width: 18, height: 18, borderRadius: '50%',
-                  border: `2px solid ${selected ? '#3b82f6' : '#d1d5db'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, transition: 'all .15s',
-                }}>
-                  {selected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: selected ? '#1e40af' : '#475569' }}>{m.label}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>{m.desc}</div>
-                </div>
-              </button>
-            )
-          })}
+        {asignacionExpanded && (
+        <div style={{ marginTop: 16, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+
+        {/* OPCIONES */}
+        <div style={{
+          borderRadius: 12, border: '1.5px dashed #e2e8f0',
+          background: '#fafbfc', padding: '14px',
+          marginBottom: asignacion === 'auto' ? 12 : 0,
+        }}>
+          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            Selecciona cómo se asigna la ruta al colaborador:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {modoAsignacion.map(m => {
+              const selected = asignacion === m.key
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => { updateAsignacion(m.key); if (m.key === 'auto') updateActivacion('fecha') }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '11px 14px', borderRadius: 10,
+                    background: selected ? '#fff' : 'transparent',
+                    border: `1px solid ${selected ? '#e2e8f0' : 'transparent'}`,
+                    boxShadow: selected ? '0 1px 4px rgba(0,0,0,.06)' : 'none',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                    transition: 'all .15s',
+                  }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#f1f5f9' }}
+                  onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                    border: `2px solid ${selected ? '#0C2D40' : '#d1d5db'}`,
+                    background: selected ? '#0C2D40' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all .2s',
+                  }}>
+                    {selected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 2 }}>{m.label}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{m.desc}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* HORA — solo si es automática */}
         {asignacion === 'auto' && (
           <div style={{
-            padding: '16px', borderRadius: 10,
-            background: '#f8fafc', border: '1px solid #e2e8f0',
+            borderRadius: 12, border: '1.5px dashed #e2e8f0',
+            background: '#fafbfc', padding: '18px',
+            display: 'flex', alignItems: 'center', gap: 16,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <Clock size={14} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>Hora de asignación</span>
-            </div>
-            <input
-              type="time"
-              value={horaAsignacion}
-              onChange={e => setHoraAsignacion(e.target.value)}
-              style={{
-                padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0',
-                fontSize: 14, fontFamily: 'inherit', fontWeight: 700, color: '#0C2D40',
-                outline: 'none', background: '#fff', cursor: 'pointer',
-                width: 140,
-              }}
-              onFocus={e => e.target.style.borderColor = '#3b82f6'}
-              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-            />
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
-              El sistema asignará la ruta a las <strong style={{ color: '#0C2D40' }}>{horaAsignacion} hrs</strong> del día de ingreso, según el área y cargo del colaborador. Para que funcione, cada ruta debe tener configurada su área y cargo en <strong>Rutas</strong>.
-            </div>
             <div style={{
-              marginTop: 10, padding: '8px 10px', borderRadius: 8,
-              background: '#fffbeb', border: '1px solid #fde68a',
-              display: 'flex', gap: 6,
+              width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+              background: '#f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <AlertCircle size={11} style={{ color: '#d97706', flexShrink: 0, marginTop: 1 }} />
-              <div style={{ fontSize: 10, color: '#92400e', lineHeight: 1.4 }}>
-                Si la fecha y hora ya pasaron, deberá asignarse manualmente desde <strong>Asignaciones</strong> o <strong>Colaboradores</strong>.
+              <Clock size={20} style={{ color: '#94a3b8' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                Hora de asignación automática
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
+                El sistema asignará la ruta a las <strong style={{ color: '#0C2D40' }}>{horaAsignacion} hrs</strong> del día de ingreso, según el área y cargo configurados en cada ruta.
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <input
+                  type="time"
+                  value={horaAsignacion}
+                  onChange={e => updateHora(e.target.value)}
+                  style={{
+                    padding: '7px 12px', borderRadius: 8,
+                    border: '1.5px solid #e2e8f0',
+                    fontSize: 14, fontFamily: 'inherit', fontWeight: 700, color: '#0C2D40',
+                    outline: 'none', background: '#fff', cursor: 'pointer',
+                    letterSpacing: '.04em',
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#0C2D40'}
+                  onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                />
+                <span style={{ fontSize: 11, color: '#94a3b8' }}>hora del día de ingreso</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertCircle size={11} style={{ color: '#d97706', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: '#92400e' }}>
+                  Si la fecha ya pasó, asigna manualmente desde <strong>Asignaciones</strong> o <strong>Colaboradores</strong>.
+                </span>
               </div>
             </div>
           </div>
+        )}
+
+        </div>
         )}
       </div>
 
@@ -410,30 +502,28 @@ export default function Configuracion() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {config.map(c => {
           const Icon = c.icon
-          const hasDefaults = c.key !== 'gamificacion' && c.key !== 'encuestas'
-          const isExpanded = expandedCard === c.key && hasDefaults
+          const hasDefaults = ['buddy', 'menciones', 'riesgo', 'extension'].includes(c.key)
+          const isExpanded = expandedCard === c.key && hasDefaults && c.enabled
           return (
             <div
               key={c.key}
               style={{
                 background: '#fff', borderRadius: 14,
                 border: '1px solid #e2e8f0',
-                overflow: 'hidden',
-                opacity: c.enabled ? 1 : 0.6,
-                transition: 'all .2s',
+                overflow: 'hidden', transition: 'all .2s',
               }}
             >
-              {/* ROW PRINCIPAL */}
+              {/* HEADER */}
               <div
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '16px 20px', cursor: 'pointer',
+                  padding: '18px 20px', cursor: hasDefaults && c.enabled ? 'pointer' : 'default',
                 }}
-                onClick={() => hasDefaults && setExpandedCard(isExpanded ? null : c.key)}
+                onClick={() => hasDefaults && c.enabled && setExpandedCard(isExpanded ? null : c.key)}
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: c.enabled ? c.color : '#e2e8f0',
+                  background: c.enabled ? '#0C2D40' : '#e2e8f0',
                   color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, transition: 'background .2s',
@@ -441,15 +531,17 @@ export default function Configuracion() {
                   <Icon size={17} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>{c.label}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, lineHeight: 1.4 }}>{c.desc}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: c.enabled ? '#0C2D40' : '#94a3b8' }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                  {!c.enabled && (
-                    <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', background: '#fef2f2', padding: '3px 8px', borderRadius: 6, textTransform: 'uppercase' }}>
-                      Bloqueado para rutas
-                    </span>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 6,
+                    color: c.enabled ? '#16a34a' : '#94a3b8',
+                    background: c.enabled ? '#dcfce7' : '#f1f5f9',
+                  }}>
+                    {c.enabled ? 'Activo' : 'Inactivo'}
+                  </span>
                   <div
                     onClick={e => { e.stopPropagation(); requestToggle(c.key) }}
                     style={{
@@ -476,84 +568,165 @@ export default function Configuracion() {
                 </div>
               </div>
 
-              {/* DEFAULTS EXPANDIDOS */}
-              {isExpanded && c.enabled && (
-                <div style={{
-                  borderTop: '1px solid #f1f5f9',
-                  padding: '14px 20px 16px',
-                  background: '#fafbfc',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
-                    Valores por defecto
-                  </div>
+              {/* CONTENIDO EXPANDIDO */}
+              {isExpanded && (
+                <div style={{ borderTop: '1px solid #f1f5f9', padding: '16px 20px 18px' }}>
 
                   {c.key === 'buddy' && (
-                    <div style={{ fontSize: 12, color: '#475569' }}>
-                      Modelo: <strong>{c.defaults.modelo}</strong>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Requiere documentos en la Biblioteca de recursos para funcionar.</div>
+                    <div style={{
+                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                      background: '#fafbfc', padding: '18px',
+                      display: 'flex', alignItems: 'center', gap: 16,
+                    }}>
+                      <div style={{
+                        width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                        background: '#f1f5f9',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Bot size={22} style={{ color: '#94a3b8' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                          {c.defaults.modelo}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 10 }}>
+                          Responde preguntas de los colaboradores usando los documentos de tu Biblioteca de recursos.
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertCircle size={11} style={{ color: '#d97706', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10, color: '#92400e' }}>
+                            Necesita al menos un documento en la Biblioteca para funcionar.
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {c.key === 'menciones' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
-                        Se publicará automáticamente en el muro de Menciones:
-                      </div>
-                      {c.defaults.menciones.map((m, i) => (
-                        <div key={m.key} onClick={() => toggleSubItem('menciones', 'menciones', i)} style={{
-                          display: 'flex', alignItems: 'center', gap: 12,
-                          padding: '12px 14px', borderRadius: 10,
-                          background: m.activo ? '#fff' : '#f8fafc',
-                          border: m.activo ? '1.5px solid #dbeafe' : '1.5px solid #f1f5f9',
-                          opacity: m.activo ? 1 : 0.5,
-                          cursor: 'pointer',
-                          transition: 'all .15s',
-                        }}>
-                          <div style={{
-                            width: 32, height: 32, borderRadius: 9,
-                            background: m.activo ? '#eff6ff' : '#f1f5f9',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0, transition: 'all .15s',
-                          }}>
-                            <Megaphone size={14} style={{ color: m.activo ? '#3b82f6' : '#94a3b8' }} />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 600, color: m.activo ? '#0C2D40' : '#94a3b8' }}>{m.label}</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{m.desc}</div>
-                          </div>
-                          <div style={{
-                            width: 36, height: 20, borderRadius: 99,
-                            background: m.activo ? '#10DC97' : '#d1d5db',
-                            padding: 2,
-                            display: 'flex', alignItems: 'center', flexShrink: 0,
-                            transition: 'background .2s',
-                          }}>
-                            <div style={{
-                              width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                              boxShadow: '0 1px 3px rgba(0,0,0,.15)',
-                              transform: m.activo ? 'translateX(16px)' : 'translateX(0)',
-                              transition: 'transform .2s',
-                            }} />
-                          </div>
+                    <div style={{ borderRadius: 12, border: '1.5px dashed #e2e8f0', background: '#fafbfc', overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 16px 8px' }}>
+                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+                          Publica automáticamente en el muro cuando ocurre:
                         </div>
-                      ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {c.defaults.menciones.map((m, i) => (
+                            <button key={m.key} onClick={() => toggleSubItem('menciones', 'menciones', i)} style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '10px 12px', borderRadius: 10,
+                              background: m.activo ? '#fff' : 'transparent',
+                              border: `1px solid ${m.activo ? '#e2e8f0' : 'transparent'}`,
+                              boxShadow: m.activo ? '0 1px 4px rgba(0,0,0,.05)' : 'none',
+                              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                              transition: 'all .15s',
+                            }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                background: m.activo ? '#f1f5f9' : 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all .15s',
+                              }}>
+                                <Megaphone size={14} style={{ color: m.activo ? '#0C2D40' : '#cbd5e1' }} />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: m.activo ? '#0C2D40' : '#94a3b8' }}>{m.label}</div>
+                                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{m.desc}</div>
+                              </div>
+                              <div style={{
+                                width: 36, height: 20, borderRadius: 99, flexShrink: 0,
+                                background: m.activo ? '#10DC97' : '#e2e8f0',
+                                padding: 2, display: 'flex', alignItems: 'center',
+                                transition: 'background .2s',
+                              }}>
+                                <div style={{
+                                  width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,.15)',
+                                  transform: m.activo ? 'translateX(16px)' : 'translateX(0)',
+                                  transition: 'transform .2s',
+                                }} />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {c.key === 'riesgo' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12, color: '#475569' }}>Días sin actividad</span>
-                      <input type="number" defaultValue={c.defaults.dias} style={{
-                        width: 60, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
-                        fontSize: 12, fontFamily: 'inherit', outline: 'none',
-                      }} />
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>Las rutas pueden personalizar este umbral</span>
+                    <div style={{
+                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                      background: '#fafbfc', padding: '18px',
+                      display: 'flex', alignItems: 'center', gap: 16,
+                    }}>
+                      <div style={{
+                        width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                        background: '#f1f5f9',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <AlertTriangle size={20} style={{ color: '#94a3b8' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                          Umbral de inactividad
+                        </div>
+                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
+                          Un colaborador se marca como "en riesgo" cuando lleva este número de días sin actividad.
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input
+                            type="number"
+                            defaultValue={c.defaults.dias}
+                            min={1} max={30}
+                            style={{
+                              width: 60, padding: '7px 0', borderRadius: 8,
+                              border: '1.5px solid #e2e8f0', textAlign: 'center',
+                              fontSize: 18, fontWeight: 800, fontFamily: 'inherit',
+                              color: '#0C2D40', outline: 'none', background: '#fff',
+                            }}
+                            onFocus={e => e.target.style.borderColor = '#0C2D40'}
+                            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                          />
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>días sin actividad</div>
+                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Cada ruta puede ajustar este valor.</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  <div style={{ marginTop: 12, fontSize: 10, color: '#94a3b8', fontStyle: 'italic' }}>
-                    Las rutas pueden: heredar estos valores, personalizarlos o desactivar esta función.
-                  </div>
+                  {c.key === 'extension' && (
+                    <div style={{
+                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                      background: '#fafbfc', padding: '18px',
+                      display: 'flex', alignItems: 'center', gap: 16,
+                    }}>
+                      <div style={{
+                        width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                        background: '#f1f5f9',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Clock size={20} style={{ color: '#94a3b8' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                          Extensión libre por jefes de área
+                        </div>
+                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
+                          Los jefes de área pueden ampliar el plazo de las rutas de sus colaboradores sin necesitar aprobación de RR.HH.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {['✅ Jefe extiende directo', '🚫 Sin solicitar a RR.HH.', '📋 Queda en el historial'].map(tag => (
+                            <span key={tag} style={{
+                              fontSize: 10, fontWeight: 600, color: '#475569',
+                              background: '#f1f5f9', border: '1px solid #e2e8f0',
+                              padding: '3px 10px', borderRadius: 20,
+                            }}>{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
             </div>
@@ -604,6 +777,7 @@ export default function Configuracion() {
           </div>
         </div>
       )}
+
 
     </div>
   )

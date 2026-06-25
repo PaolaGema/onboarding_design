@@ -6,43 +6,9 @@ import {
   MoreVertical, Pencil, CirclePlus, Video, Headphones, Link2, ExternalLink,
   LayoutGrid, List, Filter, CheckCircle2, Globe
 } from 'lucide-react'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 
 const iconMap = {}
-
-const initialCategorias = [
-  {
-    name: 'Políticas',
-    docs: [
-      { id: 1, name: 'Código de conducta 2025.pdf', size: '2.4 MB', estado: 'procesado', fecha: '12 Jun 2026', general: true },
-      { id: 2, name: 'Política de vacaciones.pdf', size: '1.1 MB', estado: 'procesado', fecha: '10 Jun 2026', general: true },
-      { id: 3, name: 'Reglamento interno.docx', size: '3.8 MB', estado: 'procesado', fecha: '18 Jun 2026', general: true },
-    ],
-  },
-  {
-    name: 'Beneficios',
-    docs: [
-      { id: 4, name: 'Manual de beneficios.pdf', size: '4.2 MB', estado: 'procesado', fecha: '8 Jun 2026', general: true },
-      { id: 5, name: 'Guía de seguro médico.pdf', size: '1.8 MB', estado: 'procesado', fecha: '5 Jun 2026', general: true },
-    ],
-  },
-  {
-    name: 'Procesos TI',
-    docs: [
-      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026', general: false },
-      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'procesado', fecha: '16 Jun 2026', general: false },
-    ],
-  },
-  {
-    name: 'Cultura',
-    docs: [
-      { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026', general: true },
-    ],
-  },
-  {
-    name: 'FAQ',
-    docs: [],
-  },
-]
 
 const estadoConfig = {
   procesado: { label: 'Procesado', color: '#10b981', bg: '#f0fdf4', icon: FileCheck },
@@ -53,7 +19,7 @@ const estadoConfig = {
 let docIdCounter = 100
 
 export default function Conocimiento() {
-  const [categorias, setCategorias] = useState(initialCategorias)
+  const { recursos: categorias, setRecursos: setCategorias, addFeedEntry } = useOnboardingData()
   const [selCat, setSelCat] = useState(0)
   const [search, setSearch] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -132,6 +98,7 @@ export default function Conocimiento() {
       return { ...c, docs: [...newDocs, ...c.docs] }
     }))
     const ids = newDocs.map(d => d.id)
+    newDocs.forEach(d => addFeedEntry(`Nuevo recurso "${d.name}" subido a ${cat.name}`))
     setTimeout(() => {
       setCategorias(prev => prev.map(c => ({
         ...c,
@@ -244,75 +211,9 @@ export default function Conocimiento() {
       {/* HEADER */}
       <div className="pl-header">
         <div>
-          <h1 className="pl-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            Biblioteca de recursos
-            <div style={{ position: 'relative', display: 'inline-flex' }}
-              onMouseEnter={e => e.currentTarget.querySelector('[data-tooltip]').style.opacity = '1'}
-              onMouseLeave={e => e.currentTarget.querySelector('[data-tooltip]').style.opacity = '0'}
-            >
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%', border: '1.5px solid #cbd5e1',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help',
-              }}>
-                <HelpCircle size={12} style={{ color: '#94a3b8' }} />
-              </div>
-              <div data-tooltip style={{
-                position: 'absolute', left: 0, top: 'calc(100% + 8px)',
-                background: '#0C2D40', color: '#fff', borderRadius: 10, padding: '12px 16px',
-                fontSize: 11, lineHeight: 1.6, width: 300, zIndex: 50,
-                boxShadow: '0 8px 24px rgba(0,0,0,.15)', opacity: 0,
-                transition: 'opacity .15s', pointerEvents: 'none',
-              }}>
-                <strong style={{ color: '#10DC97' }}>¿Cómo funciona?</strong><br />
-                Sube documentos (PDF, Word, PowerPoint) o agrega enlaces a videos y audios externos.
-                Organízalos por carpetas y asígnalos como tareas en las rutas de onboarding.
-                El Asistente IA también usa estos recursos para responder preguntas de los colaboradores.
-                <div style={{
-                  position: 'absolute', top: -5, left: 14,
-                  width: 10, height: 10, background: '#0C2D40', borderRadius: 2,
-                  transform: 'rotate(45deg)',
-                }} />
-              </div>
-            </div>
-          </h1>
+          <h1 className="pl-title">Biblioteca de recursos</h1>
           <p className="pl-subtitle">Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding</p>
         </div>
-      </div>
-
-      {/* KPI STRIP */}
-      <div className="kpi-strip">
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: 'var(--blue)' }}>Total documentos</div>
-          <div className="kpi-val">{totalDocs}</div>
-          <div className="kpi-lbl">Subidos a la plataforma</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: 'var(--green)' }}>Procesados</div>
-          <div className="kpi-val">{procesados}</div>
-          <div className="kpi-lbl">Listos para usar</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: 'var(--purple, #8b5cf6)' }}>Categorías</div>
-          <div className="kpi-val">{catsCubiertas}/{categorias.length}</div>
-          <div className="kpi-lbl">Con documentos</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: '#f59e0b' }}>Con cuestionario</div>
-          <div className="kpi-val">{docsConQuiz}/{docsNonQuiz}</div>
-          <div className="kpi-lbl">Documentos con cuestionario</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: '#0d9488' }}>Recursos generales</div>
-          <div className="kpi-val">{totalGenerales}</div>
-          <div className="kpi-lbl">Visibles para todos</div>
-        </div>
-        {sinCobertura.length > 0 && (
-          <div className="kpi-card">
-            <div className="kpi-title" style={{ color: 'var(--red)' }}>Sin cobertura</div>
-            <div className="kpi-val">{sinCobertura.length}</div>
-            <div className="kpi-lbl">Categorías vacías</div>
-          </div>
-        )}
       </div>
 
       {/* TOOLBAR */}
@@ -493,13 +394,13 @@ export default function Conocimiento() {
       {/* CONTENIDO: SIDEBAR + GRID */}
       <div style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0 }}>
 
-      {/* SIDEBAR CATEGORÍAS */}
+      {/* SIDEBAR CARPETAS */}
       <div style={{
         width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column',
         background: '#fff', borderRight: '1px solid #e2e8f0',
         padding: 14, overflow: 'hidden',
       }}>
-        <div className="jb-sb-title">Categorías <span className="jb-sb-count">{categorias.length}</span></div>
+        <div className="jb-sb-title">Carpetas <span className="jb-sb-count">{categorias.length}</span></div>
         <p className="jb-sb-hint">Carpetas de documentos</p>
 
         <div className="jb-sb-list">
@@ -522,10 +423,12 @@ export default function Conocimiento() {
                     />
                   </div>
                 ) : (
-                  <button
+                  <div
                     className={`jb-sb-item ${isActive ? 'active' : ''}`}
                     onClick={() => setSelCat(i)}
-                    onContextMenu={e => { e.preventDefault(); setCatMenu({ idx: i, x: e.clientX, y: e.clientY }) }}
+                    style={{ position: 'relative' }}
+                    onMouseEnter={e => { const btn = e.currentTarget.querySelector('.cat-menu-btn'); if (btn) btn.style.opacity = '1' }}
+                    onMouseLeave={e => { const btn = e.currentTarget.querySelector('.cat-menu-btn'); if (btn) btn.style.opacity = '0' }}
                   >
                     <div className="jb-sb-dot">
                       <FolderOpen size={10} />
@@ -534,44 +437,34 @@ export default function Conocimiento() {
                       <div className="jb-sb-name">{c.name}</div>
                       <div className="jb-sb-days">{c.docs.length} doc{c.docs.length !== 1 ? 's' : ''}</div>
                     </div>
-                  </button>
+                    <button
+                      className="cat-menu-btn"
+                      onClick={e => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setCatMenu({ idx: i, x: rect.right + 4, y: rect.bottom })
+                      }}
+                      style={{
+                        width: 22, height: 22, borderRadius: 6, border: 'none',
+                        background: isActive ? 'rgba(255,255,255,0.15)' : '#e2e8f0',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, opacity: 0, transition: 'opacity .15s',
+                        color: isActive ? '#fff' : '#64748b',
+                      }}
+                    >
+                      <MoreVertical size={12} />
+                    </button>
+                  </div>
                 )}
               </div>
             )
           })}
         </div>
 
-        {showNewCat ? (
-          <div style={{ display: 'flex', gap: 4, marginTop: 8, minWidth: 0 }}>
-            <input
-              type="text"
-              placeholder="Nombre..."
-              value={newCatName}
-              onChange={e => setNewCatName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') addCategoria(); if (e.key === 'Escape') { setShowNewCat(false); setNewCatName('') } }}
-              autoFocus
-              style={{
-                flex: 1, minWidth: 0, padding: '7px 8px', border: '1.5px solid #0C2D40',
-                borderRadius: 8, fontSize: 11, fontFamily: 'inherit', outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <button
-              onClick={addCategoria}
-              style={{
-                padding: '7px 8px', border: 'none', borderRadius: 8,
-                background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                fontSize: 10, fontWeight: 700, fontFamily: 'inherit',
-                flexShrink: 0,
-              }}
-            >OK</button>
-          </div>
-        ) : (
-          <button className="jb-sb-add" onClick={() => setShowNewCat(true)}>
-            <Plus size={14} />
-            Nueva categoría
-          </button>
-        )}
+        <button className="jb-sb-add" onClick={() => { setShowNewCat(true); setNewCatName('') }}>
+          <Plus size={14} />
+          Nueva carpeta
+        </button>
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
@@ -897,18 +790,116 @@ export default function Conocimiento() {
                 </tbody>
               </table>
               {filteredDocs.length === 0 && (
-                <div style={{ padding: 30, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No hay documentos en esta categoría</div>
+                <div style={{ padding: '12px 16px 16px' }}>
+                  <div style={{
+                    borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                    background: '#fafbfc', padding: '20px',
+                    display: 'flex', alignItems: 'center', gap: 20,
+                  }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                      background: '#f1f5f9',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {totalDocs === 0
+                        ? <BookOpen size={22} style={{ color: '#94a3b8' }} />
+                        : <FolderOpen size={22} style={{ color: '#94a3b8' }} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                        {totalDocs === 0 ? 'Tu biblioteca está vacía' : 'Esta carpeta está vacía'}
+                      </div>
+                      <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                        {totalDocs === 0
+                          ? 'Sube documentos y recursos para que los colaboradores los consulten durante su onboarding.'
+                          : 'Sube un documento o vincula un recurso externo a esta carpeta.'}
+                      </p>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {['📄 Documentos', '🎥 Videos', '🔗 Enlaces'].map(tag => (
+                          <span key={tag} style={{
+                            fontSize: 10, fontWeight: 600, color: '#475569',
+                            background: '#f1f5f9', border: '1px solid #e2e8f0',
+                            padding: '3px 10px', borderRadius: 20,
+                          }}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={openFilePicker}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 7,
+                        padding: '10px 18px', borderRadius: 10, border: 'none',
+                        background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                        fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                        flexShrink: 0, whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+                      }}
+                    >
+                      <Upload size={13} />
+                      Subir recurso
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
           {viewMode === 'grid' && filteredDocs.length === 0 && (
-            <div style={{ padding: 30, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No hay documentos en esta categoría</div>
+            <div style={{ padding: '12px 16px 16px' }}>
+              <div style={{
+                borderRadius: 12, border: '1.5px dashed #e2e8f0',
+                background: '#fafbfc', padding: '20px',
+                display: 'flex', alignItems: 'center', gap: 20,
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                  background: '#f1f5f9',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {totalDocs === 0
+                    ? <BookOpen size={22} style={{ color: '#94a3b8' }} />
+                    : <FolderOpen size={22} style={{ color: '#94a3b8' }} />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                    {totalDocs === 0 ? 'Tu biblioteca está vacía' : 'Esta carpeta está vacía'}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                    {totalDocs === 0
+                      ? 'Sube documentos, videos y recursos que luego puedes asignar como tareas en las rutas de onboarding — por ejemplo, "Lee el manual de funciones" o "Ve el video de bienvenida".'
+                      : 'Sube un documento o vincula un recurso externo para asignarlo como tarea en tus rutas.'}
+                  </p>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['📄 Documentos', '🎥 Videos', '🔗 Enlaces'].map(tag => (
+                      <span key={tag} style={{
+                        fontSize: 10, fontWeight: 600, color: '#475569',
+                        background: '#f1f5f9', border: '1px solid #e2e8f0',
+                        padding: '3px 10px', borderRadius: 20,
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={openFilePicker}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 18px', borderRadius: 10, border: 'none',
+                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+                  }}
+                >
+                  <Upload size={13} />
+                  Subir recurso
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* MENÚ CONTEXTUAL CATEGORÍA */}
+      {/* MENÚ CONTEXTUAL CARPETA */}
       {catMenu && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 50 }}
@@ -966,7 +957,83 @@ export default function Conocimiento() {
         </div>
       )}
 
-      {/* MODAL CONFIRMAR ELIMINAR CATEGORÍA */}
+      {/* MODAL NUEVA CARPETA */}
+      {showNewCat && (
+        <div className="pl-overlay" onClick={() => { setShowNewCat(false); setNewCatName('') }}>
+          <div className="pl-modal pl-modal-sm" style={{ padding: 0 }} onClick={e => e.stopPropagation()}>
+            {/* Header navy */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)',
+              padding: '22px 24px 18px',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                background: 'rgba(255,255,255,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <FolderOpen size={22} style={{ color: '#fff' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Nueva carpeta</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                  Organiza tus recursos por tema o área
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowNewCat(false); setNewCatName('') }}
+                style={{
+                  width: 30, height: 30, borderRadius: 8, border: 'none', flexShrink: 0,
+                  background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', transition: 'background .15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            {/* Body */}
+            <div style={{ padding: '22px 24px 8px' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 8 }}>
+                Nombre de la carpeta
+              </label>
+              <input
+                type="text"
+                className="pl-input"
+                placeholder="Ej: Cultura organizacional"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newCatName.trim()) addCategoria()
+                  if (e.key === 'Escape') { setShowNewCat(false); setNewCatName('') }
+                }}
+                autoFocus
+              />
+            </div>
+            {/* Footer */}
+            <div className="pl-modal-footer">
+              <button className="pl-btn-cancel" onClick={() => { setShowNewCat(false); setNewCatName('') }}>Cancelar</button>
+              <button
+                onClick={addCategoria}
+                disabled={!newCatName.trim()}
+                style={{
+                  padding: '9px 22px', border: 'none', borderRadius: 10, cursor: 'pointer',
+                  background: newCatName.trim() ? '#0C2D40' : '#e2e8f0',
+                  color: newCatName.trim() ? '#fff' : '#94a3b8',
+                  fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                  transition: 'all .15s',
+                }}
+              >
+                Crear carpeta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAR ELIMINAR CARPETA */}
       {deleteCatConfirm !== null && (() => {
         const catDel = categorias[deleteCatConfirm]
         if (!catDel) return null
@@ -977,7 +1044,7 @@ export default function Conocimiento() {
                 <div className="jb-del-ico">
                   <Trash2 size={24} />
                 </div>
-                <h2 className="pl-del-title">Eliminar categoría</h2>
+                <h2 className="pl-del-title">Eliminar carpeta</h2>
                 <p className="pl-del-desc">
                   ¿Estás seguro de eliminar <strong>{catDel.name}</strong>?
                   Esta carpeta tiene <strong>{catDel.docs.length} documento{catDel.docs.length > 1 ? 's' : ''}</strong> que se perderán.
@@ -1002,7 +1069,7 @@ export default function Conocimiento() {
                   disabled={deleteCatInput.toLowerCase() !== 'eliminar'}
                   onClick={() => { deleteCategoria(deleteCatConfirm); setDeleteCatConfirm(null) }}
                 >
-                  Eliminar categoría
+                  Eliminar carpeta
                 </button>
               </div>
             </div>
@@ -1018,10 +1085,10 @@ export default function Conocimiento() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: '#eff6ff', color: '#3b82f6',
+                  background: 'rgba(255,255,255,0.12)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Link2 size={16} />
+                  <Link2 size={16} style={{ color: '#fff' }} />
                 </div>
                 <h2>Agregar enlace</h2>
               </div>
@@ -1279,8 +1346,8 @@ export default function Conocimiento() {
             <div className="pl-modal jb-modal" style={{ maxWidth: 580, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fef3c7', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <HelpCircle size={16} />
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <HelpCircle size={16} style={{ color: '#fff' }} />
                   </div>
                   <h2 style={{ margin: 0 }}>Editor de cuestionario</h2>
                 </div>

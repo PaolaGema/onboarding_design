@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, MoreHorizontal, Building2, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, HelpCircle } from 'lucide-react'
+import { Search, Plus, MoreHorizontal, Building2, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useTronco } from '../../context/TroncoContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
@@ -404,7 +404,7 @@ export default function Colaboradores() {
               <th style={{ position: 'relative' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   Onboarding
-                  <HelpCircle
+                  <Info
                     size={12}
                     style={{ color: '#cbd5e1', cursor: 'pointer' }}
                     onMouseEnter={() => setShowOnbHelp(true)}
@@ -646,7 +646,7 @@ export default function Colaboradores() {
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>Asignar onboarding</h2>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{onbModal.name} · {onbModal.depto}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{onbModal.name} · {onbModal.depto}</span>
                   </div>
                 </div>
                 <button className="pl-modal-close" onClick={() => setOnbModal(null)}>
@@ -828,7 +828,7 @@ export default function Colaboradores() {
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>Cambiar estado</h2>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{estadoModal.name}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{estadoModal.name}</span>
                   </div>
                 </div>
                 <button className="pl-modal-close" onClick={() => setEstadoModal(null)}>
@@ -902,7 +902,7 @@ export default function Colaboradores() {
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>{rolModal.name}</h2>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{rolModal.cargo} · {rolModal.depto}</span>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{rolModal.cargo} · {rolModal.depto}</span>
                   </div>
                 </div>
                 <button className="pl-modal-close" onClick={() => setRolModal(null)}>

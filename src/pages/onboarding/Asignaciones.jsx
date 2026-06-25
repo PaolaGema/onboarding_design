@@ -1,43 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
-  Search, Plus, UserPlus, X, AlertTriangle, Eye,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, HelpCircle, Filter, CheckCircle2
+  Search, Plus, UserPlus, X, AlertTriangle, Eye, Users, Route,
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check
 } from 'lucide-react'
-
-const plantillasDisponibles = [
-  'Onboarding Ventas — Pasante',
-  'Onboarding Comercial — Ejecutivo',
-  'Onboarding Liderazgo',
-  'Onboarding Operaciones',
-  'Onboarding Tech — Backend',
-  'Onboarding Finanzas',
-  'Onboarding Diseño & UX',
-  'Onboarding RRHH — Generalista',
-  'Onboarding Marketing Digital',
-]
-
-const colaboradoresDisponibles = [
-  'Luciana Paredes', 'Tomás Ibáñez', 'Renata Soria', 'Emilio Castañeda',
-  'Gabriela Mora', 'Andrés Villanueva', 'Natalia Guzmán', 'Sebastián Rojas',
-]
-
-const asignacionesInit = [
-  { id: 1, nombre: 'Diego Morales', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 68, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
-  { id: 2, nombre: 'Camila Herrera', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 18, totalDias: 30, pct: 42, status: 'en-curso', fechaInicio: '30 May 2026', color: '#f97316' },
-  { id: 3, nombre: 'Valentina Cruz', area: 'Diseño', ruta: 'Onboarding Diseño & UX', dia: 20, totalDias: 30, pct: 25, status: 'atrasado', fechaInicio: '28 May 2026', color: '#ec4899' },
-  { id: 4, nombre: 'Facundo Medina', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 21, totalDias: 30, pct: 15, status: 'en-riesgo', fechaInicio: '27 May 2026', color: '#ef4444' },
-  { id: 5, nombre: 'Sofía Ramírez', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 1, totalDias: 30, pct: 0, status: 'pendiente', fechaInicio: '17 Jun 2026', color: '#f59e0b' },
-  { id: 6, nombre: 'Martín Solano', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#10b981' },
-  { id: 7, nombre: 'Isabella Vargas', area: 'Comercial', ruta: 'Onboarding Comercial — Ejecutivo', dia: 10, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#8b5cf6' },
-  { id: 8, nombre: 'Nicolás Paredes', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 24, totalDias: 30, pct: 73, status: 'en-curso', fechaInicio: '24 May 2026', color: '#0d9488' },
-  { id: 9, nombre: 'Andrea Ríos', area: 'Operaciones', ruta: 'Onboarding Operaciones', dia: 8, totalDias: 30, pct: 35, status: 'en-curso', fechaInicio: '09 Jun 2026', color: '#06b6d4' },
-  { id: 10, nombre: 'Rodrigo Peña', area: 'Dirección', ruta: 'Onboarding Liderazgo', dia: 28, totalDias: 30, pct: 90, status: 'en-curso', fechaInicio: '20 May 2026', color: '#d946ef' },
-  { id: 11, nombre: 'Paula Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#3b82f6' },
-  { id: 12, nombre: 'Emilio Castañeda', area: 'Recursos Humanos', ruta: 'Onboarding RRHH — Generalista', dia: 5, totalDias: 30, pct: 20, status: 'en-curso', fechaInicio: '12 Jun 2026', color: '#f97316' },
-  { id: 13, nombre: 'Andrea Núñez', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 16, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '01 Jun 2026', color: '#06b6d4' },
-  { id: 14, nombre: 'Isabella Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 10, totalDias: 30, pct: 32, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#7c3aed' },
-]
+import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 
 const statusLabels = {
   'en-curso': 'En curso',
@@ -57,9 +26,6 @@ const statusCls = {
   'pausado': 'as-st-pausado',
 }
 
-function initials(name) {
-  return name.split(' ').map(n => n[0]).slice(0, 2).join('')
-}
 
 function barColor(status, pct) {
   if (status === 'completado') return 'var(--green)'
@@ -69,24 +35,37 @@ function barColor(status, pct) {
 }
 
 export default function Asignaciones() {
+  const navigate = useNavigate()
   const { currentUser } = useUser()
   const isAreaRole = currentUser.role === 'manager' || currentUser.role === 'auxiliar'
   const managerArea = 'Marketing'
 
-  const [asignaciones, setAsignaciones] = useState(
-    isAreaRole ? asignacionesInit.filter(a => a.area === managerArea) : asignacionesInit
-  )
+  const { asignaciones: allAsignaciones, setAsignaciones: setAllAsignaciones, plantillas: allPlantillas, addFeedEntry } = useOnboardingData()
+  const asignaciones = isAreaRole ? allAsignaciones.filter(a => a.area === managerArea) : allAsignaciones
+  function setAsignaciones(next) {
+    if (!isAreaRole) { setAllAsignaciones(next); return }
+    const others = allAsignaciones.filter(a => a.area !== managerArea)
+    setAllAsignaciones([...others, ...next])
+  }
+  const plantillasDisponibles = allPlantillas.filter(p => p.status === 'activa').map(p => p.name)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
+  const [filterArea, setFilterArea] = useState('todas')
+  const [filterRuta, setFilterRuta] = useState('todas')
+  const [showAsigFilters, setShowAsigFilters] = useState(false)
+  const [afDropStatus, setAfDropStatus] = useState(false)
+  const [afDropArea, setAfDropArea] = useState(false)
+  const [afDropRuta, setAfDropRuta] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 8
   const [modal, setModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [menuOpen, setMenuOpen] = useState(null)
   const [showEstadoHelp, setShowEstadoHelp] = useState(false)
-  const [showFilterDrop, setShowFilterDrop] = useState(false)
 
-  const [form, setForm] = useState({ colaborador: '', ruta: '', fechaInicio: '' })
+  const hasAsigFilters = filterStatus !== 'todos' || filterArea !== 'todas' || filterRuta !== 'todas'
+  const rutasDeArea = [...new Set(asignaciones.filter(a => filterArea === 'todas' || a.area === filterArea).map(a => a.ruta))]
+  function clearAsigFilters() { setFilterStatus('todos'); setFilterArea('todas'); setFilterRuta('todas') }
 
   const filtered = asignaciones.filter(a => {
     const q = search.toLowerCase()
@@ -94,7 +73,9 @@ export default function Asignaciones() {
       a.ruta.toLowerCase().includes(q) ||
       a.area.toLowerCase().includes(q)
     const matchStatus = filterStatus === 'todos' || a.status === filterStatus
-    return matchSearch && matchStatus
+    const matchArea = filterArea === 'todas' || a.area === filterArea
+    const matchRuta = filterRuta === 'todas' || a.ruta === filterRuta
+    return matchSearch && matchStatus && matchArea && matchRuta
   })
 
   const totalPages = Math.ceil(filtered.length / perPage)
@@ -105,24 +86,24 @@ export default function Asignaciones() {
   const totalPendientes = asignaciones.filter(a => a.status === 'pendiente').length
   const totalAtrasados = asignaciones.filter(a => a.status === 'atrasado' || a.status === 'en-riesgo').length
 
-  function handleAsignar() {
-    if (!form.colaborador || !form.ruta) return
-    const newId = Math.max(...asignaciones.map(a => a.id)) + 1
-    const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
-    setAsignaciones([...asignaciones, {
-      id: newId,
-      nombre: form.colaborador,
-      area: 'Sin asignar',
-      ruta: form.ruta,
+  function handleAsignar(colabs, ruta, fecha) {
+    if (!colabs.length || !ruta) return
+    const baseId = Math.max(0, ...allAsignaciones.map(a => a.id))
+    const newItems = colabs.map((c, i) => ({
+      id: baseId + i + 1,
+      nombre: c.name,
+      area: c.depto || 'Sin asignar',
+      ruta: ruta.name,
       dia: 0,
       totalDias: 30,
       pct: 0,
       status: 'pendiente',
-      fechaInicio: form.fechaInicio || 'Por definir',
-      color: colores[newId % colores.length],
-    }])
+      fechaInicio: fecha || 'Por definir',
+      color: c.color || '#3b82f6',
+    }))
+    setAsignaciones([...asignaciones, ...newItems])
+    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}`))
     setModal(false)
-    setForm({ colaborador: '', ruta: '', fechaInicio: '' })
   }
 
   function handlePausar(id) {
@@ -195,81 +176,134 @@ export default function Asignaciones() {
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-          {filterStatus !== 'todos' && (
-            <div style={{
-              height: 32, padding: '0 8px 0 10px', borderRadius: 8,
-              background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 11, fontWeight: 600, color: '#475569',
+        <button onClick={() => setShowAsigFilters(true)} style={{
+          height: 38, padding: '0 14px', borderRadius: 8,
+          border: hasAsigFilters ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
+          background: hasAsigFilters ? '#f0f9ff' : '#fff',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
+          color: hasAsigFilters ? '#0C2D40' : '#64748b',
+        }}>
+          <Filter size={13} />
+          Filtros
+          {hasAsigFilters && (
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%', background: '#0C2D40',
+              color: '#fff', fontSize: 9, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {statusLabels[filterStatus]}
-              <button
-                onClick={() => { setFilterStatus('todos'); setPage(1) }}
-                style={{
-                  width: 18, height: 18, borderRadius: 4, border: 'none',
-                  background: 'transparent', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#94a3b8',
-                }}
-              >
-                <X size={12} />
-              </button>
-            </div>
+              {[filterStatus !== 'todos', filterArea !== 'todas', filterRuta !== 'todas'].filter(Boolean).length}
+            </span>
           )}
-          <button
-            onClick={() => setShowFilterDrop(!showFilterDrop)}
-            style={{
-              height: 38, padding: '0 12px', borderRadius: 8,
-              border: '1px solid #e2e8f0', background: '#fff',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              color: '#64748b',
-            }}
-          >
-            <Filter size={14} />
-          </button>
-          {showFilterDrop && (
-            <div style={{
-              position: 'absolute', right: 0, top: '100%', marginTop: 4,
-              background: '#fff', borderRadius: 10, padding: 4,
-              boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-              zIndex: 30, minWidth: 180, animation: 'plSlideUp .12s',
-            }}>
-              {[
-                { key: 'todos', label: 'Todos', color: '#0C2D40' },
-                { key: 'en-curso', label: 'En curso', color: '#3b82f6' },
-                { key: 'completado', label: 'Completado', color: '#16a34a' },
-                { key: 'pendiente', label: 'Programado', color: '#f59e0b' },
-                { key: 'atrasado', label: 'Atrasado', color: '#ef4444' },
-                { key: 'en-riesgo', label: 'En riesgo', color: '#dc2626' },
-                { key: 'pausado', label: 'Pausado', color: '#94a3b8' },
-              ].map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => { setFilterStatus(f.key); setPage(1); setShowFilterDrop(false) }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 10px', border: 'none', borderRadius: 7,
-                    background: filterStatus === f.key ? '#f8fafc' : 'transparent',
-                    cursor: 'pointer', fontSize: 12, fontWeight: filterStatus === f.key ? 600 : 400,
-                    color: filterStatus === f.key ? '#0C2D40' : '#475569',
-                    fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'background .1s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={e => { if (filterStatus !== f.key) e.currentTarget.style.background = 'transparent' }}
-                >
-                  {f.key !== 'todos' && (
-                    <span style={{
-                      width: 7, height: 7, borderRadius: '50%', background: f.color, flexShrink: 0,
-                    }} />
-                  )}
-                  <span style={{ flex: 1 }}>{f.label}</span>
-                  {filterStatus === f.key && <CheckCircle2 size={13} style={{ color: '#10b981' }} />}
+        </button>
+
+        {/* CHIPS FILTROS */}
+        {hasAsigFilters && (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {filterStatus !== 'todos' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#f0fdf4', color: '#166534', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {statusLabels[filterStatus]}
+                <button onClick={() => { setFilterStatus('todos'); setPage(1) }} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#166534' }} /></button>
+              </span>
+            )}
+            {filterArea !== 'todas' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {filterArea}
+                <button onClick={() => { setFilterArea('todas'); setFilterRuta('todas') }} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#1e40af' }} /></button>
+              </span>
+            )}
+            {filterRuta !== 'todas' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {filterRuta.length > 20 ? filterRuta.slice(0, 20) + '…' : filterRuta}
+                <button onClick={() => setFilterRuta('todas')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#92400e' }} /></button>
+              </span>
+            )}
+            <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+          </div>
+        )}
+
+        {/* MODAL FILTROS ASIGNACIONES */}
+        {showAsigFilters && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAsigFilters(false)}>
+            <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Filter size={16} style={{ color: '#0C2D40' }} />
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar asignaciones</span>
+                </div>
+                <button onClick={() => setShowAsigFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={14} style={{ color: '#64748b' }} />
                 </button>
-              ))}
+              </div>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setAfDropStatus(false); setAfDropArea(false); setAfDropRuta(false) }}>
+                {/* ESTADO */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Estado</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${afDropStatus ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropStatus(!afDropStatus); setAfDropArea(false); setAfDropRuta(false) }}>
+                      <span>{filterStatus === 'todos' ? 'Todos los estados' : statusLabels[filterStatus]}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {afDropStatus && (
+                      <div className="pl-dropdown-menu">
+                        {[{ key: 'todos', label: 'Todos los estados' }, { key: 'en-curso', label: 'En curso' }, { key: 'completado', label: 'Completado' }, { key: 'pendiente', label: 'Programado' }, { key: 'atrasado', label: 'Atrasado' }, { key: 'en-riesgo', label: 'En riesgo' }, { key: 'pausado', label: 'Pausado' }].map(f => (
+                          <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} onClick={() => { setFilterStatus(f.key); setAfDropStatus(false); setPage(1) }}>
+                            <span>{f.label}</span>
+                            {filterStatus === f.key && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* ÁREA */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Área</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${afDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropArea(!afDropArea); setAfDropStatus(false); setAfDropRuta(false) }}>
+                      <span>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {afDropArea && (
+                      <div className="pl-dropdown-menu">
+                        {['todas', ...new Set(asignaciones.map(a => a.area))].map(a => (
+                          <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} onClick={() => { setFilterArea(a); setFilterRuta('todas'); setAfDropArea(false); setPage(1) }}>
+                            <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
+                            {filterArea === a && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* RUTA */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Ruta</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${afDropRuta ? ' open' : ''}${filterRuta === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropRuta(!afDropRuta); setAfDropStatus(false); setAfDropArea(false) }}>
+                      <span>{filterRuta === 'todas' ? 'Todas las rutas' : filterRuta}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {afDropRuta && (
+                      <div className="pl-dropdown-menu" style={{ maxHeight: 180, overflowY: 'auto' }}>
+                        {['todas', ...rutasDeArea].map(r => (
+                          <button key={r} type="button" className={`pl-dropdown-item${filterRuta === r ? ' selected' : ''}`} onClick={() => { setFilterRuta(r); setAfDropRuta(false); setPage(1) }}>
+                            <span>{r === 'todas' ? 'Todas las rutas' : r}</span>
+                            {filterRuta === r && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
+                <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
+                <button onClick={() => setShowAsigFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* TABLA */}
@@ -284,7 +318,7 @@ export default function Asignaciones() {
               <th style={{ position: 'relative' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   Estado
-                  <HelpCircle
+                  <Info
                     size={12}
                     style={{ color: '#cbd5e1', cursor: 'pointer' }}
                     onMouseEnter={() => setShowEstadoHelp(true)}
@@ -332,7 +366,14 @@ export default function Asignaciones() {
               <tr key={a.id} className={a.status === 'completado' ? 'as-row-done' : ''}>
                 <td>
                   <div className="as-person">
-                    <div className="as-avatar" style={{ background: a.color }}>{initials(a.nombre)}</div>
+                    <div className="as-avatar">
+                      <img
+                        src={`https://i.pravatar.cc/40?u=${encodeURIComponent(a.nombre)}`}
+                        alt={a.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        onError={e => { e.currentTarget.style.display = 'none' }}
+                      />
+                    </div>
                     <div>
                       <div className="as-name">{a.nombre}</div>
                       <div className="as-area">{a.area}</div>
@@ -388,10 +429,68 @@ export default function Asignaciones() {
         </table>
 
         {paginated.length === 0 && (
-          <div className="pl-empty">
-            <UserPlus size={40} strokeWidth={1.2} />
-            <div className="pl-empty-title">No se encontraron asignaciones</div>
-            <div className="pl-empty-desc">Intenta con otro término de búsqueda o filtro</div>
+          <div style={{ padding: '12px 16px 16px' }}>
+            <div style={{
+              borderRadius: 12, border: '1.5px dashed #e2e8f0',
+              background: '#fafbfc', padding: '20px',
+              display: 'flex', alignItems: 'center', gap: 20,
+            }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                background: '#f1f5f9',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Users size={22} style={{ color: '#94a3b8' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
+                  {asignaciones.length === 0 ? 'No hay asignaciones aún' : 'No se encontraron asignaciones'}
+                </div>
+                <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
+                  {asignaciones.length === 0
+                    ? (plantillasDisponibles.length === 0
+                        ? 'Primero crea una ruta activa en Rutas y luego asígnala a un colaborador.'
+                        : 'Asigna una ruta de onboarding a cada nuevo colaborador para que comience su proceso.')
+                    : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
+                </p>
+                {asignaciones.length === 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['👤 Por colaborador', '🗺️ Ruta asignada', '📊 Seguimiento de avance'].map(tag => (
+                      <span key={tag} style={{
+                        fontSize: 10, fontWeight: 600, color: '#475569',
+                        background: '#f1f5f9', border: '1px solid #e2e8f0',
+                        padding: '3px 10px', borderRadius: 20,
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {asignaciones.length === 0 && !isAreaRole && (
+                plantillasDisponibles.length > 0 ? (
+                  <button onClick={() => setModal(true)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 18px', borderRadius: 10, border: 'none',
+                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+                  }}>
+                    <UserPlus size={13} /> Asignar primera ruta
+                  </button>
+                ) : (
+                  <button onClick={() => navigate('/onboarding/plantillas')} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    padding: '10px 18px', borderRadius: 10, border: 'none',
+                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+                  }}>
+                    <Route size={13} /> Crear primera ruta
+                  </button>
+                )
+              )}
+            </div>
           </div>
         )}
 
@@ -454,63 +553,10 @@ export default function Asignaciones() {
 
       {/* MODAL ASIGNAR */}
       {modal && (
-        <div className="pl-overlay" onClick={() => setModal(false)}>
-          <div className="pl-modal" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <h2>Asignar ruta de onboarding</h2>
-              <button className="pl-modal-close" onClick={() => setModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="pl-modal-body">
-              <label className="pl-label">
-                Colaborador
-                <select
-                  className="pl-input"
-                  value={form.colaborador}
-                  onChange={e => setForm({ ...form, colaborador: e.target.value })}
-                >
-                  <option value="">Seleccionar colaborador…</option>
-                  {colaboradoresDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
-
-              <label className="pl-label">
-                Ruta de onboarding
-                <select
-                  className="pl-input"
-                  value={form.ruta}
-                  onChange={e => setForm({ ...form, ruta: e.target.value })}
-                >
-                  <option value="">Seleccionar ruta…</option>
-                  {plantillasDisponibles.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </label>
-
-              <label className="pl-label">
-                Fecha de inicio
-                <input
-                  type="date"
-                  className="pl-input"
-                  value={form.fechaInicio}
-                  onChange={e => setForm({ ...form, fechaInicio: e.target.value })}
-                />
-              </label>
-            </div>
-
-            <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setModal(false)}>Cancelar</button>
-              <button
-                className="pl-btn-save"
-                onClick={handleAsignar}
-                disabled={!form.colaborador || !form.ruta}
-              >
-                Asignar ruta
-              </button>
-            </div>
-          </div>
-        </div>
+        <AsignarRutaModal
+          onClose={() => setModal(false)}
+          onConfirm={handleAsignar}
+        />
       )}
 
       {/* MODAL DESASIGNAR */}

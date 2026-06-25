@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useTronco } from '../../context/TroncoContext'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   ArrowLeft, Eye, Save, Zap, ChevronRight,
   Lock, CheckCircle2, GripVertical, Plus,
@@ -78,6 +79,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
   const { tronco } = useTronco()
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
+  const { setPlantillas, addFeedEntry } = useOnboardingData()
   const isTroncoEditor = plantilla.id === 'tronco'
 
   const [rutaState, setRutaState] = useState(() => {
@@ -416,14 +418,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
             Guardar borrador
           </button>
           <button className="jb-btn-primary" onClick={() => {
+            if (!isTroncoEditor) {
+              activarRuta(rutaState.etapas, { nombre: plantilla.name, area: plantilla.area })
+              setPlantillas(prev => prev.map(p =>
+                p.id === plantilla.id
+                  ? { ...p, status: 'activa', etapas: rutaState.etapas.length, tareas: rutaState.etapas.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0), updated: 'Ahora' }
+                  : p
+              ))
+              addFeedEntry(`Ruta "${plantilla.name}" activada`)
+            }
             if (onSave) {
               const hasTareas = rutaState.etapas.some(e => e.actividades.some(a => a.tareas.length > 0))
               if (hasTareas) onSave(rutaState.etapas)
             }
-            if (!isTroncoEditor) {
-              activarRuta(rutaState.etapas, { nombre: plantilla.name, area: plantilla.area })
-            }
-            if (isTroncoEditor) onBack()
+            onBack()
           }}>
             <Save size={14} />
             Guardar ruta
@@ -1396,8 +1404,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
           <div className="pl-modal jb-modal" onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Settings2 size={16} />
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings2 size={16} style={{ color: '#fff' }} />
                 </div>
                 <h2>Configuración de la ruta</h2>
               </div>
@@ -1688,10 +1696,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: '#f1f5f9', color: '#475569',
+                  background: 'rgba(255,255,255,0.12)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Pencil size={15} />
+                  <Pencil size={15} style={{ color: '#fff' }} />
                 </div>
                 <h2>Editar etapa</h2>
               </div>
@@ -1758,10 +1766,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: '#0C2D40', color: '#fff',
+                  background: 'rgba(255,255,255,0.12)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Plus size={16} />
+                  <Plus size={16} style={{ color: '#fff' }} />
                 </div>
                 <h2>Nueva etapa</h2>
               </div>
