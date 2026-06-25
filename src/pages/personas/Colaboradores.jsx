@@ -41,25 +41,25 @@ const permisosPorRol = {
   'Líder de área': [
     { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
-    { modulo: 'Onboarding', permisos: ['Ver dashboard', 'Ver asignaciones de su área', 'Validar tareas de su equipo'] },
+    { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones de su área', 'Validar tareas de su equipo'] },
     { modulo: 'Gestión de personas', permisos: ['Ver colaboradores de su área'] },
   ],
   'Supervisor': [
     { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
-    { modulo: 'Onboarding', permisos: ['Ver dashboard', 'Ver asignaciones', 'Validar tareas'] },
+    { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Validar tareas'] },
     { modulo: 'Gestión de personas', permisos: ['Ver colaboradores de su área', 'Editar colaboradores de su área'] },
   ],
   'Sub-admin RRHH': [
     { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
-    { modulo: 'Onboarding', permisos: ['Ver dashboard', 'Ver asignaciones', 'Asignar rutas', 'Crear rutas', 'Gestionar base de conocimiento'] },
+    { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Asignar rutas', 'Crear rutas', 'Gestionar biblioteca de recursos'] },
     { modulo: 'Gestión de personas', permisos: ['Ver todos los colaboradores', 'Crear colaboradores', 'Editar colaboradores'] },
   ],
   'Gerente': [
     { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
-    { modulo: 'Onboarding', permisos: ['Ver dashboard', 'Ver asignaciones', 'Asignar rutas'] },
+    { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Asignar rutas'] },
     { modulo: 'Gestión de personas', permisos: ['Ver todos los colaboradores'] },
     { modulo: 'Reportes', permisos: ['Ver reportes de su área', 'Exportar reportes'] },
   ],
@@ -97,7 +97,7 @@ function MiniCalendar({ value, onChange }) {
 
   function isSelected(day) {
     if (!value || !day) return false
-    const sel = new Date(value)
+    const sel = new Date(value + 'T00:00:00')
     return sel.getFullYear() === viewYear && sel.getMonth() === viewMonth && sel.getDate() === day
   }
 

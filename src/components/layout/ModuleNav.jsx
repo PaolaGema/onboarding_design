@@ -1,13 +1,18 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, FileText, Hand, Route, BookOpen, Settings, UserRound, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Hand, Route, BookOpen, Settings, UserRound, Building2, Info } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
+
+const sectionInfo = {
+  'Administración': 'Herramientas para gestionar el onboarding de tu empresa: ver el panel general, asignar rutas, crear rutas, administrar recursos y configurar el módulo.',
+  'Mi espacio': 'Tu espacio personal dentro de la plataforma: ve tu bienvenida y accede a tu ruta de onboarding.',
+}
 
 const onboardingAdminNav = [
   { section: 'Administración', items: [
-    { label: 'Dashboard', path: '/onboarding', icon: LayoutDashboard, end: true },
+    { label: 'Panel de onboarding', path: '/onboarding', icon: LayoutDashboard, end: true },
     { label: 'Asignaciones', path: '/onboarding/asignaciones', icon: Users },
     { label: 'Rutas', path: '/onboarding/plantillas', icon: FileText },
-    { label: 'Base de conocimiento', path: '/onboarding/conocimiento', icon: BookOpen },
+    { label: 'Biblioteca de recursos', path: '/onboarding/conocimiento', icon: BookOpen },
     { label: 'Configuración', path: '/onboarding/configuracion', icon: Settings },
   ]},
   { section: 'Mi espacio', items: [
@@ -25,7 +30,7 @@ const onboardingColabNav = [
 
 const onboardingManagerNav = [
   { section: 'Administración', items: [
-    { label: 'Dashboard', path: '/onboarding', icon: LayoutDashboard, end: true },
+    { label: 'Panel de onboarding', path: '/onboarding', icon: LayoutDashboard, end: true },
     { label: 'Asignaciones', path: '/onboarding/asignaciones', icon: Users },
     { label: 'Rutas', path: '/onboarding/plantillas', icon: FileText },
   ]},
@@ -90,8 +95,31 @@ export default function ModuleNav() {
               fontSize: 10, fontWeight: 700, color: '#94a3b8',
               textTransform: 'uppercase', letterSpacing: '0.05em',
               padding: '0 0.85rem', marginBottom: '0.4rem',
+              display: 'flex', alignItems: 'center', gap: 4,
             }}>
               {group.section}
+              {sectionInfo[group.section] && (
+                <div style={{ position: 'relative', display: 'inline-flex' }}
+                  onMouseEnter={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '1'}
+                  onMouseLeave={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '0'}
+                >
+                  <Info size={10} style={{ color: '#cbd5e1', cursor: 'help' }} />
+                  <div data-tip style={{
+                    position: 'absolute', left: 0, top: 'calc(100% + 8px)',
+                    background: '#0C2D40', color: '#fff', borderRadius: 8, padding: '8px 12px',
+                    fontSize: 10, lineHeight: 1.5, width: 200, zIndex: 50,
+                    boxShadow: '0 4px 16px rgba(0,0,0,.15)', opacity: 0,
+                    transition: 'opacity .15s', pointerEvents: 'none',
+                  }}>
+                    {sectionInfo[group.section]}
+                    <div style={{
+                      position: 'absolute', top: -4, left: 8,
+                      width: 8, height: 8, background: '#0C2D40',
+                      transform: 'rotate(45deg)',
+                    }} />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex flex-col" style={{ gap: '0.3rem' }}>
               {group.items.map(({ label, path, icon: Icon, end }) => (

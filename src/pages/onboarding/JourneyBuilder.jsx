@@ -15,7 +15,7 @@ const tiposTarea = [
   { key: 'video', label: 'Video', icon: Video, color: '#3b82f6', resp: 'Colaborador' },
   { key: 'audio', label: 'Audio / Podcast', icon: Headphones, color: '#06b6d4', resp: 'Colaborador' },
   { key: 'documento', label: 'Documento / PDF', icon: FileText, color: '#f97316', resp: 'Colaborador' },
-  { key: 'quiz', label: 'Quiz', icon: HelpCircle, color: '#f59e0b', resp: 'Colaborador' },
+  { key: 'quiz', label: 'Cuestionario', icon: HelpCircle, color: '#f59e0b', resp: 'Colaborador' },
   { key: 'completar-perfil', label: 'Formulario', icon: ClipboardList, color: '#10b981', resp: 'Colaborador' },
   { key: 'subida', label: 'Subida de archivo', icon: Upload, color: '#ec4899', resp: 'Colaborador' },
   { key: 'tarea-otro', label: 'Tarea asignada a otro', icon: UserCheck, color: '#ef4444', resp: 'Otro usuario' },
@@ -43,7 +43,7 @@ export const rutasData = {
           { id: 't11', name: 'Demo del producto', tipo: 'video', obligatoria: true, puntos: 15, desc: 'Video demostrativo del producto principal.', responsable: 'Colaborador', fechaRel: 'Día 8', confirmacion: false, done: false },
           { id: 't12', name: 'Tutorial CRM', tipo: 'video', obligatoria: true, puntos: 15, desc: 'Capacitación en el uso del sistema CRM.', responsable: 'Colaborador', fechaRel: 'Día 9', confirmacion: false, done: false },
           { id: 't13', name: 'Práctica en CRM', tipo: 'form-custom', obligatoria: true, puntos: 20, desc: 'Ejercicio práctico: registrar un lead y una oportunidad.', responsable: 'Colaborador', fechaRel: 'Día 10', confirmacion: false, done: false },
-          { id: 't14', name: 'Quiz de producto', tipo: 'quiz', obligatoria: true, puntos: 25, desc: 'Evaluación de conocimiento sobre el producto y CRM.', responsable: 'Colaborador', fechaRel: 'Día 11', confirmacion: false, done: false },
+          { id: 't14', name: 'Cuestionario de producto', tipo: 'quiz', obligatoria: true, puntos: 25, desc: 'Evaluación de conocimiento sobre el producto y CRM.', responsable: 'Colaborador', fechaRel: 'Día 11', confirmacion: false, done: false },
         ]},
         { name: 'Pitch comercial', tareas: [
           { id: 't15', name: 'Guía de pitch', tipo: 'lectura', obligatoria: true, puntos: 10, desc: 'Documento con la estructura y argumentos del pitch comercial.', responsable: 'Colaborador', fechaRel: 'Día 12', confirmacion: true, done: false },
@@ -74,7 +74,7 @@ const emptyRuta = {
   ],
 }
 
-export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
+export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backLabel }) {
   const { tronco } = useTronco()
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
@@ -399,7 +399,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
           }}>
             <ArrowLeft size={16} />
           </button>
-          <span className="jb-bc-text">{isTroncoEditor ? 'Configuración' : 'Rutas'}</span>
+          <span className="jb-bc-text">{isTroncoEditor ? 'Configuración' : (backLabel || 'Rutas')}</span>
           <ChevronRight size={14} className="jb-bc-sep" />
           <span className="jb-bc-current">{plantilla.name}</span>
         </div>
@@ -570,7 +570,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                 </div>
                 {etapa.locked && (
                   <div className="jb-etapa-actions">
-                    <span className="jb-etapa-badge">Tronco común — protegido</span>
+                    <span className="jb-etapa-badge">Inducción general — protegido</span>
                   </div>
                 )}
               </div>
@@ -794,13 +794,13 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
 
                 {['video', 'audio', 'lectura', 'documento', 'enlace'].includes(tareaForm.tipo) && (() => {
                   const kbItems = [
-                    { id: 'kb1', name: 'Código de conducta 2025.pdf', tipo: 'documento', cat: 'Políticas', url: '/docs/codigo-conducta.pdf', hasQuiz: true, quizName: 'Quiz de código de conducta', quizPreguntas: 5 },
+                    { id: 'kb1', name: 'Código de conducta 2025.pdf', tipo: 'documento', cat: 'Políticas', url: '/docs/codigo-conducta.pdf', hasQuiz: true, quizName: 'Cuestionario de código de conducta', quizPreguntas: 5 },
                     { id: 'kb2', name: 'Política de vacaciones.pdf', tipo: 'documento', cat: 'Políticas', url: '/docs/vacaciones.pdf' },
-                    { id: 'kb3', name: 'Manual de beneficios.pdf', tipo: 'documento', cat: 'Beneficios', url: '/docs/beneficios.pdf', hasQuiz: true, quizName: 'Quiz de beneficios', quizPreguntas: 8 },
+                    { id: 'kb3', name: 'Manual de beneficios.pdf', tipo: 'documento', cat: 'Beneficios', url: '/docs/beneficios.pdf', hasQuiz: true, quizName: 'Cuestionario de beneficios', quizPreguntas: 8 },
                     { id: 'kb4', name: 'Guía de seguro médico.pdf', tipo: 'documento', cat: 'Beneficios', url: '/docs/seguro.pdf' },
                     { id: 'kb5', name: 'Guía acceso a sistemas.pdf', tipo: 'documento', cat: 'Procesos TI', url: '/docs/acceso-sistemas.pdf' },
-                    { id: 'kb6', name: 'Valores y misión.pdf', tipo: 'documento', cat: 'Cultura', url: '/docs/valores.pdf', hasQuiz: true, quizName: 'Quiz de cultura organizacional', quizPreguntas: 5 },
-                    { id: 'kb7', name: 'Video de bienvenida del CEO', tipo: 'video', cat: 'Cultura', url: 'https://youtube.com/watch?v=ejemplo1', hasQuiz: true, quizName: 'Quiz del video de bienvenida', quizPreguntas: 3 },
+                    { id: 'kb6', name: 'Valores y misión.pdf', tipo: 'documento', cat: 'Cultura', url: '/docs/valores.pdf', hasQuiz: true, quizName: 'Cuestionario de cultura organizacional', quizPreguntas: 5 },
+                    { id: 'kb7', name: 'Video de bienvenida del CEO', tipo: 'video', cat: 'Cultura', url: 'https://youtube.com/watch?v=ejemplo1', hasQuiz: true, quizName: 'Cuestionario del video de bienvenida', quizPreguntas: 3 },
                     { id: 'kb8', name: 'Cómo usar el CRM', tipo: 'video', cat: 'Procesos TI', url: 'https://youtube.com/watch?v=ejemplo2' },
                     { id: 'kb9', name: 'Podcast de cultura organizacional', tipo: 'audio', cat: 'Cultura', url: 'https://spotify.com/episode/ejemplo' },
                   ]
@@ -856,7 +856,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                             <Search size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
                             <input
                               type="text"
-                              placeholder="Buscar en base de conocimiento..."
+                              placeholder="Buscar en biblioteca de recursos..."
                               value={kbSearch}
                               onChange={e => updateForm('_kbSearch', e.target.value)}
                               autoFocus
@@ -915,7 +915,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                                       padding: '2px 6px', borderRadius: 5,
                                       background: '#fef3c7', border: '1px solid #fde68a',
                                       fontSize: 8, fontWeight: 700, color: '#b45309', flexShrink: 0,
-                                    }}>Quiz</div>
+                                    }}>Cuest.</div>
                                   )}
                                 </button>
                               )
@@ -1086,7 +1086,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                   {gamificacion && (
                     <div style={{ fontSize: 10, color: tareaForm.verificarQuiz ? '#f59e0b' : '#94a3b8' }}>
                       {tareaForm.verificarQuiz
-                        ? 'Los puntos se otorgan solo si aprueba el quiz de verificación'
+                        ? 'Los puntos se otorgan solo si aprueba el cuestionario de verificación'
                         : 'Los puntos se otorgan cuando el colaborador marque como completada'
                       }
                     </div>
@@ -1095,7 +1095,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
 
                 <div style={{ fontSize: 10, color: tareaForm.verificarQuiz ? '#f59e0b' : '#94a3b8', marginTop: -2, marginBottom: 4, display: 'none' }}>
                   {tareaForm.verificarQuiz
-                    ? 'Los puntos se otorgan solo si aprueba el quiz de verificación'
+                    ? 'Los puntos se otorgan solo si aprueba el cuestionario de verificación'
                     : 'Los puntos se otorgan cuando el colaborador marque como completada'
                   }
                 </div>
@@ -1164,8 +1164,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                   <>
                     <div className="jb-field-toggle" onClick={() => updateForm('verificarQuiz', !tareaForm.verificarQuiz)}>
                       <div>
-                        <span>Verificar comprensión con quiz</span>
-                        <div className="jb-toggle-hint">{gamificacion ? 'Agrega un quiz para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega un quiz para asegurar que el colaborador entendió el contenido.'}</div>
+                        <span>Verificar comprensión con cuestionario</span>
+                        <div className="jb-toggle-hint">{gamificacion ? 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido.'}</div>
                       </div>
                       <div className={`jb-toggle ${tareaForm.verificarQuiz ? 'on' : ''}`}>
                         <div className="jb-toggle-dot" />
@@ -1178,20 +1178,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                         display: 'flex', flexDirection: 'column', gap: 10,
                         border: '1px solid #e2e8f0',
                       }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Configuración del quiz</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Configuración del cuestionario</div>
                         {(() => {
                           const quizzes = [
-                            { id: 'q1', name: 'Quiz de cultura organizacional', preguntas: 5, cat: 'Cultura' },
-                            { id: 'q2', name: 'Quiz de políticas internas', preguntas: 8, cat: 'Políticas' },
-                            { id: 'q3', name: 'Quiz de seguridad informática', preguntas: 6, cat: 'Procesos TI' },
-                            { id: 'q4', name: 'Quiz de producto', preguntas: 10, cat: 'Ventas' },
-                            { id: 'q5', name: 'Quiz de procesos del área', preguntas: 4, cat: 'Procesos TI' },
+                            { id: 'q1', name: 'Cuestionario de cultura organizacional', preguntas: 5, cat: 'Cultura' },
+                            { id: 'q2', name: 'Cuestionario de políticas internas', preguntas: 8, cat: 'Políticas' },
+                            { id: 'q3', name: 'Cuestionario de seguridad informática', preguntas: 6, cat: 'Procesos TI' },
+                            { id: 'q4', name: 'Cuestionario de producto', preguntas: 10, cat: 'Ventas' },
+                            { id: 'q5', name: 'Cuestionario de procesos del área', preguntas: 4, cat: 'Procesos TI' },
                           ]
                           const selected = quizzes.find(q => q.id === tareaForm.quizId)
                           const filtered = quizzes.filter(q => q.name.toLowerCase().includes(quizSearch.toLowerCase()))
                           return (
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Seleccionar quiz de la biblioteca</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Seleccionar cuestionario de la biblioteca</div>
                               <div style={{ position: 'relative' }}>
                                 <div
                                   onClick={() => { setQuizDropOpen(!quizDropOpen); setQuizSearch('') }}
@@ -1210,7 +1210,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                                       <span style={{ fontSize: 10, color: '#94a3b8' }}>{selected.preguntas} preg.</span>
                                     </>
                                   ) : (
-                                    <span style={{ flex: 1, fontSize: 12, color: '#94a3b8' }}>Buscar y seleccionar quiz...</span>
+                                    <span style={{ flex: 1, fontSize: 12, color: '#94a3b8' }}>Buscar cuestionario...</span>
                                   )}
                                   <ChevronRight size={13} style={{ color: '#94a3b8', transform: quizDropOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }} />
                                 </div>
@@ -1231,7 +1231,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                                         <Search size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
                                         <input
                                           type="text"
-                                          placeholder="Buscar quiz..."
+                                          placeholder="Buscar cuestionario..."
                                           value={quizSearch}
                                           onChange={e => setQuizSearch(e.target.value)}
                                           autoFocus
@@ -1245,7 +1245,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                                     <div style={{ maxHeight: 180, overflowY: 'auto' }}>
                                       {filtered.length === 0 ? (
                                         <div style={{ padding: '12px', textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
-                                          No se encontraron quizzes
+                                          No se encontraron cuestionarios
                                         </div>
                                       ) : (
                                         filtered.map(q => (
@@ -1278,7 +1278,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
                               {!tareaForm.quizId && (
                                 <div style={{ fontSize: 10, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
                                   <HelpCircle size={11} />
-                                  Crea quizzes en Base de conocimiento para verlos aquí
+                                  Crea cuestionarios en Biblioteca de recursos para verlos aquí
                                 </div>
                               )}
                             </div>
@@ -1408,12 +1408,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave }) {
             <div className="pl-modal-body">
               <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px' }}>Cada ajuste puede heredar la configuración global, personalizarse o desactivarse.</p>
               {[
-                { label: 'Gamificación (Puntos y niveles)', hint: 'Los colaboradores ganan puntos al completar tareas' },
+                { label: 'Gamificación (Puntos)', hint: 'Los colaboradores ganan puntos al completar tareas' },
                 { label: 'Notificaciones automáticas', hint: 'Recordatorios por email y push' },
                 { label: 'Plazos estrictos', hint: 'Bloquea avance si hay tareas vencidas' },
                 { label: 'Permitir saltar tareas opcionales', hint: 'El colaborador puede omitir tareas no obligatorias' },
-                { label: 'Quiz con nota mínima', hint: 'Requiere un puntaje mínimo para aprobar' },
-                { label: 'Buddy asignado', hint: 'Asigna un compañero guía al nuevo colaborador' },
+                { label: 'Cuestionario con nota mínima', hint: 'Requiere un puntaje mínimo para aprobar' },
+                { label: 'Asistente IA', hint: 'Un asistente inteligente que guía al nuevo colaborador' },
               ].map((cfg, i) => (
                 <div key={i} className="jb-field-toggle">
                   <div>

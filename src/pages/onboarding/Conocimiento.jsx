@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react'
 import {
   Upload, FolderOpen, FileText, FileCheck, Loader2, AlertCircle,
-  Plus, Trash2, RefreshCw, Search, X, ChevronRight, Check,
+  Plus, Trash2, RefreshCw, Search, X, ChevronRight, ChevronDown, Check,
   BookOpen, ShieldCheck, Heart, Cpu, MessageCircle, HelpCircle,
   MoreVertical, Pencil, CirclePlus, Video, Headphones, Link2, ExternalLink,
-  LayoutGrid, List, Filter, CheckCircle2
+  LayoutGrid, List, Filter, CheckCircle2, Globe
 } from 'lucide-react'
 
 const iconMap = {}
@@ -13,29 +13,29 @@ const initialCategorias = [
   {
     name: 'Políticas',
     docs: [
-      { id: 1, name: 'Código de conducta 2025.pdf', size: '2.4 MB', estado: 'procesado', fecha: '12 Jun 2026' },
-      { id: 2, name: 'Política de vacaciones.pdf', size: '1.1 MB', estado: 'procesado', fecha: '10 Jun 2026' },
-      { id: 3, name: 'Reglamento interno.docx', size: '3.8 MB', estado: 'procesando', fecha: '18 Jun 2026' },
+      { id: 1, name: 'Código de conducta 2025.pdf', size: '2.4 MB', estado: 'procesado', fecha: '12 Jun 2026', general: true },
+      { id: 2, name: 'Política de vacaciones.pdf', size: '1.1 MB', estado: 'procesado', fecha: '10 Jun 2026', general: true },
+      { id: 3, name: 'Reglamento interno.docx', size: '3.8 MB', estado: 'procesado', fecha: '18 Jun 2026', general: true },
     ],
   },
   {
     name: 'Beneficios',
     docs: [
-      { id: 4, name: 'Manual de beneficios.pdf', size: '4.2 MB', estado: 'procesado', fecha: '8 Jun 2026' },
-      { id: 5, name: 'Guía de seguro médico.pdf', size: '1.8 MB', estado: 'procesado', fecha: '5 Jun 2026' },
+      { id: 4, name: 'Manual de beneficios.pdf', size: '4.2 MB', estado: 'procesado', fecha: '8 Jun 2026', general: true },
+      { id: 5, name: 'Guía de seguro médico.pdf', size: '1.8 MB', estado: 'procesado', fecha: '5 Jun 2026', general: true },
     ],
   },
   {
     name: 'Procesos TI',
     docs: [
-      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026' },
-      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'error', fecha: '16 Jun 2026' },
+      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026', general: false },
+      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'procesado', fecha: '16 Jun 2026', general: false },
     ],
   },
   {
     name: 'Cultura',
     docs: [
-      { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026' },
+      { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026', general: true },
     ],
   },
   {
@@ -68,7 +68,15 @@ export default function Conocimiento() {
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [viewMode, setViewMode] = useState('grid')
   const [filterTipo, setFilterTipo] = useState('todos')
-  const [showTipoFilter, setShowTipoFilter] = useState(false)
+  const [filterEstado, setFilterEstado] = useState('todos')
+  const [filterGeneral, setFilterGeneral] = useState('todos')
+  const [showBibFilters, setShowBibFilters] = useState(false)
+  const [showNewResource, setShowNewResource] = useState(false)
+  const [sortBy, setSortBy] = useState('fecha-desc')
+  const [contextMenu, setContextMenu] = useState(null)
+  const [bfDropTipo, setBfDropTipo] = useState(false)
+  const [bfDropEstado, setBfDropEstado] = useState(false)
+  const [bfDropGeneral, setBfDropGeneral] = useState(false)
   const [linkForm, setLinkForm] = useState({ name: '', url: '', tipo: 'video' })
   const fileInputRef = useRef(null)
 
@@ -81,14 +89,28 @@ export default function Conocimiento() {
   const docsNonQuiz = allDocs.length
   const docsConQuiz = allDocs.filter(d => d.quiz).length
 
+  const hasBibFilters = filterTipo !== 'todos' || filterEstado !== 'todos' || filterGeneral !== 'todos'
   const filteredDocs = cat.docs.filter(d => {
     if (d.tipo === 'quiz') return false
     if (!d.name.toLowerCase().includes(search.toLowerCase())) return false
-    if (filterTipo === 'documentos') return !d.tipo || d.tipo === 'documento'
-    if (filterTipo === 'videos') return d.tipo === 'video'
-    if (filterTipo === 'audios') return d.tipo === 'audio'
+    if (filterTipo === 'documentos' && d.tipo && d.tipo !== 'documento') return false
+    if (filterTipo === 'videos' && d.tipo !== 'video') return false
+    if (filterTipo === 'audios' && d.tipo !== 'audio') return false
+    if (filterTipo === 'presentaciones' && !d.name.match(/\.pptx?$/i)) return false
+    if (filterEstado !== 'todos' && d.estado !== filterEstado) return false
+    if (filterGeneral === 'si' && !d.general) return false
+    if (filterGeneral === 'no' && d.general) return false
     return true
+  }).sort((a, b) => {
+    if (sortBy === 'fecha-desc') return b.id - a.id
+    if (sortBy === 'fecha-asc') return a.id - b.id
+    if (sortBy === 'nombre-asc') return a.name.localeCompare(b.name)
+    if (sortBy === 'nombre-desc') return b.name.localeCompare(a.name)
+    if (sortBy === 'tamaño') return parseFloat(b.size) - parseFloat(a.size)
+    if (sortBy === 'tipo') return (a.name.split('.').pop() || '').localeCompare(b.name.split('.').pop() || '')
+    return 0
   })
+  function clearBibFilters() { setFilterTipo('todos'); setFilterEstado('todos'); setFilterGeneral('todos') }
 
   function openFilePicker() {
     fileInputRef.current?.click()
@@ -103,17 +125,25 @@ export default function Conocimiento() {
         : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
       estado: 'procesando',
       fecha: 'Ahora',
+      general: false,
     }))
     setCategorias(prev => prev.map((c, i) => {
       if (i !== selCat) return c
-      return { ...c, docs: [...c.docs, ...newDocs] }
+      return { ...c, docs: [...newDocs, ...c.docs] }
     }))
+    const ids = newDocs.map(d => d.id)
+    setTimeout(() => {
+      setCategorias(prev => prev.map(c => ({
+        ...c,
+        docs: c.docs.map(d => ids.includes(d.id) ? { ...d, estado: 'procesado' } : d),
+      })))
+    }, 3000)
   }
 
   function createQuiz(linkedDocId, linkedDocName) {
     const newQuiz = {
       id: ++docIdCounter,
-      name: linkedDocName ? `Quiz — ${linkedDocName.replace(/\.[^.]+$/, '')}` : 'Nuevo quiz',
+      name: linkedDocName ? `Cuestionario — ${linkedDocName.replace(/\.[^.]+$/, '')}` : 'Nuevo cuestionario',
       size: '-',
       estado: 'procesado',
       fecha: 'Ahora',
@@ -169,6 +199,16 @@ export default function Conocimiento() {
     setDocMenu(null)
   }
 
+  function toggleGeneral(docId) {
+    setCategorias(prev => prev.map(c => ({
+      ...c,
+      docs: c.docs.map(d => d.id === docId ? { ...d, general: !d.general } : d),
+    })))
+    setDocMenu(null)
+  }
+
+  const totalGenerales = categorias.reduce((s, c) => s + c.docs.filter(d => d.general).length, 0)
+
   function addCategoria() {
     if (!newCatName.trim()) return
     setCategorias(prev => [...prev, { name: newCatName.trim(), docs: [] }])
@@ -196,7 +236,7 @@ export default function Conocimiento() {
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.txt"
+        accept="application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
         style={{ display: 'none' }}
         onChange={e => { if (e.target.files.length) handleFiles(e.target.files); e.target.value = '' }}
       />
@@ -204,8 +244,38 @@ export default function Conocimiento() {
       {/* HEADER */}
       <div className="pl-header">
         <div>
-          <h1 className="pl-title">Base de conocimiento</h1>
-          <p className="pl-subtitle">Documentos y enlaces que se asignan como tareas en las rutas de onboarding</p>
+          <h1 className="pl-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            Biblioteca de recursos
+            <div style={{ position: 'relative', display: 'inline-flex' }}
+              onMouseEnter={e => e.currentTarget.querySelector('[data-tooltip]').style.opacity = '1'}
+              onMouseLeave={e => e.currentTarget.querySelector('[data-tooltip]').style.opacity = '0'}
+            >
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', border: '1.5px solid #cbd5e1',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help',
+              }}>
+                <HelpCircle size={12} style={{ color: '#94a3b8' }} />
+              </div>
+              <div data-tooltip style={{
+                position: 'absolute', left: 0, top: 'calc(100% + 8px)',
+                background: '#0C2D40', color: '#fff', borderRadius: 10, padding: '12px 16px',
+                fontSize: 11, lineHeight: 1.6, width: 300, zIndex: 50,
+                boxShadow: '0 8px 24px rgba(0,0,0,.15)', opacity: 0,
+                transition: 'opacity .15s', pointerEvents: 'none',
+              }}>
+                <strong style={{ color: '#10DC97' }}>¿Cómo funciona?</strong><br />
+                Sube documentos (PDF, Word, PowerPoint) o agrega enlaces a videos y audios externos.
+                Organízalos por carpetas y asígnalos como tareas en las rutas de onboarding.
+                El Asistente IA también usa estos recursos para responder preguntas de los colaboradores.
+                <div style={{
+                  position: 'absolute', top: -5, left: 14,
+                  width: 10, height: 10, background: '#0C2D40', borderRadius: 2,
+                  transform: 'rotate(45deg)',
+                }} />
+              </div>
+            </div>
+          </h1>
+          <p className="pl-subtitle">Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding</p>
         </div>
       </div>
 
@@ -227,9 +297,14 @@ export default function Conocimiento() {
           <div className="kpi-lbl">Con documentos</div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-title" style={{ color: '#f59e0b' }}>Con quiz</div>
+          <div className="kpi-title" style={{ color: '#f59e0b' }}>Con cuestionario</div>
           <div className="kpi-val">{docsConQuiz}/{docsNonQuiz}</div>
-          <div className="kpi-lbl">Documentos con quiz</div>
+          <div className="kpi-lbl">Documentos con cuestionario</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-title" style={{ color: '#0d9488' }}>Recursos generales</div>
+          <div className="kpi-val">{totalGenerales}</div>
+          <div className="kpi-lbl">Visibles para todos</div>
         </div>
         {sinCobertura.length > 0 && (
           <div className="kpi-card">
@@ -252,76 +327,144 @@ export default function Conocimiento() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-          {filterTipo !== 'todos' && (
-            <div style={{
-              height: 32, padding: '0 8px 0 10px', borderRadius: 8,
-              background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 11, fontWeight: 600, color: '#475569',
+        <button onClick={() => setShowNewResource(true)} style={{
+          height: 38, padding: '0 16px', borderRadius: 8, border: 'none',
+          background: '#0C2D40', color: '#fff', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+        }}>
+          <Plus size={13} />
+          Nuevo recurso
+        </button>
+        <button onClick={() => setShowBibFilters(true)} style={{
+          height: 38, padding: '0 14px', borderRadius: 8,
+          border: hasBibFilters ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
+          background: hasBibFilters ? '#f0f9ff' : '#fff',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
+          color: hasBibFilters ? '#0C2D40' : '#64748b',
+        }}>
+          <Filter size={13} />
+          Filtros
+          {hasBibFilters && (
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%', background: '#0C2D40',
+              color: '#fff', fontSize: 9, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {{ documentos: 'Documentos', videos: 'Videos', audios: 'Audios' }[filterTipo]}
-              <button
-                onClick={() => setFilterTipo('todos')}
-                style={{
-                  width: 18, height: 18, borderRadius: 4, border: 'none',
-                  background: 'transparent', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#94a3b8',
-                }}
-              >
-                <X size={12} />
-              </button>
-            </div>
+              {[filterTipo !== 'todos', filterEstado !== 'todos', filterGeneral !== 'todos'].filter(Boolean).length}
+            </span>
           )}
-          <button
-            onClick={() => setShowTipoFilter(!showTipoFilter)}
-            style={{
-              height: 38, padding: '0 12px', borderRadius: 8,
-              border: '1px solid #e2e8f0', background: '#fff',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              color: '#64748b',
-            }}
-          >
-            <Filter size={14} />
-          </button>
-          {showTipoFilter && (
-            <div style={{
-              position: 'absolute', right: 0, top: '100%', marginTop: 4,
-              background: '#fff', borderRadius: 10, padding: 4,
-              boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-              zIndex: 30, minWidth: 170, animation: 'plSlideUp .12s',
-            }}>
-              {[
-                { key: 'todos', label: 'Todos', color: '#0C2D40' },
-                { key: 'documentos', label: 'Documentos', color: '#f97316' },
-                { key: 'videos', label: 'Videos', color: '#3b82f6' },
-                { key: 'audios', label: 'Audios', color: '#06b6d4' },
-              ].map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => { setFilterTipo(f.key); setShowTipoFilter(false) }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 10px', border: 'none', borderRadius: 7,
-                    background: filterTipo === f.key ? '#f8fafc' : 'transparent',
-                    cursor: 'pointer', fontSize: 12, fontWeight: filterTipo === f.key ? 600 : 400,
-                    color: filterTipo === f.key ? '#0C2D40' : '#475569',
-                    fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'background .1s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={e => { if (filterTipo !== f.key) e.currentTarget.style.background = 'transparent' }}
-                >
-                  {f.key !== 'todos' && (
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: f.color, flexShrink: 0 }} />
-                  )}
-                  <span style={{ flex: 1 }}>{f.label}</span>
-                  {filterTipo === f.key && <CheckCircle2 size={13} style={{ color: '#10b981' }} />}
+        </button>
+
+        {/* CHIPS FILTROS ACTIVOS */}
+        {hasBibFilters && (
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            {filterTipo !== 'todos' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {{ documentos: 'Documentos', videos: 'Videos', audios: 'Audios', presentaciones: 'PPT' }[filterTipo]}
+                <button onClick={() => setFilterTipo('todos')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#1e40af' }} /></button>
+              </span>
+            )}
+            {filterEstado !== 'todos' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {filterEstado === 'procesado' ? 'Procesados' : 'Procesando'}
+                <button onClick={() => setFilterEstado('todos')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#92400e' }} /></button>
+              </span>
+            )}
+            {filterGeneral !== 'todos' && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#f0fdfa', color: '#0d9488', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {filterGeneral === 'si' ? 'Generales' : 'Solo onboarding'}
+                <button onClick={() => setFilterGeneral('todos')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#ccfbf1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#0d9488' }} /></button>
+              </span>
+            )}
+            <button onClick={clearBibFilters} style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+          </div>
+        )}
+
+        {/* MODAL FILTROS BIBLIOTECA */}
+        {showBibFilters && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowBibFilters(false)}>
+            <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Filter size={16} style={{ color: '#0C2D40' }} />
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar recursos</span>
+                </div>
+                <button onClick={() => setShowBibFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={14} style={{ color: '#64748b' }} />
                 </button>
-              ))}
+              </div>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setBfDropTipo(false); setBfDropEstado(false); setBfDropGeneral(false) }}>
+                {/* TIPO */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Tipo de archivo</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${bfDropTipo ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setBfDropTipo(!bfDropTipo); setBfDropEstado(false); setBfDropGeneral(false) }}>
+                      <span>{{ todos: 'Todos los tipos', documentos: 'Documentos', presentaciones: 'Presentaciones', videos: 'Videos', audios: 'Audios' }[filterTipo]}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {bfDropTipo && (
+                      <div className="pl-dropdown-menu">
+                        {[{ key: 'todos', label: 'Todos los tipos' }, { key: 'documentos', label: 'Documentos (PDF, Word)' }, { key: 'presentaciones', label: 'Presentaciones (PowerPoint)' }, { key: 'videos', label: 'Videos' }, { key: 'audios', label: 'Audios' }].map(f => (
+                          <button key={f.key} type="button" className={`pl-dropdown-item${filterTipo === f.key ? ' selected' : ''}`} onClick={() => { setFilterTipo(f.key); setBfDropTipo(false) }}>
+                            <span>{f.label}</span>
+                            {filterTipo === f.key && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* ESTADO */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Estado</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${bfDropEstado ? ' open' : ''}${filterEstado === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setBfDropEstado(!bfDropEstado); setBfDropTipo(false); setBfDropGeneral(false) }}>
+                      <span>{{ todos: 'Todos los estados', procesado: 'Procesados', procesando: 'Procesando' }[filterEstado]}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {bfDropEstado && (
+                      <div className="pl-dropdown-menu">
+                        {[{ key: 'todos', label: 'Todos los estados' }, { key: 'procesado', label: 'Procesados' }, { key: 'procesando', label: 'Procesando' }].map(f => (
+                          <button key={f.key} type="button" className={`pl-dropdown-item${filterEstado === f.key ? ' selected' : ''}`} onClick={() => { setFilterEstado(f.key); setBfDropEstado(false) }}>
+                            <span>{f.label}</span>
+                            {filterEstado === f.key && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* VISIBILIDAD */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Visibilidad</span>
+                  <div className="pl-dropdown-wrap">
+                    <button type="button" className={`pl-dropdown-trigger${bfDropGeneral ? ' open' : ''}${filterGeneral === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setBfDropGeneral(!bfDropGeneral); setBfDropTipo(false); setBfDropEstado(false) }}>
+                      <span>{{ todos: 'Todos', si: 'Recursos generales', no: 'Solo onboarding' }[filterGeneral]}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {bfDropGeneral && (
+                      <div className="pl-dropdown-menu" style={{ top: 'auto', bottom: 'calc(100% + 6px)' }}>
+                        {[{ key: 'todos', label: 'Todos' }, { key: 'si', label: 'Recursos generales' }, { key: 'no', label: 'Solo onboarding' }].map(f => (
+                          <button key={f.key} type="button" className={`pl-dropdown-item${filterGeneral === f.key ? ' selected' : ''}`} onClick={() => { setFilterGeneral(f.key); setBfDropGeneral(false) }}>
+                            <span>{f.label}</span>
+                            {filterGeneral === f.key && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
+                <button onClick={clearBibFilters} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
+                <button onClick={() => setShowBibFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        <div style={{ flex: 1 }} />
         <div style={{
           display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3,
         }}>
@@ -344,6 +487,7 @@ export default function Conocimiento() {
             )
           })}
         </div>
+
       </div>
 
       {/* CONTENIDO: SIDEBAR + GRID */}
@@ -431,47 +575,45 @@ export default function Conocimiento() {
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {/* BOTONES SUBIR / ENLACE */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            <div
-              onClick={openFilePicker}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files) }}
-              style={{
-                flex: 1, background: dragOver ? 'rgba(12,45,64,0.04)' : '#fafbfc',
-                borderRadius: 10, border: `1.5px dashed ${dragOver ? '#0C2D40' : '#d1d5db'}`,
-                padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12,
-                cursor: 'pointer', transition: 'all .15s',
+      <div
+        style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}
+        onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }) }}
+        onClick={() => contextMenu && setContextMenu(null)}
+      >
+        {/* MENÚ CONTEXTUAL */}
+        {contextMenu && (
+          <div style={{
+            position: 'fixed', left: contextMenu.x, top: contextMenu.y,
+            background: '#fff', borderRadius: 10, padding: 4,
+            boxShadow: '0 8px 30px rgba(0,0,0,.15)', border: '1px solid #e2e8f0',
+            zIndex: 50, minWidth: 190, animation: 'plSlideUp .1s',
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 10px 4px' }}>Ordenar por</div>
+            {[
+              { key: 'fecha-desc', label: 'Más recientes primero' },
+              { key: 'fecha-asc', label: 'Más antiguos primero' },
+              { key: 'nombre-asc', label: 'Nombre (A → Z)' },
+              { key: 'nombre-desc', label: 'Nombre (Z → A)' },
+              { key: 'tamaño', label: 'Tamaño (mayor)' },
+              { key: 'tipo', label: 'Tipo de archivo' },
+            ].map(s => (
+              <button key={s.key} onClick={() => { setSortBy(s.key); setContextMenu(null) }} style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '7px 10px', border: 'none', borderRadius: 7,
+                background: sortBy === s.key ? '#f8fafc' : 'transparent',
+                cursor: 'pointer', fontSize: 11, fontWeight: sortBy === s.key ? 600 : 400,
+                color: sortBy === s.key ? '#0C2D40' : '#475569',
+                fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = 'rgba(12,45,64,0.03)' }}
-              onMouseLeave={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafbfc' } }}
-            >
-              <Upload size={18} style={{ color: dragOver ? '#0C2D40' : '#94a3b8', flexShrink: 0 }} />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Subir documento</div>
-                <div style={{ fontSize: 10, color: '#94a3b8' }}>PDF, Word, TXT — arrastra o haz clic</div>
-              </div>
-            </div>
-            <div
-              onClick={() => { setLinkForm({ name: '', url: '', tipo: 'video' }); setShowLinkModal(true) }}
-              style={{
-                flex: 1, background: '#fafbfc',
-                borderRadius: 10, border: '1.5px dashed #d1d5db',
-                padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12,
-                cursor: 'pointer', transition: 'all .15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = 'rgba(59,130,246,0.03)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafbfc' }}
-            >
-              <Link2 size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Agregar enlace</div>
-                <div style={{ fontSize: 10, color: '#94a3b8' }}>Video o audio externo</div>
-              </div>
-            </div>
+                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                onMouseLeave={e => { if (sortBy !== s.key) e.currentTarget.style.background = 'transparent' }}
+              >
+                {s.label}
+                {sortBy === s.key && <CheckCircle2 size={12} style={{ color: '#10b981' }} />}
+              </button>
+            ))}
           </div>
+        )}
 
           {/* VISTA GRID */}
           {viewMode === 'grid' && (
@@ -481,8 +623,8 @@ export default function Conocimiento() {
                 const EstIcon = est.icon
                 const isQuiz = doc.tipo === 'quiz'
                 const isMedia = doc.tipo === 'video' || doc.tipo === 'audio'
-                const ext = isQuiz ? 'QUIZ' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
-                const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : '#64748b'
+                const ext = isQuiz ? 'CUEST' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
+                const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
                 const MediaIcon = doc.tipo === 'video' ? Video : doc.tipo === 'audio' ? Headphones : null
                 const DocIcon = isQuiz ? HelpCircle : MediaIcon || FileText
                 const iconColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : '#94a3b8'
@@ -493,7 +635,7 @@ export default function Conocimiento() {
                     key={doc.id}
                     style={{
                       background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0',
-                      overflow: 'hidden', cursor: 'default', position: 'relative',
+                      overflow: 'visible', cursor: 'default', position: 'relative',
                       transition: 'border-color .15s',
                     }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = '#cbd5e1'}
@@ -537,18 +679,28 @@ export default function Conocimiento() {
                         }}>
                           {doc.name}
                         </div>
-                        {linkedQuiz && (
-                          <span
-                            onClick={() => setQuizEditor(linkedQuiz)}
-                            style={{
-                              fontSize: 9, fontWeight: 600, color: '#b45309',
-                              background: '#fef3c7', padding: '1px 6px', borderRadius: 4,
-                              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3,
-                              marginTop: 4,
+                        <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                          {doc.general && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 600, color: '#0d9488',
+                              background: '#f0fdfa', padding: '1px 6px', borderRadius: 4,
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
                             }}>
-                            <HelpCircle size={8} /> Quiz vinculado
-                          </span>
-                        )}
+                              <Globe size={8} /> General
+                            </span>
+                          )}
+                          {linkedQuiz && (
+                            <span
+                              onClick={() => setQuizEditor(linkedQuiz)}
+                              style={{
+                                fontSize: 9, fontWeight: 600, color: '#b45309',
+                                background: '#fef3c7', padding: '1px 6px', borderRadius: 4,
+                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3,
+                              }}>
+                              <HelpCircle size={8} /> Cuestionario vinculado
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Footer: size + estado */}
@@ -572,23 +724,49 @@ export default function Conocimiento() {
                         position: 'absolute', right: 8, top: 50,
                         background: '#fff', borderRadius: 10, padding: 4,
                         boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-                        zIndex: 20, minWidth: 160, animation: 'plSlideUp .12s',
+                        zIndex: 20, minWidth: 220, animation: 'plSlideUp .12s',
                       }}>
-                        <button onClick={() => setDocMenu(null)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#475569', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                          <RefreshCw size={12} /> Actualizar
-                        </button>
+                        {(doc.estado === 'error' || doc.estado === 'procesando') && (
+                          <button onClick={() => setDocMenu(null)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <RefreshCw size={12} style={{ color: '#475569', marginTop: 1, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Reprocesar</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Volver a procesar el documento</div>
+                            </div>
+                          </button>
+                        )}
                         {!isQuiz && (doc.estado === 'procesado' || isMedia) && !linkedQuiz && (
-                          <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#f59e0b', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <HelpCircle size={12} /> Crear quiz
+                          <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <HelpCircle size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Crear cuestionario</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Genera preguntas para evaluar si el colaborador leyó el contenido</div>
+                            </div>
                           </button>
                         )}
                         {!isQuiz && linkedQuiz && (
-                          <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#f59e0b', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                            <Pencil size={12} /> Editar quiz
+                          <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <Pencil size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Editar cuestionario</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Modificar las preguntas del cuestionario vinculado</div>
+                            </div>
                           </button>
                         )}
-                        <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#ef4444', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                          <Trash2 size={12} /> Eliminar
+                        <button onClick={() => toggleGeneral(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0fdfa'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <Globe size={12} style={{ color: doc.general ? '#94a3b8' : '#0d9488', marginTop: 1, flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: doc.general ? '#94a3b8' : '#0d9488' }}>{doc.general ? 'Quitar de recursos generales' : 'Recurso general'}</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{doc.general ? 'Ya no será visible para colaboradores antiguos' : 'Visible para todos los colaboradores, incluso sin onboarding'}</div>
+                          </div>
+                        </button>
+                        <div style={{ height: 1, background: '#f1f5f9', margin: '2px 6px' }} />
+                        <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <Trash2 size={12} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>Eliminar</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Eliminar permanentemente este recurso</div>
+                          </div>
                         </button>
                       </div>
                     )}
@@ -618,8 +796,8 @@ export default function Conocimiento() {
                     const EstIcon = est.icon
                     const isQuiz = doc.tipo === 'quiz'
                     const isMedia = doc.tipo === 'video' || doc.tipo === 'audio'
-                    const ext = isQuiz ? 'QUIZ' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
-                    const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : '#64748b'
+                    const ext = isQuiz ? 'CUEST' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
+                    const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
                     const MediaIcon = doc.tipo === 'video' ? Video : doc.tipo === 'audio' ? Headphones : null
                     const DocIcon = isQuiz ? HelpCircle : MediaIcon || FileText
                     const iconColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : '#94a3b8'
@@ -638,11 +816,18 @@ export default function Conocimiento() {
                             </div>
                             <div>
                               <div className="as-name">{doc.name}</div>
-                              {linkedQuiz && (
-                                <span onClick={() => setQuizEditor(linkedQuiz)} style={{ fontSize: 9, fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                  <HelpCircle size={8} /> Quiz
-                                </span>
-                              )}
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                {doc.general && (
+                                  <span style={{ fontSize: 9, fontWeight: 600, color: '#0d9488', background: '#f0fdfa', padding: '1px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <Globe size={8} /> General
+                                  </span>
+                                )}
+                                {linkedQuiz && (
+                                  <span onClick={() => setQuizEditor(linkedQuiz)} style={{ fontSize: 9, fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <HelpCircle size={8} /> Cuest.
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -660,22 +845,48 @@ export default function Conocimiento() {
                             <MoreVertical size={14} />
                           </button>
                           {docMenu === doc.id && (
-                            <div style={{ position: 'absolute', right: 0, top: '100%', background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', zIndex: 20, minWidth: 160, animation: 'plSlideUp .12s' }}>
-                              <button onClick={() => setDocMenu(null)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#475569', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                <RefreshCw size={12} /> Actualizar
-                              </button>
+                            <div style={{ position: 'absolute', right: 0, top: '100%', background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', zIndex: 20, minWidth: 220, animation: 'plSlideUp .12s' }}>
+                              {(doc.estado === 'error' || doc.estado === 'procesando') && (
+                                <button onClick={() => setDocMenu(null)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                  <RefreshCw size={12} style={{ color: '#475569', marginTop: 1, flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Reprocesar</div>
+                                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Volver a procesar el documento</div>
+                                  </div>
+                                </button>
+                              )}
                               {!isQuiz && (doc.estado === 'procesado' || isMedia) && !linkedQuiz && (
-                                <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#f59e0b', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                  <HelpCircle size={12} /> Crear quiz
+                                <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                  <HelpCircle size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Crear cuestionario</div>
+                                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Evalúa si el colaborador leyó el contenido</div>
+                                  </div>
                                 </button>
                               )}
                               {!isQuiz && linkedQuiz && (
-                                <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#f59e0b', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                  <Pencil size={12} /> Editar quiz
+                                <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                  <Pencil size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Editar cuestionario</div>
+                                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Modificar las preguntas del cuestionario</div>
+                                  </div>
                                 </button>
                               )}
-                              <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 500, color: '#ef4444', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                <Trash2 size={12} /> Eliminar
+                              <button onClick={() => toggleGeneral(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#f0fdfa'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                <Globe size={12} style={{ color: doc.general ? '#94a3b8' : '#0d9488', marginTop: 1, flexShrink: 0 }} />
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: doc.general ? '#94a3b8' : '#0d9488' }}>{doc.general ? 'Quitar de recursos generales' : 'Recurso general'}</div>
+                                  <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{doc.general ? 'Ya no será visible para colaboradores antiguos' : 'Visible para todos, incluso sin onboarding'}</div>
+                                </div>
+                              </button>
+                              <div style={{ height: 1, background: '#f1f5f9', margin: '2px 6px' }} />
+                              <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                <Trash2 size={12} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>Eliminar</div>
+                                  <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Eliminar permanentemente este recurso</div>
+                                </div>
                               </button>
                             </div>
                           )}
@@ -934,6 +1145,62 @@ export default function Conocimiento() {
         </div>
       )}
 
+      {/* MODAL NUEVO RECURSO */}
+      {showNewResource && (
+        <div className="pl-overlay" onClick={() => setShowNewResource(false)}>
+          <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <h2>Nuevo recurso</h2>
+              <button className="pl-modal-close" onClick={() => setShowNewResource(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div
+                onClick={() => { setShowNewResource(false); openFilePicker() }}
+                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); setShowNewResource(false); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files) }}
+                style={{
+                  background: dragOver ? 'rgba(12,45,64,0.04)' : '#fafbfc',
+                  borderRadius: 10, border: `1.5px dashed ${dragOver ? '#0C2D40' : '#d1d5db'}`,
+                  padding: '20px', display: 'flex', alignItems: 'center', gap: 14,
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = 'rgba(12,45,64,0.03)' }}
+                onMouseLeave={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafbfc' } }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Upload size={18} style={{ color: '#0C2D40' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Subir documento</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>PDF, Word, PowerPoint, TXT — arrastra o haz clic</div>
+                </div>
+              </div>
+              <div
+                onClick={() => { setShowNewResource(false); setLinkForm({ name: '', url: '', tipo: 'video' }); setShowLinkModal(true) }}
+                style={{
+                  background: '#fafbfc', borderRadius: 10, border: '1.5px dashed #d1d5db',
+                  padding: '20px', display: 'flex', alignItems: 'center', gap: 14,
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = 'rgba(59,130,246,0.03)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.background = '#fafbfc' }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Link2 size={18} style={{ color: '#3b82f6' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Agregar enlace</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>Video de YouTube, Vimeo, podcast u otro recurso externo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QUIZ EDITOR */}
       {quizEditor && (() => {
         const quiz = quizEditor
@@ -1015,7 +1282,7 @@ export default function Conocimiento() {
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fef3c7', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <HelpCircle size={16} />
                   </div>
-                  <h2 style={{ margin: 0 }}>Editor de Quiz</h2>
+                  <h2 style={{ margin: 0 }}>Editor de cuestionario</h2>
                 </div>
                 <button className="pl-modal-close" onClick={() => setQuizEditor(null)}>
                   <X size={18} />
@@ -1024,7 +1291,7 @@ export default function Conocimiento() {
 
               <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
                 <label className="pl-label">
-                  Nombre del quiz
+                  Nombre del cuestionario
                   <input type="text" className="pl-input" value={quiz.name} onChange={e => updateQuizName(e.target.value)} />
                 </label>
 
@@ -1147,7 +1414,7 @@ export default function Conocimiento() {
 
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={() => setQuizEditor(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={() => saveQuiz(quiz)}>Guardar quiz</button>
+                <button className="pl-btn-save" onClick={() => saveQuiz(quiz)}>Guardar cuestionario</button>
               </div>
             </div>
           </div>

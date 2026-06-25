@@ -1,12 +1,29 @@
-import { Menu, Sun, Moon, Bell, ChevronDown, ArrowRightLeft } from 'lucide-react'
+import { Menu, Sun, Moon, Bell, ChevronDown, ArrowRightLeft, Rocket, Check, Shield, Settings2, BookOpen, FileText, UserPlus, ArrowRight, X } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
+import { useTronco } from '../../context/TroncoContext'
 
 export default function Header({ floating }) {
   const [darkMode, setDarkMode] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
+  const [showSetup, setShowSetup] = useState(false)
   const { currentUser, setCurrentUser, users } = useUser()
+  const { tronco } = useTronco()
+  const navigate = useNavigate()
   const ref = useRef(null)
+
+  const setupSteps = [
+    { key: 'induccion', label: 'Inducción general', desc: 'Configura las tareas obligatorias para todos los colaboradores', icon: Shield, done: tronco.configured, path: '/onboarding/configuracion', action: 'Configurar' },
+    { key: 'config', label: 'Configuración global', desc: 'Define los parámetros generales del módulo', icon: Settings2, done: true, path: '/onboarding/configuracion', action: 'Revisar' },
+    { key: 'biblioteca', label: 'Biblioteca de recursos', desc: 'Sube al menos un documento o enlace', icon: BookOpen, done: true, path: '/onboarding/conocimiento', action: 'Subir' },
+    { key: 'rutas', label: 'Rutas de onboarding', desc: 'Crea al menos una ruta con etapas y tareas', icon: FileText, done: true, path: '/onboarding/plantillas', action: 'Crear' },
+    { key: 'asignacion', label: 'Primera asignación', desc: 'Asigna una ruta a un colaborador', icon: UserPlus, done: true, path: '/onboarding/asignaciones', action: 'Asignar' },
+  ]
+  const setupCompleted = setupSteps.filter(s => s.done).length
+  const setupPct = Math.round((setupCompleted / setupSteps.length) * 100)
+  const setupAllDone = setupCompleted === setupSteps.length
+  const isAdmin = currentUser.role === 'admin'
 
   useEffect(() => {
     function handleClick(e) {
@@ -121,7 +138,7 @@ export default function Header({ floating }) {
         </button>
         <div className="hidden md:block">
           <h1 className="text-sm font-semibold text-white">
-            {currentUser.role === 'admin' ? 'Dashboard' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding'}
+            {currentUser.role === 'admin' ? 'Panel de onboarding' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding'}
           </h1>
           <p className="text-xs text-white/60">Bienvenido a Trabajito HR</p>
         </div>
@@ -139,6 +156,32 @@ export default function Header({ floating }) {
             <Moon className={`absolute inset-0 h-4 w-4 transition-all ${darkMode ? 'rotate-0 scale-100' : 'rotate-90 scale-0'}`} aria-hidden="true" />
           </span>
         </button>
+
+        {/* GUÍA DE INICIO */}
+        {isAdmin && (
+          <button
+            onClick={() => setShowSetup(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px 5px 8px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+          >
+            <Rocket size={13} style={{ color: '#10DC97' }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>Primeros pasos</span>
+            {!setupAllDone && (
+              <span style={{
+                width: 18, height: 18, borderRadius: '50%',
+                background: '#10DC97', color: '#0C2D40',
+                fontSize: 9, fontWeight: 800,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{setupCompleted}/{setupSteps.length}</span>
+            )}
+          </button>
+        )}
 
         <button
           className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
@@ -246,6 +289,108 @@ export default function Header({ floating }) {
         </div>
 
       </div>
+
+      {/* DRAWER GUÍA DE INICIO */}
+      {showSetup && (
+        <>
+          <div onClick={() => setShowSetup(false)} style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.25)', zIndex: 50,
+          }} />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 380,
+            background: '#fff', zIndex: 51, boxShadow: '-8px 0 30px rgba(0,0,0,.1)',
+            display: 'flex', flexDirection: 'column',
+            animation: 'slideInRight .2s ease-out',
+          }}>
+            {/* HEADER DRAWER */}
+            <div style={{
+              padding: '20px 24px', borderBottom: '1px solid #f1f5f9',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Rocket size={18} style={{ color: '#0C2D40' }} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>
+                    {setupAllDone ? '¡Todo listo!' : 'Guía de inicio de Onboarding'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    {setupAllDone ? 'Tu módulo está configurado' : `${setupCompleted} de ${setupSteps.length} pasos completados`}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowSetup(false)} style={{
+                width: 28, height: 28, borderRadius: 8, border: 'none',
+                background: '#f1f5f9', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <X size={14} style={{ color: '#64748b' }} />
+              </button>
+            </div>
+
+            {/* PROGRESO */}
+            <div style={{ padding: '16px 24px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>Progreso</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: setupAllDone ? '#10DC97' : '#0C2D40' }}>{setupPct}%</span>
+              </div>
+              <div style={{ height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${setupPct}%`, background: setupAllDone ? '#10DC97' : '#0C2D40', borderRadius: 99, transition: 'width .5s ease' }} />
+              </div>
+            </div>
+
+            {/* PASOS */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {setupSteps.map((step, i) => {
+                const StepIcon = step.icon
+                return (
+                  <div key={step.key} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 14px', borderRadius: 10,
+                    background: step.done ? 'transparent' : '#fff',
+                    border: step.done ? '1px solid #f1f5f9' : '1px solid #e2e8f0',
+                    opacity: step.done ? 0.6 : 1,
+                  }}>
+                    <div style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: step.done ? '#10DC97' : '#f1f5f9',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {step.done
+                        ? <Check size={12} style={{ color: '#fff' }} />
+                        : <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{i + 1}</span>
+                      }
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: step.done ? '#94a3b8' : '#0C2D40', textDecoration: step.done ? 'line-through' : 'none' }}>{step.label}</div>
+                      <div style={{ fontSize: 10, color: '#b0b8c4', lineHeight: 1.4 }}>{step.desc}</div>
+                    </div>
+                    {!step.done ? (
+                      <button onClick={() => { navigate(step.path); setShowSetup(false) }} style={{
+                        padding: '5px 10px', borderRadius: 7, border: 'none',
+                        background: '#0C2D40', color: '#fff', cursor: 'pointer',
+                        fontFamily: 'inherit', fontSize: 10, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                      }}>
+                        {step.action}
+                        <ArrowRight size={9} />
+                      </button>
+                    ) : (
+                      <Check size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* FOOTER */}
+            <div style={{ padding: '14px 24px', borderTop: '1px solid #f1f5f9', background: '#fafbfc' }}>
+              <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, textAlign: 'center', lineHeight: 1.5 }}>
+                Completa todos los pasos para que tu módulo de onboarding esté listo para recibir colaboradores.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </header>
   )
 }

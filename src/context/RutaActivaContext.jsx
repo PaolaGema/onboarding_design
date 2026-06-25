@@ -17,12 +17,12 @@ const rutaCompletada = {
   graduado: true,
   etapas: [
     {
-      name: 'Tronco común', days: 'Día 1', duracion: 1,
+      name: 'Inducción general', days: 'Día 1', duracion: 1,
       actividades: [
         { name: 'Bienvenida corporativa', tareas: [
           { id: 'g1', name: 'Video del CEO', tipo: 'video', puntos: 15, obligatoria: true, done: true, desc: 'Video de bienvenida del CEO.' },
           { id: 'g2', name: 'Manual del colaborador', tipo: 'documento', puntos: 10, obligatoria: true, done: true, desc: 'Políticas, beneficios y código de conducta.' },
-          { id: 'g3', name: 'Quiz de cultura', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Cuestionario sobre valores y cultura.' },
+          { id: 'g3', name: 'Cuestionario de cultura', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Cuestionario sobre valores y cultura.' },
         ]},
       ],
     },
@@ -32,7 +32,7 @@ const rutaCompletada = {
         { name: 'Procesos del área', tareas: [
           { id: 'g4', name: 'Estructura del área', tipo: 'video', puntos: 10, obligatoria: true, done: true, desc: 'Organigrama y roles del equipo.' },
           { id: 'g5', name: 'Sistemas de gestión', tipo: 'video', puntos: 15, obligatoria: true, done: true, desc: 'Capacitación en herramientas de RRHH.' },
-          { id: 'g6', name: 'Quiz de procesos', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Evaluación de procesos internos.' },
+          { id: 'g6', name: 'Cuestionario de procesos', tipo: 'quiz', puntos: 20, obligatoria: true, done: true, desc: 'Evaluación de procesos internos.' },
         ]},
       ],
     },

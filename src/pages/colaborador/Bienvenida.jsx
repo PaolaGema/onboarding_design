@@ -6,8 +6,16 @@ import {
   CheckCircle2, Clock, Star, Rocket,
   Video, Headphones, FileText, HelpCircle, Upload,
   ClipboardList, UserCheck, Calendar, MapPin, ShieldCheck,
-  ExternalLink, PackageOpen
+  ExternalLink, PackageOpen, FileCheck
 } from 'lucide-react'
+
+const recursosGenerales = [
+  { id: 1, name: 'Código de conducta 2025', tipo: 'PDF', color: '#ef4444' },
+  { id: 2, name: 'Política de vacaciones', tipo: 'PDF', color: '#ef4444' },
+  { id: 4, name: 'Manual de beneficios', tipo: 'PDF', color: '#ef4444' },
+  { id: 5, name: 'Guía de seguro médico', tipo: 'PDF', color: '#ef4444' },
+  { id: 8, name: 'Valores y misión', tipo: 'PDF', color: '#ef4444' },
+]
 
 const iconMap = {
   video: Video, audio: Headphones, documento: FileText,
@@ -105,19 +113,20 @@ export default function Bienvenida() {
             </p>
           </div>
 
+          {/* ACCESOS RÁPIDOS */}
           <div style={{
             background: '#fff', borderRadius: isMobile ? 8 : 12,
             padding: isMobile ? '10px' : '20px 24px',
             border: '1px solid #e2e8f0',
           }}>
             <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: isMobile ? 6 : 12 }}>
-              Recursos de la empresa
+              Accesos rápidos
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? 5 : 10 }}>
               {[
                 { icon: Calendar, label: 'Calendario', desc: 'Feriados y eventos internos', color: '#3b82f6' },
                 { icon: Users, label: 'Organigrama', desc: 'Estructura de la empresa', color: '#8b5cf6' },
-                { icon: BookOpen, label: 'Recursos', desc: 'Manuales, políticas y guías', color: '#10b981' },
+                { icon: BookOpen, label: 'Directorio', desc: 'Contactos internos', color: '#10b981' },
               ].map((item, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
@@ -138,6 +147,42 @@ export default function Bienvenida() {
                     <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 600, color: '#334155' }}>{item.label}</div>
                     <div style={{ fontSize: isMobile ? 6.5 : 10, color: '#94a3b8', marginTop: 1 }}>{item.desc}</div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* RECURSOS GENERALES */}
+          <div style={{
+            background: '#fff', borderRadius: isMobile ? 8 : 12,
+            padding: isMobile ? '10px' : '20px 24px',
+            border: '1px solid #e2e8f0',
+          }}>
+            <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: isMobile ? 6 : 12 }}>
+              Recursos de la empresa
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 4 : 6 }}>
+              {recursosGenerales.map(r => (
+                <div key={r.id} style={{
+                  display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12,
+                  padding: isMobile ? '7px 8px' : '10px 14px', borderRadius: isMobile ? 6 : 8,
+                  background: '#f8fafc', border: '1px solid #f1f5f9', cursor: 'pointer',
+                  transition: 'all .12s',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.style.background = '#f8fafc' }}
+                >
+                  <div style={{
+                    width: isMobile ? 24 : 34, height: isMobile ? 24 : 34, borderRadius: isMobile ? 5 : 8,
+                    background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <FileCheck size={isMobile ? 10 : 15} style={{ color: r.color }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: isMobile ? 8 : 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
+                    <div style={{ fontSize: isMobile ? 6.5 : 10, color: '#94a3b8', marginTop: 1 }}>Documento · {r.tipo}</div>
+                  </div>
+                  <ExternalLink size={isMobile ? 9 : 12} style={{ color: '#cbd5e1', flexShrink: 0 }} />
                 </div>
               ))}
             </div>

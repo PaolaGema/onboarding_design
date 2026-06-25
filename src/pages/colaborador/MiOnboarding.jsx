@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useUser } from '../../context/UserContext'
 import { useRutaActiva } from '../../context/RutaActivaContext'
+import { useConfig } from '../../context/ConfigContext'
 import {
   CheckCircle2, Lock, Star, Trophy, Clock, Calendar,
   Video, Headphones, FileText, HelpCircle, Upload,
@@ -8,7 +9,7 @@ import {
   ExternalLink, X, Route, Info, Rocket, Sparkles,
   Play, Pause, Volume2, Download, ChevronRight,
   Send, Camera, Link2, CircleDot, RotateCcw,
-  MessageSquare, Award, PackageOpen, ArrowLeft
+  MessageSquare, Award, PackageOpen, ArrowLeft, Bot
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
@@ -39,9 +40,19 @@ function flatTareas(etapa) {
   return etapa.actividades.flatMap(a => a.tareas)
 }
 
+const chatResponses = {
+  '¿Qué tareas me faltan?': 'Según tu ruta actual, te faltan las tareas de la etapa "Conoce Ventas" y "Primer mes". La siguiente tarea pendiente es "Demo del producto". ¡Ánimo, vas bien!',
+  '¿Qué dice el manual de funciones?': 'El Manual de funciones describe las responsabilidades, procesos y lineamientos de tu cargo. Incluye tus funciones principales, a quién reportas y los indicadores de desempeño. Lo encuentras en tu actividad "Tu equipo clave".',
+  '¿Cuándo termina mi onboarding?': 'Tu onboarding tiene una duración de 30 días. Según tu fecha de inicio, terminarías aproximadamente el 20 de julio de 2026. Recuerda completar todas las tareas obligatorias para graduarte.',
+  '¿Quién es mi líder de área?': 'Tu líder de área es quien te acompaña durante el onboarding y valida ciertas tareas como el recorrido presencial y la primera llamada real. Si tienes dudas, puedes consultarle directamente.',
+  '¿Qué pasa si no completo una tarea a tiempo?': 'No te preocupes, las tareas no tienen fecha límite estricta. Sin embargo, si pasas más de 3 días sin actividad, tu estado cambiará a "en riesgo" y tu líder recibirá una notificación.',
+}
+const chatSuggestions = Object.keys(chatResponses)
+
 export default function MiOnboarding() {
   const { currentUser } = useUser()
   const { rutaActiva, rutaAdmin, actualizarEtapas } = useRutaActiva()
+  const { asistenteIA } = useConfig()
   const isMobile = currentUser.id === 4
 
   const ruta = currentUser.role === 'colaborador' ? rutaActiva : (rutaAdmin || rutaActiva)
@@ -74,6 +85,27 @@ export default function MiOnboarding() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [showCelebration, setShowCelebration] = useState(false)
   const [confettiPieces, setConfettiPieces] = useState([])
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState([
+    { from: 'bot', text: '¡Hola! Soy tu asistente de onboarding. Puedo ayudarte con dudas sobre tus tareas, documentos y procesos. ¿En qué te puedo ayudar?' }
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [chatTyping, setChatTyping] = useState(false)
+  const chatEndRef = useRef(null)
+
+  function sendChat(text) {
+    const msg = text || chatInput.trim()
+    if (!msg) return
+    setChatMessages(prev => [...prev, { from: 'user', text: msg }])
+    setChatInput('')
+    setChatTyping(true)
+    setTimeout(() => {
+      const response = chatResponses[msg] || 'Busqué en la biblioteca de recursos pero no encontré información específica sobre eso. Te recomiendo consultar con tu líder de área o revisar los documentos en tu ruta de onboarding.'
+      setChatMessages(prev => [...prev, { from: 'bot', text: response }])
+      setChatTyping(false)
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }, 1200)
+  }
 
   const etapaRefs = useRef({})
   const setEtapaRef = useCallback((ei, el) => { etapaRefs.current[ei] = el }, [])
@@ -426,14 +458,14 @@ export default function MiOnboarding() {
               {hasQuiz && !isQuizStarted && !isQuizDone && (
                 <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <HelpCircle size={16} style={{ color: '#d97706' }} />
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
                   <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Responde para verificar que comprendiste el video.</p>
                   <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{quizQuestions.length} preguntas · 70% para aprobar</div>
                   <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
                     background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    <HelpCircle size={9} /> Empezar quiz
+                    <HelpCircle size={9} /> Empezar cuestionario
                   </button>
                 </div>
               )}
@@ -443,7 +475,7 @@ export default function MiOnboarding() {
                   <div style={{ padding: '5px 8px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <HelpCircle size={9} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Quiz</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Cuest.</span>
                     </div>
                     <span style={{ fontSize: 7, color: '#b45309' }}>{Object.keys(answers).length}/{quizQuestions.length}</span>
                   </div>
@@ -491,7 +523,7 @@ export default function MiOnboarding() {
                   }}>
                     <CheckCircle2 size={14} style={{ color: passed ? '#16a34a' : '#ef4444' }} />
                     <div style={{ fontSize: 9, fontWeight: 700, color: passed ? '#166534' : '#991b1b' }}>
-                      {passed ? '¡Quiz aprobado!' : 'Quiz no aprobado'}
+                      {passed ? '¡Cuestionario aprobado!' : 'Cuestionario no aprobado'}
                     </div>
                     <div style={{ fontSize: 7.5, color: passed ? '#166534' : '#991b1b' }}>
                       {result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)
@@ -566,14 +598,14 @@ export default function MiOnboarding() {
               {hasDocQuiz && !isDocQuizStarted && !isDocQuizDone && (
                 <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <HelpCircle size={16} style={{ color: '#d97706' }} />
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
                   <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Verifica que comprendiste el documento.</p>
                   <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{docQuizQs.length} preguntas</div>
                   <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
                     background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    <HelpCircle size={9} /> Empezar quiz
+                    <HelpCircle size={9} /> Empezar cuestionario
                   </button>
                 </div>
               )}
@@ -583,7 +615,7 @@ export default function MiOnboarding() {
                   <div style={{ padding: '5px 8px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <HelpCircle size={9} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Quiz</span>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#92400e' }}>Cuest.</span>
                     </div>
                     <span style={{ fontSize: 7, color: '#b45309' }}>{Object.keys(docAns).length}/{docQuizQs.length}</span>
                   </div>
@@ -626,7 +658,7 @@ export default function MiOnboarding() {
                 return (
                   <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#166534' }}>Quiz completado</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#166534' }}>Cuestionario completado</div>
                     <div style={{ fontSize: 7.5, color: '#166534' }}>{result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)</div>
                   </div>
                 )
@@ -885,7 +917,7 @@ export default function MiOnboarding() {
                 if (doneCount < 10) { setShowAlert('Completa todas las paradas'); setTimeout(() => setShowAlert(false), 2500); return }
               }
               if ((selTarea.tipo === 'video' || selTarea.tipo === 'documento') && selTarea.verificarQuiz !== false) {
-                if (!quizSubmitted[selTarea.id]) { setShowAlert('Completa el quiz primero'); setTimeout(() => setShowAlert(false), 2500); return }
+                if (!quizSubmitted[selTarea.id]) { setShowAlert('Completa el cuestionario primero'); setTimeout(() => setShowAlert(false), 2500); return }
               }
               toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done }))
             }} style={{
@@ -1003,7 +1035,7 @@ export default function MiOnboarding() {
                 }}>
                   <HelpCircle size={28} style={{ color: '#d97706' }} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
                     <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 0', lineHeight: 1.5 }}>
                       Responde una breve evaluación para verificar que comprendiste el contenido del video.
                     </p>
@@ -1019,7 +1051,7 @@ export default function MiOnboarding() {
                     }}
                   >
                     <HelpCircle size={14} />
-                    Empezar quiz
+                    Empezar cuestionario
                   </button>
                 </div>
               )}
@@ -1032,7 +1064,7 @@ export default function MiOnboarding() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</span>
                     </div>
                     <span style={{ fontSize: 10, color: '#b45309' }}>{Object.keys(answers).length}/{quizQuestions.length} respondidas</span>
                   </div>
@@ -1101,7 +1133,7 @@ export default function MiOnboarding() {
                   }}>
                     <CheckCircle2 size={24} style={{ color: passed ? '#16a34a' : '#ef4444' }} />
                     <div style={{ fontSize: 14, fontWeight: 700, color: passed ? '#166534' : '#991b1b' }}>
-                      {passed ? '¡Quiz aprobado!' : 'Quiz no aprobado'}
+                      {passed ? '¡Cuestionario aprobado!' : 'Cuestionario no aprobado'}
                     </div>
                     <div style={{ fontSize: 12, color: passed ? '#166534' : '#991b1b' }}>
                       {result.correct} de {result.total} respuestas correctas ({Math.round((result.correct / result.total) * 100)}%)
@@ -1116,7 +1148,7 @@ export default function MiOnboarding() {
                           fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
-                        Reintentar quiz
+                        Reintentar cuestionario
                       </button>
                     )}
                   </div>
@@ -1201,7 +1233,7 @@ export default function MiOnboarding() {
                 }}>
                   <HelpCircle size={28} style={{ color: '#d97706' }} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
                     <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 0', lineHeight: 1.5 }}>
                       Responde una breve evaluación para verificar que comprendiste el documento.
                     </p>
@@ -1216,7 +1248,7 @@ export default function MiOnboarding() {
                       fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                     }}
                   >
-                    <HelpCircle size={14} /> Empezar quiz
+                    <HelpCircle size={14} /> Empezar cuestionario
                   </button>
                 </div>
               )}
@@ -1226,7 +1258,7 @@ export default function MiOnboarding() {
                   <div style={{ padding: '10px 16px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Quiz de verificación</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</span>
                     </div>
                     <span style={{ fontSize: 10, color: '#b45309' }}>{Object.keys(docAns).length}/{docQuizQs.length} respondidas</span>
                   </div>
@@ -1282,7 +1314,7 @@ export default function MiOnboarding() {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   }}>
                     <CheckCircle2 size={24} style={{ color: '#16a34a' }} />
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Quiz completado</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Cuestionario completado</div>
                     <div style={{ fontSize: 12, color: '#166534' }}>{result.correct} de {result.total} respuestas correctas ({Math.round((result.correct / result.total) * 100)}%)</div>
                   </div>
                 )
@@ -1624,7 +1656,7 @@ export default function MiOnboarding() {
                   }
                   if ((selTarea.tipo === 'video' || selTarea.tipo === 'documento') && selTarea.verificarQuiz !== false) {
                     if (!quizSubmitted[selTarea.id]) {
-                      setShowAlert('Debes completar el quiz de verificación antes de marcar como completada')
+                      setShowAlert('Debes completar el cuestionario de verificación antes de marcar como completada')
                       setTimeout(() => setShowAlert(false), 3000)
                       return
                     }
@@ -2636,6 +2668,147 @@ export default function MiOnboarding() {
           </div>
         )
       })()}
+
+      {/* CHATBOT ASISTENTE IA */}
+      {asistenteIA && (
+        <>
+          {/* BURBUJA FLOTANTE */}
+          {!chatOpen && (
+            <button onClick={() => setChatOpen(true)} style={{
+              position: 'fixed', bottom: isMobile ? 16 : 24, right: isMobile ? 16 : 24,
+              width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: '50%',
+              background: '#0C2D40', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 20px rgba(12,45,64,0.3)', zIndex: 40,
+              transition: 'transform .15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <Bot size={isMobile ? 22 : 26} style={{ color: '#10DC97' }} />
+            </button>
+          )}
+
+          {/* VENTANA DE CHAT */}
+          {chatOpen && (
+            <div style={{
+              position: 'fixed', bottom: isMobile ? 0 : 24, right: isMobile ? 0 : 24,
+              width: isMobile ? '100%' : 370, height: isMobile ? '100%' : 480,
+              background: '#fff', borderRadius: isMobile ? 0 : 16,
+              boxShadow: '0 8px 40px rgba(0,0,0,.18)', zIndex: 50,
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              border: isMobile ? 'none' : '1px solid #e2e8f0',
+            }}>
+              {/* HEADER */}
+              <div style={{
+                background: '#0C2D40', padding: '14px 18px',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%', background: 'rgba(16,220,151,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Bot size={17} style={{ color: '#10DC97' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Asistente de onboarding</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>Responde sobre tus tareas y documentos</div>
+                </div>
+                <button onClick={() => setChatOpen(false)} style={{
+                  width: 28, height: 28, borderRadius: 8, border: 'none',
+                  background: 'rgba(255,255,255,0.1)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <X size={14} style={{ color: 'rgba(255,255,255,0.7)' }} />
+                </button>
+              </div>
+
+              {/* MENSAJES */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {chatMessages.map((msg, i) => (
+                  <div key={i} style={{
+                    display: 'flex', justifyContent: msg.from === 'user' ? 'flex-end' : 'flex-start',
+                  }}>
+                    <div style={{
+                      maxWidth: '85%', padding: '10px 14px', borderRadius: 12,
+                      background: msg.from === 'user' ? '#0C2D40' : '#f1f5f9',
+                      color: msg.from === 'user' ? '#fff' : '#334155',
+                      fontSize: 12, lineHeight: 1.5,
+                      borderBottomRightRadius: msg.from === 'user' ? 4 : 12,
+                      borderBottomLeftRadius: msg.from === 'bot' ? 4 : 12,
+                    }}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {chatTyping && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{
+                      padding: '10px 18px', borderRadius: 12, borderBottomLeftRadius: 4,
+                      background: '#f1f5f9', display: 'flex', gap: 4, alignItems: 'center',
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'plPulse 1s infinite' }} />
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'plPulse 1s infinite 0.2s' }} />
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', animation: 'plPulse 1s infinite 0.4s' }} />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* SUGERENCIAS */}
+              {chatMessages.length <= 2 && (
+                <div style={{ padding: '0 16px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Preguntas sugeridas</div>
+                  {chatSuggestions.map(s => (
+                    <button key={s} onClick={() => sendChat(s)} style={{
+                      padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0',
+                      background: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 11, color: '#475569', textAlign: 'left',
+                      transition: 'all .12s',
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#0C2D40' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0' }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* INPUT */}
+              <div style={{
+                padding: '10px 14px', borderTop: '1px solid #f1f5f9',
+                display: 'flex', gap: 8, alignItems: 'center',
+              }}>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') sendChat() }}
+                  placeholder="Escribe tu pregunta..."
+                  style={{
+                    flex: 1, padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid #e2e8f0', fontSize: 12,
+                    fontFamily: 'inherit', outline: 'none', color: '#334155',
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#0C2D40'}
+                  onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                />
+                <button onClick={() => sendChat()} disabled={!chatInput.trim()} style={{
+                  width: 36, height: 36, borderRadius: 10, border: 'none',
+                  background: chatInput.trim() ? '#0C2D40' : '#f1f5f9',
+                  cursor: chatInput.trim() ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all .15s',
+                }}>
+                  <Send size={14} style={{ color: chatInput.trim() ? '#10DC97' : '#cbd5e1' }} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
