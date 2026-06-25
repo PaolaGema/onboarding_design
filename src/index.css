@@ -1105,6 +1105,7 @@ body {
   max-width: 92vw;
   box-shadow: 0 20px 60px rgba(12,45,64,.18);
   animation: plSlideUp .25s;
+  overflow: hidden;
 }
 
 .pl-modal-sm { width: 400px; }

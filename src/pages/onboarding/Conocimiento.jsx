@@ -233,15 +233,6 @@ export default function Conocimiento() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <button onClick={() => setShowNewResource(true)} style={{
-          height: 38, padding: '0 16px', borderRadius: 8, border: 'none',
-          background: '#0C2D40', color: '#fff', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6,
-          fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-        }}>
-          <Plus size={13} />
-          Nuevo recurso
-        </button>
         <button onClick={() => setShowBibFilters(true)} style={{
           height: 38, padding: '0 14px', borderRadius: 8,
           border: hasBibFilters ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
@@ -371,6 +362,15 @@ export default function Conocimiento() {
           </div>
         )}
         <div style={{ flex: 1 }} />
+        <button onClick={() => setShowNewResource(true)} style={{
+          height: 38, padding: '0 16px', borderRadius: 8, border: 'none',
+          background: '#0C2D40', color: '#fff', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+        }}>
+          <Plus size={13} />
+          Nuevo recurso
+        </button>
         <div style={{
           display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3,
         }}>
