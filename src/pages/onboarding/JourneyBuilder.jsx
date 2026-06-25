@@ -5,7 +5,7 @@ import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   ArrowLeft, Eye, Save, Zap, ChevronRight,
-  Lock, CheckCircle2, GripVertical, Plus,
+  Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList, FormInput, Upload, MousePointerClick,
   UserCheck, Calendar, MapPin, ShoppingBag, ExternalLink,
@@ -71,7 +71,7 @@ let idCounter = 100
 
 const emptyRuta = {
   etapas: [
-    { name: 'Nueva etapa', locked: false, days: 'Día 1', actividades: [{ name: 'General', tareas: [] }] },
+    { name: 'Nueva etapa', locked: false, duracion: 7, days: 'Día 1 — Día 7', actividades: [{ name: 'General', tareas: [] }] },
   ],
 }
 
@@ -515,6 +515,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
                               <div className="jb-sb-name">{e.name}</div>
                               <div className="jb-sb-days">{e.days}</div>
                             </div>
+                            {!e.locked && (
+                              <button
+                                className="jb-sb-menu-btn"
+                                onClick={ev => { ev.stopPropagation(); const r = ev.currentTarget.getBoundingClientRect(); setEtapaMenu({ idx: i, x: r.left, y: r.bottom + 4 }) }}
+                              >
+                                <MoreVertical size={13} />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -793,10 +801,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
               <div className="pl-modal-body" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
                 {/* SECCIÓN: INFORMACIÓN BÁSICA */}
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label className="pl-label">
                     Nombre de la tarea
                     <input type="text" className="pl-input" value={tareaForm.name} onChange={e => updateForm('name', e.target.value)} />
+                  </label>
+                  <label className="pl-label">
+                    Descripción
+                    <textarea className="pl-input" style={{ resize: 'vertical', minHeight: '52px' }} value={tareaForm.desc} rows={2} onChange={e => updateForm('desc', e.target.value)} />
                   </label>
                 </div>
 
@@ -932,45 +944,67 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
                         </div>
                       )}
                       {tareaForm._kbItem?.hasQuiz && (
-                        <div style={{
-                          marginTop: 8, padding: '10px 14px', borderRadius: 10,
-                          background: tareaForm.incluirQuiz ? '#fefce8' : '#f8fafc',
-                          border: `1px solid ${tareaForm.incluirQuiz ? '#fde68a' : '#e2e8f0'}`,
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          transition: 'all .15s',
-                        }}>
+                        <>
+                          {/* card del quiz del recurso */}
                           <div style={{
-                            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                            background: tareaForm.incluirQuiz ? '#fef3c7' : '#f1f5f9',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            marginTop: 8, padding: '10px 14px', borderRadius: 10,
+                            background: tareaForm.incluirQuiz ? '#fefce8' : '#f8fafc',
+                            border: `1px solid ${tareaForm.incluirQuiz ? '#fde68a' : '#e2e8f0'}`,
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            transition: 'all .15s',
                           }}>
-                            <HelpCircle size={14} style={{ color: tareaForm.incluirQuiz ? '#f59e0b' : '#94a3b8' }} />
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>
-                              {tareaForm._kbItem.quizName}
+                            <div style={{
+                              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                              background: tareaForm.incluirQuiz ? '#fef3c7' : '#f1f5f9',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <HelpCircle size={14} style={{ color: tareaForm.incluirQuiz ? '#f59e0b' : '#94a3b8' }} />
                             </div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>
-                              {tareaForm._kbItem.quizPreguntas} preguntas · Se muestra al completar la tarea
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>
+                                {tareaForm._kbItem.quizName}
+                              </div>
+                              <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                                {tareaForm._kbItem.quizPreguntas} preguntas · Se muestra al completar la tarea
+                              </div>
+                            </div>
+                            <div
+                              onClick={() => updateForm('incluirQuiz', !tareaForm.incluirQuiz)}
+                              className={`jb-toggle ${tareaForm.incluirQuiz ? 'on' : ''}`}
+                              style={{ cursor: 'pointer', flexShrink: 0 }}
+                            >
+                              <div className="jb-toggle-dot" />
                             </div>
                           </div>
-                          <div
-                            onClick={() => updateForm('incluirQuiz', !tareaForm.incluirQuiz)}
-                            className={`jb-toggle ${tareaForm.incluirQuiz ? 'on' : ''}`}
-                            style={{ cursor: 'pointer', flexShrink: 0 }}
-                          >
-                            <div className="jb-toggle-dot" />
-                          </div>
-                        </div>
+                          {/* config del quiz inmediatamente debajo */}
+                          {tareaForm.incluirQuiz && (
+                            <div style={{ marginTop: 6, background: '#f8fafc', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, border: '1px solid #e2e8f0' }}>
+                              <div className="jb-form-row">
+                                <label className="pl-label">
+                                  Nota mínima (%)
+                                  <input type="number" className="pl-input" placeholder="70" value={tareaForm.notaMinima ?? 70} onChange={e => updateForm('notaMinima', Number(e.target.value))} />
+                                </label>
+                                <label className="pl-label">
+                                  Intentos permitidos
+                                  <input type="number" className="pl-input" placeholder="3" min="1" value={tareaForm.intentos ?? 3} onChange={e => updateForm('intentos', Math.max(1, Number(e.target.value)))} />
+                                </label>
+                              </div>
+                              <div className="jb-field-toggle" onClick={() => updateForm('mostrarRespuestas', !tareaForm.mostrarRespuestas)}>
+                                <div>
+                                  <span>Mostrar respuestas correctas</span>
+                                  <div className="jb-toggle-hint">Al finalizar, el colaborador verá las respuestas correctas</div>
+                                </div>
+                                <div className={`jb-toggle ${tareaForm.mostrarRespuestas ? 'on' : ''}`}>
+                                  <div className="jb-toggle-dot" />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )
                 })()}
-
-                <label className="pl-label">
-                  Descripción
-                  <textarea className="pl-input" style={{ resize: 'vertical', minHeight: '56px' }} value={tareaForm.desc} rows={2} onChange={e => updateForm('desc', e.target.value)} />
-                </label>
 
                 {/* SECCIÓN: RESPONSABLE */}
                 <div className="pl-label" style={{ position: 'relative' }}>
@@ -1170,24 +1204,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
 
                 {['video', 'audio', 'lectura', 'documento'].includes(tareaForm.tipo) && (
                   <>
-                    <div className="jb-field-toggle" onClick={() => updateForm('verificarQuiz', !tareaForm.verificarQuiz)}>
-                      <div>
-                        <span>Verificar comprensión con cuestionario</span>
-                        <div className="jb-toggle-hint">{gamificacion ? 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido.'}</div>
+                    {!tareaForm._kbItem?.hasQuiz && (
+                      <div className="jb-field-toggle" onClick={() => updateForm('verificarQuiz', !tareaForm.verificarQuiz)}>
+                        <div>
+                          <span>Verificar comprensión con cuestionario</span>
+                          <div className="jb-toggle-hint">{gamificacion ? 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega un cuestionario para asegurar que el colaborador entendió el contenido.'}</div>
+                        </div>
+                        <div className={`jb-toggle ${tareaForm.verificarQuiz ? 'on' : ''}`}>
+                          <div className="jb-toggle-dot" />
+                        </div>
                       </div>
-                      <div className={`jb-toggle ${tareaForm.verificarQuiz ? 'on' : ''}`}>
-                        <div className="jb-toggle-dot" />
-                      </div>
-                    </div>
+                    )}
 
-                    {tareaForm.verificarQuiz && (
+                    {(tareaForm.verificarQuiz || tareaForm._kbItem?.hasQuiz) && (
                       <div style={{
                         background: '#f8fafc', borderRadius: 10, padding: '14px 16px',
                         display: 'flex', flexDirection: 'column', gap: 10,
                         border: '1px solid #e2e8f0',
                       }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Configuración del cuestionario</div>
-                        {(() => {
+                        {!tareaForm._kbItem?.hasQuiz && (() => {
                           const quizzes = [
                             { id: 'q1', name: 'Cuestionario de cultura organizacional', preguntas: 5, cat: 'Cultura' },
                             { id: 'q2', name: 'Cuestionario de políticas internas', preguntas: 8, cat: 'Políticas' },
@@ -1291,7 +1327,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
                               )}
                             </div>
                           )
-                        })()}
+                        })}
                         <div className="jb-form-row">
                           <label className="pl-label">
                             Nota mínima (%)

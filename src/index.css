@@ -1780,6 +1780,28 @@ select.pl-input:focus {
 .jb-sb-item:hover {
   background: #f4f7fa;
 }
+.jb-sb-item:hover .jb-sb-menu-btn { opacity: 1; }
+
+.jb-sb-menu-btn {
+  opacity: 0;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background .12s, opacity .12s;
+  margin-left: auto;
+}
+.jb-sb-menu-btn:hover { background: #e2e8f0; color: #0C2D40; }
+.jb-sb-item.active .jb-sb-menu-btn { color: rgba(255,255,255,.7); }
+.jb-sb-item.active .jb-sb-menu-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
 
 .jb-sb-item.active {
   background: #0C2D40;

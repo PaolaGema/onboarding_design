@@ -4,7 +4,7 @@ import {
   Plus, Trash2, RefreshCw, Search, X, ChevronRight, ChevronDown, Check,
   BookOpen, ShieldCheck, Heart, Cpu, MessageCircle, HelpCircle,
   MoreVertical, Pencil, CirclePlus, Video, Headphones, Link2, ExternalLink,
-  LayoutGrid, List, Filter, CheckCircle2, Globe
+  LayoutGrid, List, Filter, CheckCircle2, Globe, Eye
 } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 
@@ -42,6 +42,7 @@ export default function Conocimiento() {
   const [contextMenu, setContextMenu] = useState(null)
   const [bfDropTipo, setBfDropTipo] = useState(false)
   const [bfDropEstado, setBfDropEstado] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState(null)
   const [bfDropGeneral, setBfDropGeneral] = useState(false)
   const [linkForm, setLinkForm] = useState({ name: '', url: '', tipo: 'video' })
   const fileInputRef = useRef(null)
@@ -646,6 +647,13 @@ export default function Conocimiento() {
                             </div>
                           </button>
                         )}
+                        <button onClick={() => { setPreviewDoc(doc); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f6ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <Eye size={12} style={{ color: '#3b82f6', marginTop: 1, flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6' }}>Vista previa</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Ver el contenido de este recurso</div>
+                          </div>
+                        </button>
                         <button onClick={() => toggleGeneral(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#f0fdfa'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                           <Globe size={12} style={{ color: doc.general ? '#94a3b8' : '#0d9488', marginTop: 1, flexShrink: 0 }} />
                           <div>
@@ -766,6 +774,13 @@ export default function Conocimiento() {
                                   </div>
                                 </button>
                               )}
+                              <button onClick={() => { setPreviewDoc(doc); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#f0f6ff'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                <Eye size={12} style={{ color: '#3b82f6', marginTop: 1, flexShrink: 0 }} />
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#3b82f6' }}>Vista previa</div>
+                                  <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Ver el contenido de este recurso</div>
+                                </div>
+                              </button>
                               <button onClick={() => toggleGeneral(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#f0fdfa'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <Globe size={12} style={{ color: doc.general ? '#94a3b8' : '#0d9488', marginTop: 1, flexShrink: 0 }} />
                                 <div>
@@ -1482,6 +1497,89 @@ export default function Conocimiento() {
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={() => setQuizEditor(null)}>Cancelar</button>
                 <button className="pl-btn-save" onClick={() => saveQuiz(quiz)}>Guardar cuestionario</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* MODAL VISTA PREVIA */}
+      {previewDoc && (() => {
+        const d = previewDoc
+        const isVideo = d.tipo === 'video'
+        const isAudio = d.tipo === 'audio'
+        const isLink = !!d.url
+        const ytMatch = d.url?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
+        const ytId = ytMatch?.[1]
+        const ext = d.name?.split('.').pop()?.toUpperCase()
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => setPreviewDoc(null)}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,.25)' }}
+              onClick={e => e.stopPropagation()}>
+              {/* header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: isVideo ? '#fef3c7' : isAudio ? '#f0fdf4' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {isVideo ? <Video size={16} style={{ color: '#f59e0b' }} /> : isAudio ? <Headphones size={16} style={{ color: '#10b981' }} /> : <FileText size={16} style={{ color: '#3b82f6' }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{d.size || (isLink ? 'Enlace externo' : '')} {d.fecha ? `· ${d.fecha}` : ''}</div>
+                </div>
+                {isLink && d.url && (
+                  <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#475569', textDecoration: 'none' }}>
+                    <ExternalLink size={11} /> Abrir
+                  </a>
+                )}
+                <button onClick={() => setPreviewDoc(null)} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* contenido */}
+              <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                {isVideo && isLink && ytId ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${ytId}`}
+                    style={{ width: '100%', height: 420, border: 'none', display: 'block' }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : isVideo && isLink ? (
+                  <video controls style={{ width: '100%', maxHeight: 420, background: '#000', display: 'block' }}>
+                    <source src={d.url} />
+                  </video>
+                ) : isAudio && isLink ? (
+                  <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Headphones size={32} style={{ color: '#10b981' }} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#0C2D40' }}>{d.name}</div>
+                    <audio controls style={{ width: '100%', maxWidth: 480 }}>
+                      <source src={d.url} />
+                    </audio>
+                  </div>
+                ) : isLink ? (
+                  <iframe src={d.url} style={{ width: '100%', height: 480, border: 'none', display: 'block' }} title={d.name} />
+                ) : (
+                  /* archivo subido sin URL — mostrar info del documento */
+                  <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                    <div style={{ width: 80, height: 96, borderRadius: 8, background: '#eff6ff', border: '2px solid #bfdbfe', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <FileText size={28} style={{ color: '#3b82f6' }} />
+                      <div style={{ fontSize: 8, fontWeight: 800, color: '#3b82f6', letterSpacing: 1 }}>{ext}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>{d.name}</div>
+                      {d.size && <div style={{ fontSize: 11, color: '#94a3b8' }}>{d.size}</div>}
+                    </div>
+                    <div style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 20px', border: '1px solid #e2e8f0', textAlign: 'center', maxWidth: 360 }}>
+                      <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+                        La vista previa en navegador no está disponible para archivos subidos.<br />
+                        Descarga el archivo para verlo en tu dispositivo.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

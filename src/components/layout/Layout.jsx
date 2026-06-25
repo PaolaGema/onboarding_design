@@ -4,7 +4,7 @@ import Header from './Header'
 import Sidebar from './Sidebar'
 import ModuleNav from './ModuleNav'
 import { useUser } from '../../context/UserContext'
-import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Sun, Gift, ChevronRight } from 'lucide-react'
+import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Sun, Gift, ChevronRight, CheckCircle2, Lock, Video, FileText, HelpCircle, Upload, ClipboardList, UserCheck, Headphones, ExternalLink } from 'lucide-react'
 
 const landingByRole = {
   admin: '/onboarding',
@@ -316,7 +316,128 @@ export default function Layout() {
 
               </div>
             ) : (
-              <Outlet />
+              /* ── Vista colaborador: Mi Onboarding ── */
+              <div style={{ padding: '4px 2px' }}>
+                {/* Header colaborador */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 7, color: '#94a3b8' }}>Mi ruta</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#0C2D40' }}>Inducción General</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: '#10b981' }}>60%</div>
+                    <div style={{ fontSize: 6, color: '#94a3b8' }}>completado</div>
+                  </div>
+                </div>
+
+                {/* Barra de progreso */}
+                <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, marginBottom: 10, overflow: 'hidden' }}>
+                  <div style={{ width: '60%', height: '100%', background: '#10b981', borderRadius: 99 }} />
+                </div>
+
+                {/* Etapas */}
+                {[
+                  {
+                    name: 'Mi primera semana', days: 'Día 1 — Día 7', status: 'done',
+                    tareas: [
+                      { name: 'Video de bienvenida', tipo: 'video', done: true, pts: 10 },
+                      { name: 'Manual de funciones', tipo: 'documento', done: true, pts: 15 },
+                      { name: 'Completar perfil', tipo: 'completar-perfil', done: true, pts: 5 },
+                    ],
+                  },
+                  {
+                    name: 'Conoce el equipo', days: 'Día 8 — Día 15', status: 'current',
+                    tareas: [
+                      { name: 'Recorrido por las instalaciones', tipo: 'recorrido', done: true, pts: 20 },
+                      { name: 'Cuestionario de cultura', tipo: 'quiz', done: false, pts: 15 },
+                      { name: 'Formulario de datos bancarios', tipo: 'form-custom', done: false, pts: 5 },
+                    ],
+                  },
+                  {
+                    name: 'Tu primer mes', days: 'Día 16 — Día 30', status: 'locked',
+                    tareas: [
+                      { name: 'Evaluación de integración', tipo: 'quiz', done: false, pts: 25 },
+                      { name: 'Entrega de proyecto', tipo: 'subida', done: false, pts: 20 },
+                    ],
+                  },
+                ].map((etapa, ei) => {
+                  const doneTareas = etapa.tareas.filter(t => t.done).length
+                  const isDone = etapa.status === 'done'
+                  const isCurrent = etapa.status === 'current'
+                  const isLocked = etapa.status === 'locked'
+                  const tipoIcon = { video: Video, documento: FileText, quiz: HelpCircle, subida: Upload, 'completar-perfil': ClipboardList, recorrido: MapPin, 'form-custom': ClipboardList, 'tarea-otro': UserCheck, audio: Headphones, enlace: ExternalLink }
+                  return (
+                    <div key={ei} style={{ marginBottom: 8 }}>
+                      {/* Etapa header */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '7px 10px', borderRadius: 9,
+                        background: isDone ? '#f0fdf4' : isCurrent ? '#0C2D40' : '#f8fafc',
+                        border: `1px solid ${isDone ? '#bbf7d0' : isCurrent ? '#0C2D40' : '#e2e8f0'}`,
+                        marginBottom: isCurrent || isDone ? 4 : 0,
+                      }}>
+                        <div style={{
+                          width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                          background: isDone ? '#10b981' : isCurrent ? 'rgba(255,255,255,.15)' : '#e2e8f0',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {isDone ? <CheckCircle2 size={10} style={{ color: '#fff' }} /> : isLocked ? <Lock size={8} style={{ color: '#94a3b8' }} /> : <span style={{ fontSize: 7, fontWeight: 800, color: '#fff' }}>{ei + 1}</span>}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: isDone ? '#065f46' : isCurrent ? '#fff' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{etapa.name}</div>
+                          <div style={{ fontSize: 6, color: isDone ? '#10b981' : isCurrent ? 'rgba(255,255,255,.5)' : '#94a3b8' }}>{etapa.days}</div>
+                        </div>
+                        {!isLocked && (
+                          <span style={{ fontSize: 6.5, fontWeight: 700, color: isDone ? '#10b981' : 'rgba(255,255,255,.8)' }}>{doneTareas}/{etapa.tareas.length}</span>
+                        )}
+                      </div>
+
+                      {/* Tareas (solo etapa actual y completada) */}
+                      {!isLocked && (
+                        <div style={{ paddingLeft: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {etapa.tareas.map((t, ti) => {
+                            const TIcon = tipoIcon[t.tipo] || FileText
+                            return (
+                              <div key={ti} style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '5px 8px', borderRadius: 7,
+                                background: t.done ? '#f0fdf4' : '#fff',
+                                border: `1px solid ${t.done ? '#bbf7d0' : '#f1f5f9'}`,
+                              }}>
+                                <div style={{
+                                  width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                                  background: t.done ? '#10b981' : '#f1f5f9',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  {t.done ? <CheckCircle2 size={8} style={{ color: '#fff' }} /> : <TIcon size={7} style={{ color: '#94a3b8' }} />}
+                                </div>
+                                <span style={{ flex: 1, fontSize: 7.5, fontWeight: 500, color: t.done ? '#065f46' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: t.done ? 'line-through' : 'none' }}>{t.name}</span>
+                                <span style={{ fontSize: 6, fontWeight: 700, color: '#f59e0b', flexShrink: 0 }}>+{t.pts}p</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* Puntos acumulados */}
+                <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                  <div style={{ flex: 1, background: '#0C2D40', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>50</div>
+                    <div style={{ fontSize: 6, color: 'rgba(255,255,255,.5)' }}>Puntos</div>
+                  </div>
+                  <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#10b981' }}>4/8</div>
+                    <div style={{ fontSize: 6, color: '#94a3b8' }}>Tareas</div>
+                  </div>
+                  <div style={{ flex: 1, background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#d97706' }}>Día 8</div>
+                    <div style={{ fontSize: 6, color: '#94a3b8' }}>Hoy</div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
