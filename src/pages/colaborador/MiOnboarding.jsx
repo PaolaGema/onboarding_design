@@ -59,7 +59,7 @@ export default function MiOnboarding({ forcePhone = false }) {
   const isGraduado = ruta?.graduado === true
 
   const [etapas, setEtapas] = useState([])
-  const [started, setStarted] = useState(forcePhone)
+  const [started, setStarted] = useState(false)
   const [rutaLoaded, setRutaLoaded] = useState(false)
 
   if (ruta && !rutaLoaded) {

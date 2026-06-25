@@ -16,9 +16,9 @@ const rutaColaboradorDefault = {
         {
           name: 'General',
           tareas: [
-            { id: 101, name: 'Video de bienvenida', tipo: 'video', puntos: 10, obligatoria: true, done: true, desc: 'Conoce nuestra cultura y valores.', verificarQuiz: true },
-            { id: 102, name: 'Manual de funciones', tipo: 'documento', puntos: 15, obligatoria: true, done: true, desc: 'Lee el manual de tu cargo.' },
-            { id: 103, name: 'Completar mi perfil', tipo: 'completar-perfil', puntos: 5, obligatoria: false, done: true, desc: 'Completa tus datos en la plataforma.' },
+            { id: 101, name: 'Video de bienvenida', tipo: 'video', puntos: 10, obligatoria: true, done: false, desc: 'Conoce nuestra cultura y valores.', verificarQuiz: true },
+            { id: 102, name: 'Manual de funciones', tipo: 'documento', puntos: 15, obligatoria: true, done: false, desc: 'Lee el manual de tu cargo.' },
+            { id: 103, name: 'Completar mi perfil', tipo: 'completar-perfil', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos en la plataforma.' },
           ],
         },
       ],
@@ -31,7 +31,7 @@ const rutaColaboradorDefault = {
         {
           name: 'Integraciones',
           tareas: [
-            { id: 104, name: 'Recorrido por instalaciones', tipo: 'recorrido', puntos: 20, obligatoria: true, done: true, desc: 'Visita las áreas principales de la empresa.' },
+            { id: 104, name: 'Recorrido por instalaciones', tipo: 'recorrido', puntos: 20, obligatoria: true, done: false, desc: 'Visita las áreas principales de la empresa.' },
             { id: 105, name: 'Cuestionario de cultura', tipo: 'quiz', puntos: 15, obligatoria: true, done: false, desc: 'Evalúa lo que aprendiste sobre nuestra cultura.' },
             { id: 106, name: 'Formulario bancario', tipo: 'form-custom', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos para el pago de nómina.' },
           ],

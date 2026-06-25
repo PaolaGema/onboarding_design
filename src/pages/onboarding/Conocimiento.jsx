@@ -7,6 +7,7 @@ import {
   LayoutGrid, List, Filter, CheckCircle2, Globe, Eye
 } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { useUser } from '../../context/UserContext'
 
 const iconMap = {}
 
@@ -20,6 +21,7 @@ let docIdCounter = 100
 
 export default function Conocimiento() {
   const { recursos: categorias, setRecursos: setCategorias, addFeedEntry } = useOnboardingData()
+  const { currentUser } = useUser()
   const [selCat, setSelCat] = useState(0)
   const [search, setSearch] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -93,6 +95,7 @@ export default function Conocimiento() {
       estado: 'procesando',
       fecha: 'Ahora',
       general: false,
+      subidoPor: currentUser?.name || null,
     }))
     setCategorias(prev => prev.map((c, i) => {
       if (i !== selCat) return c
@@ -150,6 +153,7 @@ export default function Conocimiento() {
       fecha: 'Ahora',
       tipo: linkForm.tipo,
       url: linkForm.url.trim(),
+      subidoPor: currentUser?.name || null,
     }
     setCategorias(prev => prev.map((c, i) => {
       if (i !== selCat) return c
@@ -598,6 +602,14 @@ export default function Conocimiento() {
                       </div>
 
                       {/* Footer: size + estado */}
+                      {doc.subidoPor && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                            {doc.subidoPor.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <span style={{ fontSize: 9, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.subidoPor}</span>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                         <span style={{ fontSize: 10, color: '#94a3b8' }}>{doc.size} · {doc.fecha}</span>
                         <div style={{
@@ -685,6 +697,7 @@ export default function Conocimiento() {
                   <tr>
                     <th>Nombre</th>
                     <th>Tipo</th>
+                    <th>Subido por</th>
                     <th>Tamaño</th>
                     <th>Fecha</th>
                     <th>Estado</th>
@@ -733,6 +746,16 @@ export default function Conocimiento() {
                           </div>
                         </td>
                         <td><span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${extColor}12`, color: extColor }}>{ext}</span></td>
+                        <td>
+                          {doc.subidoPor ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                {doc.subidoPor.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </div>
+                              <span className="as-fecha">{doc.subidoPor}</span>
+                            </div>
+                          ) : <span className="as-fecha">—</span>}
+                        </td>
                         <td><span className="as-fecha">{doc.size}</span></td>
                         <td><span className="as-fecha">{doc.fecha}</span></td>
                         <td>
@@ -830,7 +853,7 @@ export default function Conocimiento() {
                           : 'Sube un documento o vincula un recurso externo a esta carpeta.'}
                       </p>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {['📄 Documentos', '🎥 Videos', '🔗 Enlaces'].map(tag => (
+                        {['📄 Documentos (PDF, Word, PPT)', '🔗 Videos y audio vía enlace'].map(tag => (
                           <span key={tag} style={{
                             fontSize: 10, fontWeight: 600, color: '#475569',
                             background: '#f1f5f9', border: '1px solid #e2e8f0',
@@ -839,20 +862,6 @@ export default function Conocimiento() {
                         ))}
                       </div>
                     </div>
-                    <button
-                      onClick={openFilePicker}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 7,
-                        padding: '10px 18px', borderRadius: 10, border: 'none',
-                        background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                        fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                        flexShrink: 0, whiteSpace: 'nowrap',
-                        boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                      }}
-                    >
-                      <Upload size={13} />
-                      Subir recurso
-                    </button>
                   </div>
                 </div>
               )}
@@ -885,7 +894,7 @@ export default function Conocimiento() {
                       : 'Sube un documento o vincula un recurso externo para asignarlo como tarea en tus rutas.'}
                   </p>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {['📄 Documentos', '🎥 Videos', '🔗 Enlaces'].map(tag => (
+                    {['📄 Documentos (PDF, Word, PPT)', '🔗 Videos y audio vía enlace'].map(tag => (
                       <span key={tag} style={{
                         fontSize: 10, fontWeight: 600, color: '#475569',
                         background: '#f1f5f9', border: '1px solid #e2e8f0',
@@ -894,20 +903,6 @@ export default function Conocimiento() {
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={openFilePicker}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7,
-                    padding: '10px 18px', borderRadius: 10, border: 'none',
-                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                  }}
-                >
-                  <Upload size={13} />
-                  Subir recurso
-                </button>
               </div>
             </div>
           )}
@@ -1524,7 +1519,20 @@ export default function Conocimiento() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{d.size || (isLink ? 'Enlace externo' : '')} {d.fecha ? `· ${d.fecha}` : ''}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>{d.size || (isLink ? 'Enlace externo' : '')} {d.fecha ? `· ${d.fecha}` : ''}</span>
+                    {d.subidoPor && (
+                      <>
+                        <span style={{ fontSize: 10, color: '#e2e8f0' }}>·</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 700, color: '#fff' }}>
+                            {d.subidoPor.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <span style={{ fontSize: 10, color: '#64748b' }}>{d.subidoPor}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {isLink && d.url && (
                   <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#475569', textDecoration: 'none' }}>

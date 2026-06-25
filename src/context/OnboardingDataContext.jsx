@@ -7,29 +7,29 @@ const sampleRecursos = [
   {
     name: 'Políticas',
     docs: [
-      { id: 1, name: 'Código de conducta 2025.pdf', size: '2.4 MB', estado: 'procesado', fecha: '12 Jun 2026', general: true },
-      { id: 2, name: 'Política de vacaciones.pdf', size: '1.1 MB', estado: 'procesado', fecha: '10 Jun 2026', general: true },
-      { id: 3, name: 'Reglamento interno.docx', size: '3.8 MB', estado: 'procesado', fecha: '18 Jun 2026', general: true },
+      { id: 1, name: 'Código de conducta 2025.pdf', size: '2.4 MB', estado: 'procesado', fecha: '12 Jun 2026', general: true, subidoPor: 'Paola Gema' },
+      { id: 2, name: 'Política de vacaciones.pdf', size: '1.1 MB', estado: 'procesado', fecha: '10 Jun 2026', general: true, subidoPor: 'Paola Gema' },
+      { id: 3, name: 'Reglamento interno.docx', size: '3.8 MB', estado: 'procesado', fecha: '18 Jun 2026', general: true, subidoPor: 'Paola Gema' },
     ],
   },
   {
     name: 'Beneficios',
     docs: [
-      { id: 4, name: 'Manual de beneficios.pdf', size: '4.2 MB', estado: 'procesado', fecha: '8 Jun 2026', general: true },
-      { id: 5, name: 'Guía de seguro médico.pdf', size: '1.8 MB', estado: 'procesado', fecha: '5 Jun 2026', general: true },
+      { id: 4, name: 'Manual de beneficios.pdf', size: '4.2 MB', estado: 'procesado', fecha: '8 Jun 2026', general: true, subidoPor: 'Paola Gema' },
+      { id: 5, name: 'Guía de seguro médico.pdf', size: '1.8 MB', estado: 'procesado', fecha: '5 Jun 2026', general: true, subidoPor: 'Paola Gema' },
     ],
   },
   {
     name: 'Procesos TI',
     docs: [
-      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026', general: false },
-      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'procesado', fecha: '16 Jun 2026', general: false },
+      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026', general: false, subidoPor: 'Paola Gema' },
+      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'procesado', fecha: '16 Jun 2026', general: false, subidoPor: 'Paola Gema' },
     ],
   },
   {
     name: 'Cultura',
     docs: [
-      { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026', general: true },
+      { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026', general: true, subidoPor: 'Paola Gema' },
     ],
   },
   { name: 'FAQ', docs: [] },
@@ -102,11 +102,11 @@ export function OnboardingDataProvider({ children }) {
   const [asignaciones, setAsignaciones] = useLocalStorage('asignaciones', [])
   const [feed, setFeed] = useLocalStorage('feed', [])
   const [configToggles, setConfigToggles] = useLocalStorage('config', {
-    gamificacion: false,
-    buddy: false,
-    menciones: false,
-    riesgo: false,
-    extension: false,
+    gamificacion: true,
+    buddy: true,
+    menciones: true,
+    riesgo: true,
+    extension: true,
     asignacion: 'manual',
     activacion: 'manual',
     horaAsignacion: '08:00',

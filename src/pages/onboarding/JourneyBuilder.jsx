@@ -105,6 +105,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
+  const [quizEditorJB, setQuizEditorJB] = useState(null)
   const [showAddPicker, setShowAddPicker] = useState(false)
   const [quizDropOpen, setQuizDropOpen] = useState(false)
   const [quizSearch, setQuizSearch] = useState('')
@@ -1143,15 +1144,44 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
                 </div>
 
                 {tareaForm.tipo === 'quiz' && (
-                  <div className="jb-form-row">
-                    <label className="pl-label">
-                      Nota mínima (%)
-                      <input type="number" className="pl-input" placeholder="70" value={tareaForm.notaMinima ?? ''} onChange={e => updateForm('notaMinima', Number(e.target.value))} />
-                    </label>
-                    <label className="pl-label">
-                      Intentos permitidos
-                      <input type="number" className="pl-input" placeholder="3" value={tareaForm.intentos ?? ''} onChange={e => updateForm('intentos', Number(e.target.value))} />
-                    </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div className="jb-form-row">
+                      <label className="pl-label">
+                        Nota mínima (%)
+                        <input type="number" className="pl-input" placeholder="70" value={tareaForm.notaMinima ?? ''} onChange={e => updateForm('notaMinima', Number(e.target.value))} />
+                      </label>
+                      <label className="pl-label">
+                        Intentos permitidos
+                        <input type="number" className="pl-input" placeholder="3" value={tareaForm.intentos ?? ''} onChange={e => updateForm('intentos', Math.max(1, Number(e.target.value)))} />
+                      </label>
+                    </div>
+                    {/* Card resumen preguntas */}
+                    {(() => {
+                      const preguntas = tareaForm.quizPreguntas || []
+                      const completas = preguntas.filter(p => p.texto.trim() && p.opciones.some(o => o.correcta && o.texto.trim())).length
+                      return (
+                        <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: preguntas.length > 0 ? '#fef3c7' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <HelpCircle size={16} style={{ color: preguntas.length > 0 ? '#d97706' : '#94a3b8' }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
+                              {preguntas.length === 0 ? 'Sin preguntas aún' : `${preguntas.length} pregunta${preguntas.length !== 1 ? 's' : ''}`}
+                            </div>
+                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+                              {preguntas.length === 0 ? 'Crea las preguntas para este cuestionario' : `${completas} completa${completas !== 1 ? 's' : ''} · ${preguntas.length - completas} pendiente${preguntas.length - completas !== 1 ? 's' : ''}`}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setQuizEditorJB({ preguntas: tareaForm.quizPreguntas ? JSON.parse(JSON.stringify(tareaForm.quizPreguntas)) : [] })}
+                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, background: '#0C2D40', color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            <Pencil size={11} />
+                            {preguntas.length === 0 ? 'Crear preguntas' : 'Editar preguntas'}
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
@@ -1896,6 +1926,121 @@ export default function JourneyBuilder({ plantilla, onBack, empty, onSave, backL
           </div>
         </div>
       )}
+
+      {/* MODAL EDITOR DE CUESTIONARIO (quiz task) */}
+      {quizEditorJB && (() => {
+        const qe = quizEditorJB
+
+        function updateQ(pIdx, texto) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, texto } : p) }))
+        }
+        function deleteQ(pIdx) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.filter((_, i) => i !== pIdx) }))
+        }
+        function addQ() {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: [...prev.preguntas, { id: Date.now(), texto: '', opciones: [{ id: Date.now()+1, texto: '', correcta: true }, { id: Date.now()+2, texto: '', correcta: false }, { id: Date.now()+3, texto: '', correcta: false }, { id: Date.now()+4, texto: '', correcta: false }] }] }))
+        }
+        function updateOpt(pIdx, oIdx, texto) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: p.opciones.map((o, j) => j === oIdx ? { ...o, texto } : o) } : p) }))
+        }
+        function setCorrecta(pIdx, oIdx) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: p.opciones.map((o, j) => ({ ...o, correcta: j === oIdx })) } : p) }))
+        }
+        function addOpt(pIdx) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: [...p.opciones, { id: Date.now(), texto: '', correcta: false }] } : p) }))
+        }
+        function deleteOpt(pIdx, oIdx) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: p.opciones.filter((_, j) => j !== oIdx) } : p) }))
+        }
+        function guardar() {
+          updateForm('quizPreguntas', qe.preguntas.filter(p => p.texto.trim()))
+          setQuizEditorJB(null)
+        }
+
+        return (
+          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setQuizEditorJB(null)}>
+            <div className="pl-modal jb-modal" style={{ maxWidth: 580, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <HelpCircle size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <h2 style={{ margin: 0 }}>Editor de cuestionario</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setQuizEditorJB(null)}><X size={18} /></button>
+              </div>
+
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 12 }}>
+                  Preguntas ({qe.preguntas.length})
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {qe.preguntas.map((pregunta, pIdx) => (
+                    <div key={pregunta.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{pIdx + 1}</span>
+                        <input
+                          type="text"
+                          placeholder="Escribe la pregunta..."
+                          value={pregunta.texto}
+                          onChange={e => updateQ(pIdx, e.target.value)}
+                          style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+                        />
+                        {qe.preguntas.length > 1 && (
+                          <button onClick={() => deleteQ(pIdx)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}>
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 30 }}>
+                        {pregunta.opciones.map((opcion, oIdx) => (
+                          <div key={opcion.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button
+                              onClick={() => setCorrecta(pIdx, oIdx)}
+                              style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${opcion.correcta ? '#10b981' : '#d1d5db'}`, background: opcion.correcta ? '#10b981' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}
+                            >
+                              {opcion.correcta && <CheckCircle2 size={11} style={{ color: '#fff' }} />}
+                            </button>
+                            <input
+                              type="text"
+                              placeholder={`Opción ${oIdx + 1}`}
+                              value={opcion.texto}
+                              onChange={e => updateOpt(pIdx, oIdx, e.target.value)}
+                              style={{ flex: 1, padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 11, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+                            />
+                            {pregunta.opciones.length > 2 && (
+                              <button onClick={() => deleteOpt(pIdx, oIdx)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}>
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button onClick={() => addOpt(pIdx)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 600, color: '#94a3b8', fontFamily: 'inherit', padding: '4px 0' }} onMouseEnter={e => e.currentTarget.style.color = '#0C2D40'} onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}>
+                          <Plus size={11} /> Agregar opción
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 8, paddingLeft: 30 }}>Haz clic en el círculo verde para marcar la respuesta correcta</div>
+                    </div>
+                  ))}
+                </div>
+
+                <button onClick={addQ} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12, padding: '10px', border: '1.5px dashed #cbd5e1', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit' }}>
+                  <Plus size={13} /> Agregar pregunta
+                </button>
+              </div>
+
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setQuizEditorJB(null)}>Cancelar</button>
+                <button className="pl-btn-save" onClick={guardar}>
+                  Guardar cuestionario ({qe.preguntas.length} pregunta{qe.preguntas.length !== 1 ? 's' : ''})
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

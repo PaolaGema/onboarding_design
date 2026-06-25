@@ -465,31 +465,6 @@ export default function Asignaciones() {
                   </div>
                 )}
               </div>
-              {asignaciones.length === 0 && !isAreaRole && (
-                plantillasDisponibles.length > 0 ? (
-                  <button onClick={() => setModal(true)} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7,
-                    padding: '10px 18px', borderRadius: 10, border: 'none',
-                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                  }}>
-                    <UserPlus size={13} /> Asignar primera ruta
-                  </button>
-                ) : (
-                  <button onClick={() => navigate('/onboarding/plantillas')} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7,
-                    padding: '10px 18px', borderRadius: 10, border: 'none',
-                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                  }}>
-                    <Route size={13} /> Crear primera ruta
-                  </button>
-                )
-              )}
             </div>
           </div>
         )}
