@@ -408,61 +408,60 @@ export default function Dashboard() {
         const nextStep = steps.find(s => !s.done)
         const firstName = currentUser?.name?.split(' ')[0] || 'Admin'
         return (
-          <div style={{ background: '#fff', border: '1px solid #dde6ee', borderTop: '3px solid #0C2D40', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(12,45,64,.07)' }}>
-            {/* cabecera */}
-            <div style={{ padding: '14px 22px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(12,45,64,.12)' }}>
+            {/* header navy */}
+            <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>
                   {doneCount === 0
                     ? `¡Hola, ${firstName}! Configura tu módulo para empezar`
                     : doneCount < 3
                     ? `¡Vas bien, ${firstName}! Te faltan ${4 - doneCount} pasos más`
                     : `¡Casi lista, ${firstName}! Un paso más y todo está listo`}
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Completa los pasos para activar tu módulo de onboarding</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>Completa los pasos para activar tu módulo de onboarding</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                <div style={{ width: 100, height: 4, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(doneCount / 4) * 100}%`, background: '#10b981', borderRadius: 4, transition: 'width .5s ease' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <div style={{ width: 110, height: 5, borderRadius: 10, background: 'rgba(255,255,255,.15)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(doneCount / 4) * 100}%`, background: '#10b981', borderRadius: 10, transition: 'width .5s ease' }} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>{doneCount}/4</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/4</span>
               </div>
             </div>
             {/* pasos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: '#fff' }}>
               {steps.map((s, i) => {
                 const isNext = s === nextStep
                 return (
                   <button key={s.label} onClick={() => navigate(s.path)} style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
-                    padding: '15px 18px', border: 'none',
+                    padding: '14px 18px', border: 'none',
                     borderRight: i < 3 ? '1px solid #f1f5f9' : 'none',
-                    background: s.done ? '#f6fdf8' : isNext ? '#eef4f9' : '#fff',
+                    background: s.done ? '#f6fdf8' : isNext ? '#f8faff' : '#fff',
                     cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'background .15s', position: 'relative',
+                    transition: 'background .15s',
                   }}
-                    onMouseEnter={e => { e.currentTarget.style.background = s.done ? '#edfaf3' : '#e8f0f7' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = s.done ? '#f6fdf8' : isNext ? '#eef4f9' : '#fff' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = s.done ? '#ecfdf5' : '#f0f5ff' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = s.done ? '#f6fdf8' : isNext ? '#f8faff' : '#fff' }}
                   >
-                    {isNext && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#0C2D40' }} />}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{
                         width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 10, fontWeight: 800,
-                        background: s.done ? '#16a34a' : isNext ? '#0C2D40' : '#e2e8f0',
-                        color: s.done ? '#fff' : isNext ? '#fff' : '#94a3b8',
+                        background: s.done ? '#10b981' : isNext ? '#0C2D40' : '#e2e8f0',
+                        color: '#fff',
                       }}>
                         {s.done ? '✓' : i + 1}
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#16a34a' : isNext ? '#0C2D40' : '#94a3b8' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#10b981' : isNext ? '#0C2D40' : '#94a3b8' }}>
                         {s.label}
                       </span>
                     </div>
-                    <div style={{ paddingLeft: 30, fontSize: 10, color: s.done ? '#86efac' : '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
+                    <div style={{ paddingLeft: 30, fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
                     {isNext && (
-                      <div style={{ paddingLeft: 30, marginTop: 2 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#0C2D40', padding: '2px 8px', borderRadius: 20 }}>Ir ahora →</span>
+                      <div style={{ paddingLeft: 30, marginTop: 3 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#0C2D40', padding: '2px 9px', borderRadius: 20 }}>Ir ahora →</span>
                       </div>
                     )}
                   </button>
