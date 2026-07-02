@@ -83,7 +83,7 @@ function MiniCalendar({ value, onChange }) {
                 cursor: !day || isDisabled(day) ? 'default' : 'pointer', transition: 'all .1s', position: 'relative',
               }}>
                 {day || ''}
-                {isToday(day) && !isSelected(day) && (<div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: '#10DC97' }} />)}
+                {isToday(day) && !isSelected(day) && (<div style={{ position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: '#00E091' }} />)}
               </button>
             ))}
           </div>
@@ -99,7 +99,7 @@ function MiniCalendar({ value, onChange }) {
   )
 }
 
-export default function AsignarRutaModal({ onClose, onConfirm }) {
+export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId }) {
   const { plantillas } = useOnboardingData()
   const rutasAsignar = plantillas.filter(p => p.status === 'activa')
 
@@ -114,7 +114,7 @@ export default function AsignarRutaModal({ onClose, onConfirm }) {
   const [fDropSucursal, setFDropSucursal] = useState(false)
   const [fDropArea, setFDropArea] = useState(false)
   const [fDropCargo, setFDropCargo] = useState(false)
-  const [onbSelected, setOnbSelected] = useState(null)
+  const [onbSelected, setOnbSelected] = useState(preselectedRutaId ?? null)
   const [onbFecha, setOnbFecha] = useState('')
   const [onbSearch, setOnbSearch] = useState('')
   const [onbArea, setOnbArea] = useState('Todas')
@@ -241,8 +241,8 @@ export default function AsignarRutaModal({ onClose, onConfirm }) {
                     onMouseLeave={e => { e.currentTarget.style.background = sel ? '#d1fae5' : 'transparent' }}
                   >
                     <div style={{
-                      width: 15, height: 15, borderRadius: 4, border: sel ? '2px solid #10DC97' : '1.5px solid #d1d5db',
-                      background: sel ? '#10DC97' : '#fff',
+                      width: 15, height: 15, borderRadius: 4, border: sel ? '2px solid #00E091' : '1.5px solid #d1d5db',
+                      background: sel ? '#00E091' : '#fff',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                     }}>
                       {sel && <Check size={8} style={{ color: '#fff' }} />}

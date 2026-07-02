@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback } from 'react'
+import { createContext, useContext, useCallback, useEffect } from 'react'
 import { useLocalStorage, clearAllDemoData } from '../hooks/useLocalStorage'
 
 const OnboardingDataContext = createContext()
@@ -20,19 +20,11 @@ const sampleRecursos = [
     ],
   },
   {
-    name: 'Procesos TI',
-    docs: [
-      { id: 6, name: 'Guía acceso a sistemas.pdf', size: '890 KB', estado: 'procesado', fecha: '15 Jun 2026', general: false, subidoPor: 'Paola Gema' },
-      { id: 7, name: 'VPN y herramientas.txt', size: '45 KB', estado: 'procesado', fecha: '16 Jun 2026', general: false, subidoPor: 'Paola Gema' },
-    ],
-  },
-  {
     name: 'Cultura',
     docs: [
       { id: 8, name: 'Valores y misión.pdf', size: '1.5 MB', estado: 'procesado', fecha: '1 Jun 2026', general: true, subidoPor: 'Paola Gema' },
     ],
   },
-  { name: 'FAQ', docs: [] },
 ]
 
 const samplePlantillas = [
@@ -85,18 +77,11 @@ const sampleConfig = {
   riesgoDias: 3,
 }
 
-const sampleTronco = {
-  configured: false,
-  etapas: [],
-}
-
 export function OnboardingDataProvider({ children }) {
   const [recursos, setRecursos] = useLocalStorage('recursos', [
     { name: 'Políticas', docs: [] },
     { name: 'Beneficios', docs: [] },
-    { name: 'Procesos TI', docs: [] },
     { name: 'Cultura', docs: [] },
-    { name: 'FAQ', docs: [] },
   ])
   const [plantillas, setPlantillas] = useLocalStorage('plantillas', [])
   const [asignaciones, setAsignaciones] = useLocalStorage('asignaciones', [])
@@ -114,6 +99,32 @@ export function OnboardingDataProvider({ children }) {
   })
   const [tronco, setTronco] = useLocalStorage('tronco', { configured: false, etapas: [] })
 
+  // Migración de una sola vez: el viejo "tronco" (Inducción general hardcodeada)
+  // pasa a ser una plantilla real marcada como global, para no perder lo ya configurado.
+  useEffect(() => {
+    if (!tronco.configured || !tronco.etapas.length) return
+    setPlantillas(prev => {
+      if (prev.some(p => p.migratedFromTronco)) return prev
+      const tareasCount = tronco.etapas.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)
+      return [...prev, {
+        id: Date.now(),
+        name: 'Inducción general',
+        area: 'Todas las áreas',
+        cargo: '',
+        esGlobal: true,
+        ordenGlobal: 0,
+        etapasData: tronco.etapas,
+        etapas: tronco.etapas.length,
+        tareas: tareasCount,
+        asignados: 0,
+        status: 'activa',
+        updated: 'Migrada automáticamente',
+        color: '#0C2D40',
+        migratedFromTronco: true,
+      }]
+    })
+  }, [tronco, setPlantillas])
+
   const addFeedEntry = useCallback((text) => {
     setFeed(prev => [{ text, time: 'Ahora' }, ...prev].slice(0, 20))
   }, [setFeed])
@@ -129,8 +140,7 @@ export function OnboardingDataProvider({ children }) {
     setAsignaciones(sampleAsignaciones)
     setFeed(sampleFeed)
     setConfigToggles(sampleConfig)
-    setTronco(sampleTronco)
-  }, [setRecursos, setPlantillas, setAsignaciones, setFeed, setConfigToggles, setTronco])
+  }, [setRecursos, setPlantillas, setAsignaciones, setFeed, setConfigToggles])
 
   const totalDocs = recursos.reduce((s, c) => s + c.docs.length, 0)
   const isDemoFresh = totalDocs === 0 && plantillas.length === 0 && asignaciones.length === 0
@@ -142,7 +152,6 @@ export function OnboardingDataProvider({ children }) {
       asignaciones, setAsignaciones,
       feed, addFeedEntry,
       configToggles, setConfigToggles,
-      tronco, setTronco,
       resetDemo, loadSampleData, isDemoFresh,
     }}>
       {children}

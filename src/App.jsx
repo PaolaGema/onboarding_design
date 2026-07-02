@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider } from './context/UserContext'
-import { TroncoProvider } from './context/TroncoContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { RutaActivaProvider } from './context/RutaActivaContext'
 import { ConfigProvider } from './context/ConfigContext'
 import { OnboardingDataProvider } from './context/OnboardingDataContext'
@@ -10,16 +10,15 @@ import Asignaciones from './pages/onboarding/Asignaciones'
 import Plantillas from './pages/onboarding/Plantillas'
 import Conocimiento from './pages/onboarding/Conocimiento'
 import Configuracion from './pages/onboarding/Configuracion'
-import Bienvenida from './pages/colaborador/Bienvenida'
 import MiOnboarding from './pages/colaborador/MiOnboarding'
 import Colaboradores from './pages/personas/Colaboradores'
 
 export default function App() {
   return (
-    <UserProvider>
+    <ThemeProvider>
+      <UserProvider>
       <OnboardingDataProvider>
       <ConfigProvider>
-      <TroncoProvider>
       <RutaActivaProvider>
       <BrowserRouter>
         <Routes>
@@ -29,7 +28,6 @@ export default function App() {
             <Route path="plantillas" element={<Plantillas />} />
             <Route path="conocimiento" element={<Conocimiento />} />
             <Route path="configuracion" element={<Configuracion />} />
-            <Route path="bienvenida" element={<Bienvenida />} />
             <Route path="mi-onboarding" element={<MiOnboarding />} />
           </Route>
           <Route path="/personas" element={<Layout />}>
@@ -39,9 +37,9 @@ export default function App() {
         </Routes>
       </BrowserRouter>
       </RutaActivaProvider>
-      </TroncoProvider>
       </ConfigProvider>
       </OnboardingDataProvider>
-    </UserProvider>
+      </UserProvider>
+    </ThemeProvider>
   )
 }

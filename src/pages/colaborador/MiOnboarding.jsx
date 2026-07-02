@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useUser } from '../../context/UserContext'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
@@ -24,7 +24,7 @@ const iconMap = {
   video: Video, audio: Headphones, documento: FileText,
   quiz: HelpCircle, 'completar-perfil': ClipboardList,
   subida: Upload, 'tarea-otro': UserCheck,
-  recorrido: MapPin, 'tarea-rrhh': ShieldCheck, lectura: FileText,
+  recorrido: MapPin, lectura: FileText,
   enlace: ExternalLink, 'form-custom': ClipboardList, confirmacion: Trophy,
 }
 
@@ -32,7 +32,7 @@ const colorMap = {
   video: '#3b82f6', audio: '#06b6d4', documento: '#f97316',
   quiz: '#f59e0b', 'completar-perfil': '#10b981', subida: '#ec4899',
   'tarea-otro': '#ef4444', recorrido: '#d946ef',
-  'tarea-rrhh': '#0C2D40', lectura: '#f97316', enlace: '#6366f1',
+  lectura: '#f97316', enlace: '#6366f1',
   'form-custom': '#10b981', confirmacion: '#f59e0b',
 }
 
@@ -51,35 +51,24 @@ const chatSuggestions = Object.keys(chatResponses)
 
 export default function MiOnboarding({ forcePhone = false }) {
   const { currentUser } = useUser()
-  const { rutaActiva, rutaAdmin, actualizarEtapas } = useRutaActiva()
+  const { rutaActiva, rutaGraduado, rutaAdmin, actualizarEtapas } = useRutaActiva()
   const { asistenteIA } = useConfig()
   const isMobile = forcePhone || currentUser.id === 4
 
-  const ruta = forcePhone ? rutaActiva : (currentUser.role === 'colaborador' ? rutaActiva : rutaAdmin)
+  const ruta = forcePhone ? rutaActiva : (currentUser.role === 'colaborador' ? (currentUser.onbGraduado ? rutaGraduado : rutaActiva) : rutaAdmin)
   const isGraduado = ruta?.graduado === true
+  const readOnly = isGraduado
 
   const [etapas, setEtapas] = useState([])
   const [started, setStarted] = useState(false)
-  const [rutaLoaded, setRutaLoaded] = useState(false)
-
-  if (ruta && !rutaLoaded) {
-    const mapped = ruta.etapas.map((e, i) => ({
-      ...e,
-      status: i === 0 ? 'current' : 'locked',
-      actividades: e.actividades.map(a => ({
-        ...a,
-        tareas: a.tareas.map(t => ({ ...t, done: t.done || false })),
-      })),
-    }))
-    setEtapas(mapped)
-    setRutaLoaded(true)
-  }
+  const [loadedRuta, setLoadedRuta] = useState(null)
   const [selTarea, setSelTarea] = useState(null)
   const [recorridoStops, setRecorridoStops] = useState({})
   const [showAlert, setShowAlert] = useState(false)
   const [quizStarted, setQuizStarted] = useState({})
   const [quizAnswers, setQuizAnswers] = useState({})
   const [quizSubmitted, setQuizSubmitted] = useState({})
+  const [videoEnded, setVideoEnded] = useState({})
   const [selContext, setSelContext] = useState(null)
   const [etapasOpen, setEtapasOpen] = useState(true)
   const [infoOpen, setInfoOpen] = useState(true)
@@ -92,6 +81,27 @@ export default function MiOnboarding({ forcePhone = false }) {
   const [chatInput, setChatInput] = useState('')
   const [chatTyping, setChatTyping] = useState(false)
   const chatEndRef = useRef(null)
+
+  if (ruta && ruta !== loadedRuta) {
+    const mapped = ruta.etapas.map((e, i) => ({
+      ...e,
+      status: i === 0 ? 'current' : 'locked',
+      actividades: e.actividades.map(a => ({
+        ...a,
+        tareas: a.tareas.map(t => ({ ...t, done: t.done || false })),
+      })),
+    }))
+    setEtapas(mapped)
+    setLoadedRuta(ruta)
+    setStarted(false)
+    setSelTarea(null)
+    setSelContext(null)
+    setQuizStarted({})
+    setQuizAnswers({})
+    setQuizSubmitted({})
+    setRecorridoStops({})
+    setVideoEnded({})
+  }
 
   function sendChat(text) {
     const msg = text || chatInput.trim()
@@ -121,7 +131,7 @@ export default function MiOnboarding({ forcePhone = false }) {
   }
 
   function launchConfetti() {
-    const colors = ['#10DC97', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#0C2D40']
+    const colors = ['#00E091', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', '#0C2D40']
     const pieces = Array.from({ length: 80 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -137,6 +147,7 @@ export default function MiOnboarding({ forcePhone = false }) {
   }
 
   function toggleDone(tareaId) {
+    if (readOnly) return
     setEtapas(prev => {
       const next = prev.map(et => ({
         ...et,
@@ -154,6 +165,58 @@ export default function MiOnboarding({ forcePhone = false }) {
       return next
     })
   }
+
+  // Carga la API de YouTube y detecta cuándo el colaborador termina de ver un video
+  useEffect(() => {
+    if (!selTarea || selTarea.tipo !== 'video' || selTarea.done || readOnly) return
+    const tid = selTarea.id
+    let player = null
+    let cancelled = false
+
+    function createPlayer() {
+      if (cancelled) return
+      const el = document.getElementById(`yt-player-${tid}`)
+      if (!el || !window.YT || !window.YT.Player) return
+      player = new window.YT.Player(el, {
+        events: {
+          onStateChange: (event) => {
+            if (event.data === window.YT.PlayerState.ENDED) {
+              setVideoEnded(prev => ({ ...prev, [tid]: true }))
+            }
+          },
+        },
+      })
+    }
+
+    if (window.YT && window.YT.Player) {
+      createPlayer()
+    } else {
+      if (!document.getElementById('youtube-iframe-api')) {
+        const tag = document.createElement('script')
+        tag.id = 'youtube-iframe-api'
+        tag.src = 'https://www.youtube.com/iframe_api'
+        document.head.appendChild(tag)
+      }
+      const prevReady = window.onYouTubeIframeAPIReady
+      window.onYouTubeIframeAPIReady = () => { prevReady?.(); createPlayer() }
+    }
+
+    return () => {
+      cancelled = true
+      player?.destroy?.()
+    }
+  }, [selTarea?.id, selTarea?.tipo, selTarea?.done, readOnly])
+
+  // Completa automáticamente la tarea de video cuando terminó de reproducirse y (si corresponde) ya se envió la evaluación
+  useEffect(() => {
+    if (!selTarea || selTarea.tipo !== 'video' || selTarea.done || readOnly) return
+    const tid = selTarea.id
+    if (!videoEnded[tid]) return
+    const hasQuiz = selTarea.verificarQuiz !== false
+    if (hasQuiz && !quizSubmitted[tid]) return
+    toggleDone(tid)
+    setSelTarea(prev => (prev ? { ...prev, done: true } : prev))
+  }, [videoEnded, quizSubmitted, selTarea?.id, selTarea?.done, readOnly])
 
   const positions = [0, 60, 90, 60, 0, -60, -90, -60]
   const firstName = currentUser.name.split(' ')[0]
@@ -238,7 +301,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                       Has completado todas las etapas de tu ruta de onboarding. Aquí puedes revisar tu recorrido cuando quieras.
                     </p>
                     <div className="jb-welcome-stats">
-                      <div className="jb-welcome-pill" style={{ background: '#10DC97' }}>
+                      <div className="jb-welcome-pill" style={{ background: '#00E091' }}>
                         <span className="jb-welcome-pill-num">{totalAll}/{totalAll}</span>
                         <span className="jb-welcome-pill-label">tareas</span>
                       </div>
@@ -278,7 +341,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {[
               { val: etapas.length, label: 'etapas', bg: '#0C2D40' },
-              { val: totalAll, label: 'tareas', bg: '#10DC97' },
+              { val: totalAll, label: 'tareas', bg: '#00E091' },
               { val: etapas.flatMap(e => flatTareas(e)).reduce((s, t) => s + t.puntos, 0), label: 'Puntos', bg: '#f59e0b' },
             ].map(p => (
               <div key={p.label} style={{
@@ -324,7 +387,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                         <span className="jb-welcome-pill-num">{etapas.length}</span>
                         <span className="jb-welcome-pill-label">etapas</span>
                       </div>
-                      <div className="jb-welcome-pill" style={{ background: '#10DC97' }}>
+                      <div className="jb-welcome-pill" style={{ background: '#00E091' }}>
                         <span className="jb-welcome-pill-num">{totalAll}</span>
                         <span className="jb-welcome-pill-label">tareas</span>
                       </div>
@@ -371,10 +434,10 @@ export default function MiOnboarding({ forcePhone = false }) {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{totalDone} de {totalAll} tareas</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#10DC97' }}>{pct}%</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#00E091' }}>{pct}%</span>
                   </div>
                   <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: '#10DC97', borderRadius: 99, transition: 'width .4s' }} />
+                    <div style={{ height: '100%', width: `${pct}%`, background: '#00E091', borderRadius: 99, transition: 'width .4s' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                     <span style={{ fontSize: 10, color: '#94a3b8' }}>{totalPuntos} Puntos ganados</span>
@@ -436,7 +499,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isQuizStarted = !!quizStarted[tid]
-          const isQuizDone = !!quizSubmitted[tid]
+          const isQuizDone = readOnly || !!quizSubmitted[tid]
           const answers = quizAnswers[tid] || {}
           const allAnswered = quizQuestions.every((_, i) => answers[i] !== undefined)
 
@@ -445,7 +508,8 @@ export default function MiOnboarding({ forcePhone = false }) {
               <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0f172a' }}>
                 <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
                   <iframe
-                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                    id={`yt-player-${tid}`}
+                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`}
                     title={selTarea.name}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -458,14 +522,14 @@ export default function MiOnboarding({ forcePhone = false }) {
               {hasQuiz && !isQuizStarted && !isQuizDone && (
                 <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <HelpCircle size={16} style={{ color: '#d97706' }} />
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</div>
                   <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Responde para verificar que comprendiste el video.</p>
                   <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{quizQuestions.length} preguntas · 70% para aprobar</div>
                   <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
                     background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    <HelpCircle size={9} /> Empezar cuestionario
+                    <HelpCircle size={9} /> Empezar prueba
                   </button>
                 </div>
               )}
@@ -514,7 +578,7 @@ export default function MiOnboarding({ forcePhone = false }) {
               )}
 
               {hasQuiz && isQuizDone && (() => {
-                const result = quizSubmitted[tid]
+                const result = quizSubmitted[tid] || { correct: quizQuestions.length, total: quizQuestions.length }
                 const passed = (result.correct / result.total) >= 0.7
                 return (
                   <div style={{
@@ -523,7 +587,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   }}>
                     <CheckCircle2 size={14} style={{ color: passed ? '#16a34a' : '#ef4444' }} />
                     <div style={{ fontSize: 9, fontWeight: 700, color: passed ? '#166534' : '#991b1b' }}>
-                      {passed ? '¡Cuestionario aprobado!' : 'Cuestionario no aprobado'}
+                      {passed ? '¡Prueba aprobada!' : 'Prueba no aprobada'}
                     </div>
                     <div style={{ fontSize: 7.5, color: passed ? '#166534' : '#991b1b' }}>
                       {result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)
@@ -562,7 +626,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isDocQuizStarted = !!quizStarted[tid]
-          const isDocQuizDone = !!quizSubmitted[tid]
+          const isDocQuizDone = readOnly || !!quizSubmitted[tid]
           const docAns = quizAnswers[tid] || {}
           const allDocAns = docQuizQs.every((_, i) => docAns[i] !== undefined)
 
@@ -598,14 +662,14 @@ export default function MiOnboarding({ forcePhone = false }) {
               {hasDocQuiz && !isDocQuizStarted && !isDocQuizDone && (
                 <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <HelpCircle size={16} style={{ color: '#d97706' }} />
-                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</div>
                   <p style={{ fontSize: 7, color: '#b45309', margin: 0, lineHeight: 1.4 }}>Verifica que comprendiste el documento.</p>
                   <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{docQuizQs.length} preguntas</div>
                   <button onClick={() => setQuizStarted(prev => ({ ...prev, [tid]: true }))} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 5,
                     background: '#d97706', color: '#fff', border: 'none', fontSize: 7.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    <HelpCircle size={9} /> Empezar cuestionario
+                    <HelpCircle size={9} /> Empezar prueba
                   </button>
                 </div>
               )}
@@ -654,11 +718,11 @@ export default function MiOnboarding({ forcePhone = false }) {
               )}
 
               {hasDocQuiz && isDocQuizDone && (() => {
-                const result = quizSubmitted[tid]
+                const result = quizSubmitted[tid] || { correct: docQuizQs.length, total: docQuizQs.length }
                 return (
                   <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#166534' }}>Cuestionario completado</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#166534' }}>Prueba completada</div>
                     <div style={{ fontSize: 7.5, color: '#166534' }}>{result.correct}/{result.total} correctas ({Math.round((result.correct / result.total) * 100)}%)</div>
                   </div>
                 )
@@ -679,7 +743,7 @@ export default function MiOnboarding({ forcePhone = false }) {
             { name: 'Terraza y áreas verdes', guia: 'Paola Arce', rol: 'RRHH' },
             { name: 'Salida de emergencia', guia: 'Carlos Méndez', rol: 'Seguridad' },
           ]
-          const doneSet = recorridoStops[selTarea.id] || {}
+          const doneSet = selTarea.done ? Object.fromEntries(stops.map((_, i) => [i, true])) : (recorridoStops[selTarea.id] || {})
           const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
           const allStopsDone = doneCount >= stops.length
           const toggleStop = (i) => {
@@ -760,16 +824,6 @@ export default function MiOnboarding({ forcePhone = false }) {
               <div style={{ padding: 8, fontSize: 8, color: '#475569', lineHeight: 1.5 }}>Requiere validación del supervisor</div>
             </div>
           )
-        case 'tarea-rrhh':
-          return (
-            <div style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ padding: '6px 10px', background: '#0C2D40', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <ShieldCheck size={10} style={{ color: '#fff' }} />
-                <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>Tarea de RRHH</span>
-              </div>
-              <div style={{ padding: 8, fontSize: 8, color: '#475569', lineHeight: 1.5 }}>Gestionada por Recursos Humanos</div>
-            </div>
-          )
         case 'enlace':
           return (
             <div style={{ border: '1px solid #c7d2fe', borderRadius: 8, padding: 12, textAlign: 'center', background: '#eef2ff' }}>
@@ -787,7 +841,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isStarted = !!quizStarted[tid]
-          const isDone = !!quizSubmitted[tid]
+          const isDone = readOnly || !!quizSubmitted[tid]
           const ans = quizAnswers[tid] || {}
           const allAns = quizQs.every((_, i) => ans[i] !== undefined)
           if (!isStarted && !isDone) {
@@ -839,7 +893,7 @@ export default function MiOnboarding({ forcePhone = false }) {
             )
           }
           if (isDone) {
-            const result = quizSubmitted[tid]
+            const result = quizSubmitted[tid] || { correct: quizQs.length, total: quizQs.length }
             return (
               <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4' }}>
                 <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
@@ -909,6 +963,11 @@ export default function MiOnboarding({ forcePhone = false }) {
               <CheckCircle2 size={8} style={{ color: '#16a34a' }} />
               <span style={{ fontSize: 7, fontWeight: 600, color: '#166534' }}>Hecha</span>
             </div>
+          ) : selTarea.tipo === 'video' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: '#eff6ff', border: '1px solid #dbeafe', flexShrink: 0 }}>
+              <Info size={8} style={{ color: '#3b82f6' }} />
+              <span style={{ fontSize: 6.5, fontWeight: 600, color: '#1e40af' }}>Se completa sola</span>
+            </div>
           ) : (
             <button onClick={() => {
               if (selTarea.tipo === 'recorrido') {
@@ -916,8 +975,8 @@ export default function MiOnboarding({ forcePhone = false }) {
                 const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
                 if (doneCount < 10) { setShowAlert('Completa todas las paradas'); setTimeout(() => setShowAlert(false), 2500); return }
               }
-              if ((selTarea.tipo === 'video' || selTarea.tipo === 'documento') && selTarea.verificarQuiz !== false) {
-                if (!quizSubmitted[selTarea.id]) { setShowAlert('Completa el cuestionario primero'); setTimeout(() => setShowAlert(false), 2500); return }
+              if (selTarea.tipo === 'documento' && selTarea.verificarQuiz !== false) {
+                if (!quizSubmitted[selTarea.id]) { setShowAlert('Completa la prueba primero'); setTimeout(() => setShowAlert(false), 2500); return }
               }
               toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done }))
             }} style={{
@@ -998,7 +1057,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isQuizStarted = !!quizStarted[tid]
-          const isQuizDone = !!quizSubmitted[tid]
+          const isQuizDone = readOnly || !!quizSubmitted[tid]
           const answers = quizAnswers[tid] || {}
           const allAnswered = quizQuestions.every((_, i) => answers[i] !== undefined)
 
@@ -1016,7 +1075,8 @@ export default function MiOnboarding({ forcePhone = false }) {
               <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
                 <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
                   <iframe
-                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                    id={`yt-player-${tid}`}
+                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`}
                     title={selTarea.name}
                     frameBorder="0"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -1035,7 +1095,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                 }}>
                   <HelpCircle size={28} style={{ color: '#d97706' }} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</div>
                     <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 0', lineHeight: 1.5 }}>
                       Responde una breve evaluación para verificar que comprendiste el contenido del video.
                     </p>
@@ -1051,7 +1111,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                     }}
                   >
                     <HelpCircle size={14} />
-                    Empezar cuestionario
+                    Empezar prueba
                   </button>
                 </div>
               )}
@@ -1064,7 +1124,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</span>
                     </div>
                     <span style={{ fontSize: 10, color: '#b45309' }}>{Object.keys(answers).length}/{quizQuestions.length} respondidas</span>
                   </div>
@@ -1122,7 +1182,7 @@ export default function MiOnboarding({ forcePhone = false }) {
               )}
 
               {hasQuiz && isQuizDone && (() => {
-                const result = quizSubmitted[tid]
+                const result = quizSubmitted[tid] || { correct: quizQuestions.length, total: quizQuestions.length }
                 const passed = (result.correct / result.total) >= 0.7
                 return (
                   <div style={{
@@ -1133,7 +1193,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   }}>
                     <CheckCircle2 size={24} style={{ color: passed ? '#16a34a' : '#ef4444' }} />
                     <div style={{ fontSize: 14, fontWeight: 700, color: passed ? '#166534' : '#991b1b' }}>
-                      {passed ? '¡Cuestionario aprobado!' : 'Cuestionario no aprobado'}
+                      {passed ? '¡Prueba aprobada!' : 'Prueba no aprobada'}
                     </div>
                     <div style={{ fontSize: 12, color: passed ? '#166534' : '#991b1b' }}>
                       {result.correct} de {result.total} respuestas correctas ({Math.round((result.correct / result.total) * 100)}%)
@@ -1148,7 +1208,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                           fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
-                        Reintentar cuestionario
+                        Reintentar prueba
                       </button>
                     )}
                   </div>
@@ -1188,7 +1248,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isDocQuizStarted = !!quizStarted[tid]
-          const isDocQuizDone = !!quizSubmitted[tid]
+          const isDocQuizDone = readOnly || !!quizSubmitted[tid]
           const docAns = quizAnswers[tid] || {}
           const allDocAns = docQuizQs.every((_, i) => docAns[i] !== undefined)
 
@@ -1233,7 +1293,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                 }}>
                   <HelpCircle size={28} style={{ color: '#d97706' }} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</div>
                     <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 0', lineHeight: 1.5 }}>
                       Responde una breve evaluación para verificar que comprendiste el documento.
                     </p>
@@ -1248,7 +1308,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                       fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                     }}
                   >
-                    <HelpCircle size={14} /> Empezar cuestionario
+                    <HelpCircle size={14} /> Empezar prueba
                   </button>
                 </div>
               )}
@@ -1258,7 +1318,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   <div style={{ padding: '10px 16px', background: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Cuestionario de verificación</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Prueba de verificación</span>
                     </div>
                     <span style={{ fontSize: 10, color: '#b45309' }}>{Object.keys(docAns).length}/{docQuizQs.length} respondidas</span>
                   </div>
@@ -1306,7 +1366,7 @@ export default function MiOnboarding({ forcePhone = false }) {
               )}
 
               {hasDocQuiz && isDocQuizDone && (() => {
-                const result = quizSubmitted[tid]
+                const result = quizSubmitted[tid] || { correct: docQuizQs.length, total: docQuizQs.length }
                 return (
                   <div style={{
                     border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px 20px',
@@ -1314,7 +1374,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   }}>
                     <CheckCircle2 size={24} style={{ color: '#16a34a' }} />
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Cuestionario completado</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Prueba completada</div>
                     <div style={{ fontSize: 12, color: '#166534' }}>{result.correct} de {result.total} respuestas correctas ({Math.round((result.correct / result.total) * 100)}%)</div>
                   </div>
                 )
@@ -1331,7 +1391,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           ]
           const tid = selTarea.id
           const isStarted = !!quizStarted[tid]
-          const isDone = !!quizSubmitted[tid]
+          const isDone = readOnly || !!quizSubmitted[tid]
           const ans = quizAnswers[tid] || {}
           const allAns = quizQs.every((_, i) => ans[i] !== undefined)
 
@@ -1437,7 +1497,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           }
 
           if (isDone) {
-            const result = quizSubmitted[tid]
+            const result = quizSubmitted[tid] || { correct: quizQs.length, total: quizQs.length }
             const pctResult = Math.round((result.correct / result.total) * 100)
             return (
               <div style={{
@@ -1506,7 +1566,7 @@ export default function MiOnboarding({ forcePhone = false }) {
             { name: 'Terraza y áreas verdes', guia: 'Paola Arce', rol: 'RRHH' },
             { name: 'Salida de emergencia', guia: 'Carlos Méndez', rol: 'Seguridad' },
           ]
-          const doneSet = recorridoStops[selTarea.id] || {}
+          const doneSet = selTarea.done ? Object.fromEntries(stops.map((_, i) => [i, true])) : (recorridoStops[selTarea.id] || {})
           const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
           const allStopsDone = doneCount >= stops.length
           const toggleStop = (i) => {
@@ -1556,16 +1616,6 @@ export default function MiOnboarding({ forcePhone = false }) {
                   <ShieldCheck size={13} style={{ color: '#dc2626' }} /><span style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>Requiere validación del supervisor</span>
                 </div>
               </div>
-            </div>
-          )
-
-        case 'tarea-rrhh':
-          return (
-            <div style={{ border: '1px solid #cbd5e1', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', background: '#0C2D40', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ShieldCheck size={15} style={{ color: '#fff' }} /><span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Tarea de RRHH</span>
-              </div>
-              <div style={{ padding: 16, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>Esta tarea será gestionada por el equipo de Recursos Humanos.</div>
             </div>
           )
 
@@ -1632,15 +1682,22 @@ export default function MiOnboarding({ forcePhone = false }) {
           <div className="jb-topbar-actions" style={{ gap: 8 }}>
             {selTarea.done ? (
               <>
-                <button
-                  className="jb-btn-outline"
-                  onClick={() => { toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done })); setShowAlert(false) }}
-                >Desmarcar</button>
+                {!readOnly && (
+                  <button
+                    className="jb-btn-outline"
+                    onClick={() => { toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done })); setShowAlert(false) }}
+                  >Desmarcar</button>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                   <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#166534' }}>Completada</span>
                 </div>
               </>
+            ) : selTarea.tipo === 'video' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                <Info size={14} style={{ color: '#3b82f6' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#1e40af' }}>Se completa automáticamente al terminar el video{selTarea.verificarQuiz !== false ? ' y la evaluación' : ''}</span>
+              </div>
             ) : (
               <button
                 className="jb-btn-primary"
@@ -1654,9 +1711,9 @@ export default function MiOnboarding({ forcePhone = false }) {
                       return
                     }
                   }
-                  if ((selTarea.tipo === 'video' || selTarea.tipo === 'documento') && selTarea.verificarQuiz !== false) {
+                  if (selTarea.tipo === 'documento' && selTarea.verificarQuiz !== false) {
                     if (!quizSubmitted[selTarea.id]) {
-                      setShowAlert('Debes completar el cuestionario de verificación antes de marcar como completada')
+                      setShowAlert('Debes completar la prueba de verificación antes de marcar como completada')
                       setTimeout(() => setShowAlert(false), 3000)
                       return
                     }
@@ -1798,7 +1855,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   <div style={{ height: 4, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%', width: `${pct}%`,
-                      background: '#10DC97', borderRadius: 99,
+                      background: '#00E091', borderRadius: 99,
                       transition: 'width .4s ease',
                     }} />
                   </div>
@@ -1848,7 +1905,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                 <p className="jb-sb-hint">Haz clic en un nodo para ver el detalle</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10DC97' }} />
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00E091' }} />
                     <span style={{ fontSize: 11, color: '#475569' }}>Completada</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2051,7 +2108,7 @@ export default function MiOnboarding({ forcePhone = false }) {
               Has completado todas las tareas de tu ruta de onboarding. ¡Excelente trabajo!
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
-              <div style={{ background: '#10DC97', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ background: '#00E091', borderRadius: 10, padding: '8px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{totalAll}/{totalAll}</span>
                 <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>tareas</span>
               </div>
@@ -2077,598 +2134,6 @@ export default function MiOnboarding({ forcePhone = false }) {
         </div>
       )}
 
-      {false && (() => {
-        const Icon = iconMap[selTarea.tipo] || FileText
-        const color = colorMap[selTarea.tipo] || '#94a3b8'
-
-        const renderContent = () => {
-          switch (selTarea.tipo) {
-            case 'video':
-              return selTarea.videoUrl ? (
-                <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
-                  <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
-                    <iframe
-                      src={`${selTarea.videoUrl}?rel=0&modestbranding=1`}
-                      title={selTarea.name}
-                      frameBorder="0"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      style={{
-                        position: 'absolute', top: 0, left: 0,
-                        width: '100%', height: '100%', border: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : null
-
-            case 'audio':
-              return (
-                <div style={{
-                  padding: 20, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)',
-                  display: 'flex', flexDirection: 'column', gap: 14,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{
-                      width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.15)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}>
-                      <Play size={22} style={{ color: '#fff', marginLeft: 2 }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{selTarea.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Audio · 5:20 min</div>
-                    </div>
-                    <Headphones size={20} style={{ color: 'rgba(255,255,255,0.4)' }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>0:00</span>
-                    <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 99 }}>
-                      <div style={{ width: '0%', height: '100%', background: '#fff', borderRadius: 99 }} />
-                    </div>
-                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>5:20</span>
-                  </div>
-                </div>
-              )
-
-            case 'documento':
-            case 'lectura':
-              return (
-                <div style={{
-                  border: '1px solid #fed7aa', borderRadius: 12,
-                  overflow: 'hidden', background: '#fffbf5',
-                }}>
-                  <div style={{
-                    padding: '14px 16px', background: '#fff7ed',
-                    borderBottom: '1px solid #fed7aa',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <FileText size={16} style={{ color: '#ea580c' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#9a3412' }}>{selTarea.name}.pdf</span>
-                    </div>
-                    <button style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      fontSize: 10, fontWeight: 700, color: '#ea580c',
-                      background: '#fff', border: '1px solid #fed7aa',
-                      borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
-                    }}>
-                      <Download size={12} /> Descargar
-                    </button>
-                  </div>
-                  <div style={{ padding: 20 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 10 }}>
-                      {selTarea.name}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '100%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '90%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '95%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '70%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 14, width: '85%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '100%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, marginBottom: 6, width: '80%' }} />
-                      <div style={{ height: 10, background: '#f1f5f9', borderRadius: 4, width: '60%' }} />
-                    </div>
-                    <div style={{
-                      marginTop: 14, fontSize: 10, color: '#94a3b8', textAlign: 'center',
-                    }}>Página 1 de 4</div>
-                  </div>
-                </div>
-              )
-
-            case 'quiz':
-              return (
-                <div style={{
-                  border: '1px solid #fde68a', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', background: '#fffbeb',
-                    borderBottom: '1px solid #fde68a',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>Cuestionario</span>
-                    </div>
-                    <span style={{ fontSize: 10, color: '#b45309' }}>3 preguntas</span>
-                  </div>
-                  <div style={{ padding: 16 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', margin: '0 0 12px' }}>
-                      1. ¿Cuál es la misión principal de la empresa?
-                    </p>
-                    {['Ser líderes en innovación tecnológica', 'Maximizar las ganancias', 'Transformar la gestión de personas', 'Ninguna de las anteriores'].map((opt, i) => (
-                      <label key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '8px 12px', borderRadius: 8, marginBottom: 6,
-                        border: '1px solid #f1f5f9', cursor: 'pointer',
-                        fontSize: 12, color: '#475569',
-                        background: '#fff',
-                      }}>
-                        <CircleDot size={14} style={{ color: '#cbd5e1' }} />
-                        {opt}
-                      </label>
-                    ))}
-                    <div style={{
-                      marginTop: 12, padding: '8px 12px', borderRadius: 8,
-                      background: '#f8fafc', fontSize: 10, color: '#94a3b8',
-                      textAlign: 'center',
-                    }}>
-                      Pregunta 1 de 3 — Necesitas 70% para aprobar
-                    </div>
-                  </div>
-                </div>
-              )
-
-            case 'subida':
-              return (
-                <div style={{
-                  border: '2px dashed #f9a8d4', borderRadius: 12,
-                  padding: 28, textAlign: 'center',
-                  background: '#fdf2f8',
-                }}>
-                  <Upload size={32} style={{ color: '#ec4899', marginBottom: 10 }} />
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#9d174d', margin: '0 0 4px' }}>
-                    Arrastra tus archivos aquí
-                  </p>
-                  <p style={{ fontSize: 11, color: '#be185d', margin: '0 0 14px' }}>
-                    o haz clic para seleccionar
-                  </p>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {['PDF', 'JPG', 'PNG'].map(f => (
-                      <span key={f} style={{
-                        fontSize: 9, fontWeight: 700, padding: '2px 8px',
-                        borderRadius: 4, background: '#fce7f3', color: '#be185d',
-                      }}>{f}</span>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: 10, color: '#d946ef', marginTop: 10, margin: '10px 0 0' }}>
-                    Tamaño máximo: 10 MB
-                  </p>
-                </div>
-              )
-
-            case 'completar-perfil':
-              return (
-                <div style={{
-                  border: '1px solid #a7f3d0', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', background: '#ecfdf5',
-                    borderBottom: '1px solid #a7f3d0',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <ClipboardList size={15} style={{ color: '#059669' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#065f46' }}>Completa tu perfil</span>
-                  </div>
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: '50%', background: '#f1f5f9',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: '2px dashed #cbd5e1', cursor: 'pointer',
-                      }}>
-                        <Camera size={18} style={{ color: '#94a3b8' }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Foto de perfil</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>Sube una foto tuya</div>
-                      </div>
-                    </div>
-                    {['Teléfono personal', 'Contacto de emergencia', 'Dirección'].map((field, i) => (
-                      <div key={i}>
-                        <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, display: 'block' }}>{field}</label>
-                        <div style={{
-                          height: 34, borderRadius: 8, border: '1px solid #e2e8f0',
-                          background: '#f8fafc', padding: '0 10px',
-                          display: 'flex', alignItems: 'center',
-                          fontSize: 11, color: '#94a3b8',
-                        }}>
-                          Ingresa {field.toLowerCase()}...
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-
-            case 'reunion':
-              return (
-                <div style={{
-                  border: '1px solid #bfdbfe', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '14px 16px',
-                    background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Calendar size={16} style={{ color: '#fff' }} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Reunión programada</span>
-                    </div>
-                    <span style={{ fontSize: 10, color: '#bfdbfe' }}>30 min</span>
-                  </div>
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%', background: '#dbeafe',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <UserCheck size={16} style={{ color: '#2563eb' }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>Con: Tu líder directo</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>Se coordinará la fecha</div>
-                      </div>
-                    </div>
-                    <div style={{
-                      padding: '10px 14px', borderRadius: 8, background: '#eff6ff',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}>
-                      <Link2 size={13} style={{ color: '#2563eb' }} />
-                      <span style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 600 }}>El link se enviará a tu correo</span>
-                    </div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <MessageSquare size={11} />
-                      Tu líder marcará esta tarea cuando se complete la reunión
-                    </div>
-                  </div>
-                </div>
-              )
-
-            case 'recorrido': {
-              const recorridoTipo = 'libre'
-              const stops = [
-                { name: 'Recepción y entrada principal', guia: 'Carlos Méndez', rol: 'Seguridad' },
-                { name: 'Tu área de trabajo', guia: 'Nicolás Zapata', rol: 'Líder de área' },
-                { name: 'Sala de reuniones', guia: 'Nicolás Zapata', rol: 'Líder de área' },
-                { name: 'Comedor y áreas comunes', guia: 'Paola Arce', rol: 'RRHH' },
-                { name: 'Área de impresoras', guia: 'Paola Arce', rol: 'RRHH' },
-                { name: 'Estacionamiento', guia: 'Carlos Méndez', rol: 'Seguridad' },
-                { name: 'Sala de capacitación', guia: 'Alejandro Ríos', rol: 'TI' },
-                { name: 'Enfermería', guia: 'Paola Arce', rol: 'RRHH' },
-                { name: 'Terraza y áreas verdes', guia: 'Paola Arce', rol: 'RRHH' },
-                { name: 'Salida de emergencia', guia: 'Carlos Méndez', rol: 'Seguridad' },
-              ]
-              const doneSet = recorridoStops[selTarea.id] || {}
-              const doneCount = typeof doneSet === 'object' ? Object.keys(doneSet).filter(k => doneSet[k]).length : 0
-              const allStopsDone = doneCount >= stops.length
-
-              function toggleStop(i) {
-                setRecorridoStops(prev => {
-                  const current = typeof prev[selTarea.id] === 'object' ? prev[selTarea.id] : {}
-                  return { ...prev, [selTarea.id]: { ...current, [i]: !current[i] } }
-                })
-              }
-
-              return (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 5,
-                      background: recorridoTipo === 'libre' ? '#eff6ff' : '#faf5ff',
-                      color: recorridoTipo === 'libre' ? '#2563eb' : '#7c3aed',
-                    }}>
-                      {recorridoTipo === 'libre' ? 'Recorrido libre' : 'Recorrido guiado'}
-                    </span>
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>{doneCount}/{stops.length}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 200, overflowY: 'auto' }}>
-                    {stops.map((stop, i) => {
-                      const isDone = !!doneSet[i]
-                      return (
-                        <div
-                          key={i}
-                          onClick={() => toggleStop(i)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '6px 10px', borderRadius: 8,
-                            background: isDone ? '#faf5ff' : '#f8fafc',
-                            border: '1px solid #f1f5f9',
-                            cursor: 'pointer', transition: 'all .15s',
-                          }}
-                        >
-                          <div style={{
-                            width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                            background: isDone ? '#7c3aed' : '#fff',
-                            border: isDone ? 'none' : '1.5px solid #d1d5db',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {isDone && <CheckCircle2 size={10} style={{ color: '#fff' }} />}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 11, fontWeight: isDone ? 600 : 400, color: isDone ? '#7c3aed' : '#334155' }}>{stop.name}</div>
-                            <div style={{ fontSize: 9, color: '#94a3b8' }}>{stop.guia} · {stop.rol}</div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div style={{ fontSize: 10, color: allStopsDone ? '#16a34a' : '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {allStopsDone ? <><CheckCircle2 size={11} /> Recorrido completado</> : <><MapPin size={11} /> Marca cada lugar cuando lo visites</>}
-                  </div>
-                </>
-              )
-            }
-
-            case 'tarea-otro':
-              return (
-                <div style={{
-                  border: '1px solid #fecaca', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', background: '#fef2f2',
-                    borderBottom: '1px solid #fecaca',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <UserCheck size={15} style={{ color: '#dc2626' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Tarea supervisada</span>
-                  </div>
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-                      Esta tarea será supervisada por tu líder o un compañero designado.
-                      Recibirás instrucciones específicas cuando llegue el momento.
-                    </p>
-                    <div style={{
-                      padding: '10px 14px', borderRadius: 8, background: '#fef2f2',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}>
-                      <ShieldCheck size={13} style={{ color: '#dc2626' }} />
-                      <span style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>Requiere validación del supervisor</span>
-                    </div>
-                  </div>
-                </div>
-              )
-
-            case 'tarea-rrhh':
-              return (
-                <div style={{
-                  border: '1px solid #cbd5e1', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', background: '#0C2D40',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <ShieldCheck size={15} style={{ color: '#fff' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Tarea de RRHH</span>
-                  </div>
-                  <div style={{ padding: 16, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-                    Esta tarea será gestionada por el equipo de Recursos Humanos.
-                    Se marcará automáticamente cuando se complete el proceso.
-                  </div>
-                </div>
-              )
-
-            case 'enlace':
-              return (
-                <div style={{
-                  border: '1px solid #c7d2fe', borderRadius: 12,
-                  padding: 20, textAlign: 'center', background: '#eef2ff',
-                }}>
-                  <ExternalLink size={28} style={{ color: '#6366f1', marginBottom: 8 }} />
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#3730a3', margin: '0 0 4px' }}>
-                    Recurso externo
-                  </p>
-                  <p style={{ fontSize: 11, color: '#6366f1', margin: '0 0 14px' }}>
-                    Se abrirá en una nueva pestaña
-                  </p>
-                  <button style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '8px 16px', borderRadius: 8,
-                    background: '#6366f1', color: '#fff', border: 'none',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                    <ExternalLink size={13} /> Abrir enlace
-                  </button>
-                </div>
-              )
-
-            case 'form-custom':
-              return (
-                <div style={{
-                  border: '1px solid #a7f3d0', borderRadius: 12,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '12px 16px', background: '#ecfdf5',
-                    borderBottom: '1px solid #a7f3d0',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                  }}>
-                    <ClipboardList size={15} style={{ color: '#059669' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#065f46' }}>Formulario práctico</span>
-                  </div>
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, margin: 0 }}>
-                      Completa el ejercicio práctico siguiendo las instrucciones.
-                    </p>
-                    {['Campo 1', 'Campo 2'].map((field, i) => (
-                      <div key={i}>
-                        <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, display: 'block' }}>{field}</label>
-                        <div style={{
-                          height: 34, borderRadius: 8, border: '1px solid #e2e8f0',
-                          background: '#f8fafc',
-                        }} />
-                      </div>
-                    ))}
-                    <button style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      padding: '8px 16px', borderRadius: 8,
-                      background: '#059669', color: '#fff', border: 'none',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    }}>
-                      <Send size={13} /> Enviar respuesta
-                    </button>
-                  </div>
-                </div>
-              )
-
-            case 'confirmacion':
-              return (
-                <div style={{
-                  borderRadius: 12, padding: 28, textAlign: 'center',
-                  background: 'linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%)',
-                  border: '1px solid #fde68a',
-                }}>
-                  <Award size={40} style={{ color: '#d97706', marginBottom: 10 }} />
-                  <p style={{ fontSize: 15, fontWeight: 800, color: '#92400e', margin: '0 0 6px' }}>
-                    Certificado de graduación
-                  </p>
-                  <p style={{ fontSize: 12, color: '#b45309', margin: '0 0 14px', lineHeight: 1.5 }}>
-                    Al completar todas las tareas obligatorias recibirás tu certificado de onboarding.
-                  </p>
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px', borderRadius: 8,
-                    background: 'rgba(217,119,6,0.1)', fontSize: 11, fontWeight: 700, color: '#d97706',
-                  }}>
-                    <Trophy size={13} /> +{selTarea.puntos} Pts al completar
-                  </div>
-                </div>
-              )
-
-            default:
-              return null
-          }
-        }
-
-        return (
-          <div className="jb">
-            {/* TOPBAR */}
-            <div className="jb-topbar">
-              <div className="jb-breadcrumb">
-                <button className="jb-back" onClick={() => { setSelTarea(null); setSelContext(null) }}>
-                  <ArrowLeft size={16} />
-                </button>
-                {selContext && (
-                  <>
-                    <span className="jb-bc-text">{selContext.etapa}</span>
-                    <ChevronRight size={14} className="jb-bc-sep" />
-                    <span className="jb-bc-text">{selContext.actividad}</span>
-                    <ChevronRight size={14} className="jb-bc-sep" />
-                  </>
-                )}
-                <span className="jb-bc-current">{selTarea.name}</span>
-              </div>
-              <div className="jb-topbar-actions" style={{ gap: 8 }}>
-                <button
-                  className="jb-btn-outline"
-                  style={selTarea.done ? {} : { opacity: 0.5 }}
-                  onClick={() => { toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done })) }}
-                >
-                  {selTarea.done ? 'Desmarcar' : ''}
-                </button>
-                {!selTarea.done && (
-                  <button
-                    className="jb-btn-primary"
-                    onClick={() => { toggleDone(selTarea.id); setSelTarea(prev => ({ ...prev, done: !prev.done })) }}
-                  >
-                    <CheckCircle2 size={14} />
-                    Marcar como completada
-                  </button>
-                )}
-                {selTarea.done && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '6px 14px', borderRadius: 8,
-                    background: '#f0fdf4', border: '1px solid #bbf7d0',
-                  }}>
-                    <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#166534' }}>Completada</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="jb-panels">
-              <div className="jb-canvas">
-                <div className="jb-canvas-body" style={{ padding: '24px 0' }}>
-                  <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 24px' }}>
-
-                    {/* HEADER DE TAREA */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                      <div style={{
-                        width: 48, height: 48, borderRadius: 12,
-                        background: `${color}12`, color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                      }}>
-                        <Icon size={22} />
-                      </div>
-                      <div>
-                        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0C2D40' }}>{selTarea.name}</h1>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                          {selTarea.obligatoria && (
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                              background: '#fef3c7', color: '#92400e', textTransform: 'uppercase',
-                            }}>Obligatoria</span>
-                          )}
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                            background: `${color}12`, color,
-                          }}>{selTarea.tipo.replace('-', ' ')}</span>
-                          {selTarea.puntos > 0 && (
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                              background: '#fef3c7', color: '#d97706',
-                            }}>+{selTarea.puntos} Pts</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* DESCRIPCIÓN */}
-                    {selTarea.desc && (
-                      <div style={{
-                        padding: '16px 20px', borderRadius: 12,
-                        background: '#f8fafc', border: '1px solid #f1f5f9',
-                        marginBottom: 20,
-                      }}>
-                        <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.7, margin: 0 }}>
-                          {selTarea.desc}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* CONTENIDO SEGÚN TIPO */}
-                    {renderContent()}
-
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* CHATBOT ASISTENTE IA */}
       {asistenteIA && (
         <>
@@ -2685,7 +2150,7 @@ export default function MiOnboarding({ forcePhone = false }) {
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              <Bot size={isMobile ? 22 : 26} style={{ color: '#10DC97' }} />
+              <Bot size={isMobile ? 22 : 26} style={{ color: '#00E091' }} />
             </button>
           )}
 
@@ -2705,10 +2170,10 @@ export default function MiOnboarding({ forcePhone = false }) {
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <div style={{
-                  width: 32, height: 32, borderRadius: '50%', background: 'rgba(16,220,151,0.15)',
+                  width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,224,145,0.15)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
-                  <Bot size={17} style={{ color: '#10DC97' }} />
+                  <Bot size={17} style={{ color: '#00E091' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Asistente de onboarding</div>
@@ -2802,7 +2267,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'all .15s',
                 }}>
-                  <Send size={14} style={{ color: chatInput.trim() ? '#10DC97' : '#cbd5e1' }} />
+                  <Send size={14} style={{ color: chatInput.trim() ? '#00E091' : '#cbd5e1' }} />
                 </button>
               </div>
             </div>

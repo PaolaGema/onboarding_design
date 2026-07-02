@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, MoreHorizontal, Building2, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
-import { useTronco } from '../../context/TroncoContext'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
+import { getGlobalEtapas } from '../../utils/globalEtapas'
 
 const departamentos = ['Todos', 'Ventas', 'Tecnología', 'Marketing', 'Operaciones', 'Recursos Humanos', 'Finanzas', 'Diseño']
 
@@ -35,29 +36,29 @@ const colaboradoresData = [
 
 const permisosPorRol = {
   'Colaborador': [
-    { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
+    { modulo: 'Mi espacio', permisos: ['Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
   ],
   'Líder de área': [
-    { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
+    { modulo: 'Mi espacio', permisos: ['Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
     { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones de su área', 'Validar tareas de su equipo'] },
     { modulo: 'Gestión de personas', permisos: ['Ver colaboradores de su área'] },
   ],
   'Supervisor': [
-    { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
+    { modulo: 'Mi espacio', permisos: ['Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
     { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Validar tareas'] },
     { modulo: 'Gestión de personas', permisos: ['Ver colaboradores de su área', 'Editar colaboradores de su área'] },
   ],
   'Sub-admin RRHH': [
-    { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
+    { modulo: 'Mi espacio', permisos: ['Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
     { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Asignar rutas', 'Crear rutas', 'Gestionar biblioteca de recursos'] },
     { modulo: 'Gestión de personas', permisos: ['Ver todos los colaboradores', 'Crear colaboradores', 'Editar colaboradores'] },
   ],
   'Gerente': [
-    { modulo: 'Mi espacio', permisos: ['Ver bienvenida', 'Ver mi onboarding', 'Completar tareas'] },
+    { modulo: 'Mi espacio', permisos: ['Ver mi onboarding', 'Completar tareas'] },
     { modulo: 'Perfil', permisos: ['Ver perfil propio', 'Editar datos personales'] },
     { modulo: 'Onboarding', permisos: ['Ver panel', 'Ver asignaciones', 'Asignar rutas'] },
     { modulo: 'Gestión de personas', permisos: ['Ver todos los colaboradores'] },
@@ -189,7 +190,7 @@ function MiniCalendar({ value, onChange }) {
               {isToday(day) && !isSelected(day) && (
                 <div style={{
                   position: 'absolute', bottom: 3, left: '50%', transform: 'translateX(-50%)',
-                  width: 4, height: 4, borderRadius: '50%', background: '#10DC97',
+                  width: 4, height: 4, borderRadius: '50%', background: '#00E091',
                 }} />
               )}
             </button>
@@ -213,7 +214,7 @@ function MiniCalendar({ value, onChange }) {
 
 export default function Colaboradores() {
   const { activarRuta } = useRutaActiva()
-  const { tronco } = useTronco()
+  const { plantillas } = useOnboardingData()
   const [search, setSearch] = useState('')
   const [filterDepto, setFilterDepto] = useState('Todos')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -262,28 +263,28 @@ export default function Colaboradores() {
           <p className="pl-subtitle">Directorio de colaboradores de la organización</p>
         </div>
         <button className="pl-btn-new">
-          <Plus size={15} />
+          <Plus size={15} color="#00E091" />
           Nuevo colaborador
         </button>
       </div>
 
       <div className="kpi-strip">
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--blue)' }}>
           <div className="kpi-title" style={{ color: 'var(--blue)' }}>Total</div>
           <div className="kpi-val">{colaboradoresData.length}</div>
           <div className="kpi-lbl">Colaboradores registrados</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
           <div className="kpi-title" style={{ color: 'var(--green)' }}>Activos</div>
           <div className="kpi-val">{totalActivos}</div>
           <div className="kpi-lbl">En la organización</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: 'var(--yellow)' }}>Ausentes</div>
           <div className="kpi-val">{totalInactivos}</div>
           <div className="kpi-lbl">Vacaciones, licencia u otro</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--purple)' }}>
           <div className="kpi-title" style={{ color: 'var(--purple)' }}>Departamentos</div>
           <div className="kpi-val">{departamentos.length - 1}</div>
           <div className="kpi-lbl">Áreas activas</div>
@@ -367,7 +368,7 @@ export default function Colaboradores() {
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: f.color, flexShrink: 0 }} />
                   )}
                   <span style={{ flex: 1 }}>{f.label}</span>
-                  {filterStatus === f.key && <CheckCircle2 size={13} style={{ color: '#10b981' }} />}
+                  {filterStatus === f.key && <CheckCircle2 size={13} style={{ color: '#00E091' }} />}
                 </button>
               ))}
             </div>
@@ -428,7 +429,7 @@ export default function Colaboradores() {
                         { label: 'Sin ruta', color: '#94a3b8', bg: 'rgba(148,163,184,.15)', desc: 'Nuevo ingreso sin ruta asignada' },
                         { label: 'En curso', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', desc: 'Realizando su onboarding' },
                         { label: 'En riesgo', color: '#dc2626', bg: 'rgba(220,38,38,.15)', desc: '+3 días sin actividad' },
-                        { label: 'Graduado', color: '#10DC97', bg: 'rgba(16,220,151,.15)', desc: 'Completó todas las etapas' },
+                        { label: 'Graduado', color: '#00E091', bg: 'rgba(0,224,145,.15)', desc: 'Completó todas las etapas' },
                       ].map(s => (
                         <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{
@@ -713,7 +714,7 @@ export default function Colaboradores() {
                               onMouseLeave={e => { if (onbArea !== a) e.currentTarget.style.background = 'transparent' }}
                             >
                               {a}
-                              {onbArea === a && <CheckCircle2 size={13} style={{ color: '#10b981' }} />}
+                              {onbArea === a && <CheckCircle2 size={13} style={{ color: '#00E091' }} />}
                             </button>
                           ))}
                         </div>
@@ -787,10 +788,8 @@ export default function Colaboradores() {
                     if (ruta) {
                       const src = rutasData[1]
                       const etapas = JSON.parse(JSON.stringify(src.etapas))
-                      if (tronco.configured) {
-                        const troncoEtapas = tronco.etapas.map(e => ({ ...JSON.parse(JSON.stringify(e)), locked: true }))
-                        etapas.unshift(...troncoEtapas)
-                      }
+                      const globalEtapas = getGlobalEtapas(plantillas, null)
+                      etapas.unshift(...globalEtapas)
                       activarRuta(etapas, { nombre: ruta.name, area: ruta.area })
                     }
                     setOnbModal(null)
@@ -942,7 +941,7 @@ export default function Colaboradores() {
                         <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                           {m.permisos.map(p => (
                             <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <CheckCircle2 size={12} style={{ color: '#10b981', flexShrink: 0 }} />
+                              <CheckCircle2 size={12} style={{ color: '#00E091', flexShrink: 0 }} />
                               <span style={{ fontSize: 12, color: '#475569' }}>{p}</span>
                             </div>
                           ))}

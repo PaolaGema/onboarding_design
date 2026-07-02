@@ -4,9 +4,14 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, UserPlus, X, AlertTriangle, Eye, Users, Route,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check,
+  Send, MessageCircle, Bell, Circle
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
+import { rutasData } from './JourneyBuilder'
+import PageHero from '../../components/layout/PageHero'
+import EmptyState from '../../components/layout/EmptyState'
+import imagenSeguimiento from '../../assets/imagenes/imagen_seguimiento.png'
 
 const statusLabels = {
   'en-curso': 'En curso',
@@ -62,6 +67,12 @@ export default function Asignaciones() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [menuOpen, setMenuOpen] = useState(null)
   const [showEstadoHelp, setShowEstadoHelp] = useState(false)
+  const [recordatorio, setRecordatorio] = useState(null)
+  const [recCanal, setRecCanal] = useState('whatsapp')
+  const [recMensaje, setRecMensaje] = useState('')
+  const [recEnviado, setRecEnviado] = useState(false)
+  const [menuPos, setMenuPos] = useState(null)
+  const [detalle, setDetalle] = useState(null)
 
   const hasAsigFilters = filterStatus !== 'todos' || filterArea !== 'todas' || filterRuta !== 'todas'
   const rutasDeArea = [...new Set(asignaciones.filter(a => filterArea === 'todas' || a.area === filterArea).map(a => a.ruta))]
@@ -106,6 +117,44 @@ export default function Asignaciones() {
     setModal(false)
   }
 
+  function defaultMensaje(a) {
+    return `Hola ${a.nombre.split(' ')[0]}, notamos que tu onboarding "${a.ruta}" está ${statusLabels[a.status].toLowerCase()} (día ${a.dia}/${a.totalDias}). ¿Necesitas ayuda para ponerte al día? Cualquier duda, escríbenos.`
+  }
+
+  function openRecordatorio(a) {
+    setRecordatorio(a)
+    setRecCanal('whatsapp')
+    setRecMensaje(defaultMensaje(a))
+    setRecEnviado(false)
+    setMenuOpen(null)
+  }
+
+  function enviarRecordatorio() {
+    addFeedEntry(`Recordatorio enviado a ${recordatorio.nombre} por ${recCanal === 'whatsapp' ? 'WhatsApp' : 'la plataforma'}`)
+    setRecEnviado(true)
+    setTimeout(() => setRecordatorio(null), 1200)
+  }
+
+  function buildDetalleEtapas(a) {
+    const fuente = rutasData[1].etapas
+    const flat = fuente.flatMap(e => e.actividades.flatMap(act => act.tareas))
+    const doneCount = Math.round(flat.length * a.pct / 100)
+    let seen = 0
+    return fuente.map(etapa => {
+      const tareas = etapa.actividades.flatMap(act => act.tareas).map(t => {
+        const done = seen < doneCount
+        seen += 1
+        return { ...t, done }
+      })
+      return {
+        name: etapa.name,
+        days: etapa.days,
+        tareas,
+        doneLocal: tareas.filter(t => t.done).length,
+      }
+    })
+  }
+
   function handlePausar(id) {
     setAsignaciones(asignaciones.map(a =>
       a.id === id ? { ...a, status: a.status === 'pausado' ? 'en-curso' : 'pausado' } : a
@@ -126,38 +175,34 @@ export default function Asignaciones() {
   return (
     <div className="content-scroll" onClick={() => setMenuOpen(null)}>
 
-      {/* HEADER */}
-      <div className="pl-header">
-        <div>
-          <h1 className="pl-title">{isAreaRole ? `Asignaciones — ${managerArea}` : 'Asignaciones'}</h1>
-          <p className="pl-subtitle">{isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}</p>
-        </div>
-        {!isAreaRole && (
-          <button className="pl-btn-new" onClick={() => setModal(true)}>
-            <UserPlus size={15} />
-            Asignar ruta
-          </button>
-        )}
-      </div>
+      {/* HERO */}
+      <PageHero
+        image={imagenSeguimiento}
+        title={isAreaRole ? `Seguimiento — ${managerArea}` : 'Seguimiento'}
+        description={isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}
+        actionLabel={!isAreaRole ? 'Asignar ruta' : undefined}
+        actionIcon={UserPlus}
+        onAction={() => setModal(true)}
+      />
 
       {/* KPI STRIP */}
       <div className="kpi-strip">
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--blue)' }}>
           <div className="kpi-title" style={{ color: 'var(--blue)' }}>En curso</div>
           <div className="kpi-val">{totalActivas}</div>
           <div className="kpi-lbl">Onboardings activos</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
           <div className="kpi-title" style={{ color: 'var(--green)' }}>Completados</div>
           <div className="kpi-val">{totalCompletadas}</div>
           <div className="kpi-lbl">Finalizados con éxito</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: 'var(--yellow)' }}>Pendientes</div>
           <div className="kpi-val">{totalPendientes}</div>
           <div className="kpi-lbl">Sin iniciar aún</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--red)' }}>
           <div className="kpi-title" style={{ color: 'var(--red)' }}>Atrasados</div>
           <div className="kpi-val">{totalAtrasados}</div>
           <div className="kpi-lbl">Requieren atención</div>
@@ -343,7 +388,7 @@ export default function Asignaciones() {
                         { label: 'Atrasado', color: '#ef4444', bg: 'rgba(239,68,68,.15)', desc: 'Tiene tareas vencidas' },
                         { label: 'En riesgo', color: '#dc2626', bg: 'rgba(220,38,38,.15)', desc: '+3 días sin actividad' },
                         { label: 'Pausado', color: '#94a3b8', bg: 'rgba(148,163,184,.15)', desc: 'Suspendido temporalmente' },
-                        { label: 'Completado', color: '#10DC97', bg: 'rgba(16,220,151,.15)', desc: 'Finalizó todas las tareas' },
+                        { label: 'Completado', color: '#00E091', bg: 'rgba(0,224,145,.15)', desc: 'Finalizó todas las tareas' },
                       ].map(s => (
                         <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{
@@ -398,18 +443,30 @@ export default function Asignaciones() {
                 <td><span className="as-fecha">{a.fechaInicio}</span></td>
                 <td>
                   <div className="as-actions-cell">
-                    <button className="as-btn-eye" title="Ver detalle">
+                    <button className="as-btn-eye" title="Ver detalle" onClick={() => setDetalle(a)}>
                       <Eye size={14} />
                     </button>
                     <div className="as-menu-wrap">
                       <button
                         className="as-btn-more"
-                        onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === a.id ? null : a.id) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (menuOpen === a.id) { setMenuOpen(null); return }
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                          setMenuOpen(a.id)
+                        }}
                       >
                         <MoreHorizontal size={14} />
                       </button>
-                      {menuOpen === a.id && (
-                        <div className="as-menu" onClick={e => e.stopPropagation()}>
+                      {menuOpen === a.id && menuPos && (
+                        <div className="as-menu" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }} onClick={e => e.stopPropagation()}>
+                          {(a.status === 'atrasado' || a.status === 'en-riesgo') && (
+                            <button className="as-menu-item" onClick={() => openRecordatorio(a)}>
+                              <Send size={13} />
+                              Enviar recordatorio
+                            </button>
+                          )}
                           <button className="as-menu-item" onClick={() => handlePausar(a.id)}>
                             {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
                             {a.status === 'pausado' ? 'Reanudar' : 'Pausar'}
@@ -430,42 +487,20 @@ export default function Asignaciones() {
 
         {paginated.length === 0 && (
           <div style={{ padding: '12px 16px 16px' }}>
-            <div style={{
-              borderRadius: 12, border: '1.5px dashed #e2e8f0',
-              background: '#fafbfc', padding: '20px',
-              display: 'flex', alignItems: 'center', gap: 20,
-            }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-                background: '#f1f5f9',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Users size={22} style={{ color: '#94a3b8' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
-                  {asignaciones.length === 0 ? 'No hay asignaciones aún' : 'No se encontraron asignaciones'}
-                </div>
-                <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
-                  {asignaciones.length === 0
-                    ? (plantillasDisponibles.length === 0
-                        ? 'Primero crea una ruta activa en Rutas y luego asígnala a un colaborador.'
-                        : 'Asigna una ruta de onboarding a cada nuevo colaborador para que comience su proceso.')
-                    : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
-                </p>
-                {asignaciones.length === 0 && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {['👤 Por colaborador', '🗺️ Ruta asignada', '📊 Seguimiento de avance'].map(tag => (
-                      <span key={tag} style={{
-                        fontSize: 10, fontWeight: 600, color: '#475569',
-                        background: '#f1f5f9', border: '1px solid #e2e8f0',
-                        padding: '3px 10px', borderRadius: 20,
-                      }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <EmptyState
+              icon={Users}
+              title={asignaciones.length === 0 ? 'No hay asignaciones aún' : 'No se encontraron asignaciones'}
+              description={
+                asignaciones.length === 0
+                  ? (plantillasDisponibles.length === 0
+                      ? 'Primero crea una ruta activa en Rutas y luego asígnala a un colaborador.'
+                      : 'Asigna una ruta de onboarding a cada nuevo colaborador para que comience su proceso.')
+                  : 'Intenta con otro término de búsqueda o ajusta los filtros.'
+              }
+              actionLabel={asignaciones.length === 0 && plantillasDisponibles.length > 0 ? 'Asignar ruta' : undefined}
+              actionIcon={UserPlus}
+              onAction={() => setModal(true)}
+            />
           </div>
         )}
 
@@ -554,6 +589,168 @@ export default function Asignaciones() {
           </div>
         </div>
       )}
+
+      {/* MODAL ENVIAR RECORDATORIO */}
+      {recordatorio && (
+        <div className="pl-overlay" onClick={() => setRecordatorio(null)}>
+          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Send size={16} style={{ color: '#fff' }} />
+                </div>
+                <h2>Enviar recordatorio</h2>
+              </div>
+              <button className="pl-modal-close" onClick={() => setRecordatorio(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="pl-modal-body">
+              {recEnviado ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '20px 0' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle2 size={24} style={{ color: 'var(--green)' }} />
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Recordatorio enviado</div>
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>
+                    Para <strong style={{ color: '#0C2D40' }}>{recordatorio.nombre}</strong> — {recordatorio.ruta}
+                  </p>
+                  <div className="pl-label">
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Canal</span>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      {[
+                        { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
+                        { key: 'plataforma', label: 'Notificación en plataforma', icon: Bell, color: '#3b82f6' },
+                      ].map(c => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() => setRecCanal(c.key)}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            padding: '10px 12px', borderRadius: 10,
+                            border: `1.5px solid ${recCanal === c.key ? c.color : '#e2e8f0'}`,
+                            background: recCanal === c.key ? `${c.color}0f` : '#fff',
+                            cursor: 'pointer', fontFamily: 'inherit', transition: 'all .12s',
+                          }}
+                        >
+                          <c.icon size={16} style={{ color: recCanal === c.key ? c.color : '#94a3b8' }} />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: recCanal === c.key ? c.color : '#64748b' }}>{c.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="pl-label" style={{ marginTop: 14 }}>
+                    Mensaje
+                    <textarea
+                      className="pl-input"
+                      rows={4}
+                      value={recMensaje}
+                      onChange={e => setRecMensaje(e.target.value)}
+                      style={{ resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+            {!recEnviado && (
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setRecordatorio(null)}>Cancelar</button>
+                <button
+                  className="pl-btn-save"
+                  disabled={!recMensaje.trim()}
+                  onClick={enviarRecordatorio}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Send size={13} />
+                  Enviar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL VER DETALLE */}
+      {detalle && (() => {
+        const etapasDetalle = buildDetalleEtapas(detalle)
+        return (
+          <div className="pl-overlay" onClick={() => setDetalle(null)}>
+            <div className="pl-modal" style={{ maxWidth: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: detalle.color || '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, color: '#fff',
+                  }}>
+                    {detalle.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0 }}>{detalle.nombre}</h2>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>{detalle.ruta} — {detalle.area}</div>
+                  </div>
+                </div>
+                <button className="pl-modal-close" onClick={() => setDetalle(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="pl-modal-body" style={{ overflowY: 'auto', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <span className={`as-status ${statusCls[detalle.status]}`}>{statusLabels[detalle.status]}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Día {detalle.dia} / {detalle.totalDias}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>· Inicio {detalle.fechaInicio}</span>
+                </div>
+                <div className="pr-progress" style={{ marginBottom: 20 }}>
+                  <div className="pr-pct">{detalle.pct}%</div>
+                  <div className="pr-bar">
+                    <div className="pr-fill" style={{ width: `${detalle.pct}%`, background: barColor(detalle.status, detalle.pct) }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {etapasDetalle.map((etapa, i) => (
+                    <div key={i} style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{etapa.name}</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{etapa.days}</div>
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b' }}>{etapa.doneLocal}/{etapa.tareas.length} completadas</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {etapa.tareas.map(t => (
+                          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {t.done
+                              ? <CheckCircle2 size={14} style={{ color: 'var(--green)', flexShrink: 0 }} />
+                              : <Circle size={14} style={{ color: '#cbd5e1', flexShrink: 0 }} />}
+                            <span style={{ fontSize: 12, color: t.done ? '#0C2D40' : '#94a3b8', textDecoration: t.done ? 'none' : 'none' }}>{t.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setDetalle(null)}>Cerrar</button>
+                {(detalle.status === 'atrasado' || detalle.status === 'en-riesgo') && (
+                  <button
+                    className="pl-btn-save"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => { const a = detalle; setDetalle(null); openRecordatorio(a) }}
+                  >
+                    <Send size={13} />
+                    Enviar recordatorio
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

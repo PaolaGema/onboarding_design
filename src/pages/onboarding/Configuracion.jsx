@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import JourneyBuilder from './JourneyBuilder'
-import { useTronco } from '../../context/TroncoContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Trophy, Bot, Megaphone, Bell, ClipboardCheck,
-  Calendar, BookOpen, AlertTriangle, Lock, Info,
-  Shield, ChevronDown, ChevronRight, Route, Zap,
-  Video, FileText, Upload, Pencil, MessageSquare,
-  Clock, AlertCircle, X
+  Calendar, BookOpen, AlertTriangle, Info,
+  ChevronDown, ChevronRight, Route, Zap,
+  Video, Upload, Pencil, MessageSquare,
+  Clock, AlertCircle, X, Settings2
 } from 'lucide-react'
+import PageHero from '../../components/layout/PageHero'
+import imagenConfiguracion from '../../assets/imagenes/imagen_configuracion.png'
 
 const toggleMessages = {
   gamificacion: {
@@ -17,7 +17,7 @@ const toggleMessages = {
     desactivar: 'Se ocultará el sistema de puntos en todas las rutas. Los colaboradores ya no verán puntos al completar tareas. Las rutas activas no se verán afectadas.',
   },
   buddy: {
-    activar: 'Se habilitará el asistente inteligente para todos los colaboradores. Podrán hacer preguntas y recibir respuestas basadas en la Biblioteca de recursos.',
+    activar: 'Se habilitará el asistente inteligente para todos los colaboradores. Podrán hacer preguntas y recibir respuestas basadas en Recursos corporativos.',
     desactivar: 'Los colaboradores ya no tendrán acceso al asistente inteligente. Las conversaciones previas no se eliminarán.',
   },
   menciones: {
@@ -47,7 +47,7 @@ const initialConfig = [
   {
     key: 'buddy',
     label: 'Asistente IA',
-    desc: 'Un asistente inteligente que responde preguntas del colaborador basándose en la Biblioteca de recursos.',
+    desc: 'Un asistente inteligente que responde preguntas del colaborador basándose en Recursos corporativos.',
     icon: Bot,
     color: '#8b5cf6',
     enabled: true,
@@ -93,7 +93,7 @@ const initialConfig = [
 ]
 
 const modoAsignacion = [
-  { key: 'manual', label: 'Manual', desc: 'Un administrador asigna la ruta a cada colaborador desde el módulo de Asignaciones.', icon: Pencil },
+  { key: 'manual', label: 'Manual', desc: 'Un administrador asigna la ruta a cada colaborador desde el módulo de Seguimiento.', icon: Pencil },
   { key: 'auto', label: 'Automática', desc: 'El sistema asigna la ruta automáticamente en la fecha de ingreso, según el área y cargo.', icon: Zap },
 ]
 
@@ -112,12 +112,8 @@ export default function Configuracion() {
   const [activacion, setActivacion] = useState(configToggles.activacion || 'manual')
   const [horaAsignacion, setHoraAsignacion] = useState(configToggles.horaAsignacion || '08:00')
   const [expandedCard, setExpandedCard] = useState(null)
-  const [troncoExpanded, setTroncoExpanded] = useState(true)
   const [asignacionExpanded, setAsignacionExpanded] = useState(true)
-  const [editingTronco, setEditingTronco] = useState(false)
-  const { tronco, saveTronco } = useTronco()
   const { setGamificacion, setAsistenteIA } = useConfig()
-  const troncoConfigured = tronco.configured
   const [toggleConfirm, setToggleConfirm] = useState(null)
 
   function requestToggle(key) {
@@ -168,201 +164,32 @@ export default function Configuracion() {
     }))
   }
 
-  if (editingTronco) {
-    return (
-      <JourneyBuilder
-        plantilla={{ id: 'tronco', name: 'Inducción general' }}
-        onBack={() => setEditingTronco(false)}
-        onSave={(etapas) => saveTronco(etapas)}
-        empty={!troncoConfigured}
-      />
-    )
-  }
-
   return (
     <div className="content-scroll">
 
-      {/* HEADER */}
-      <div className="pl-header">
-        <div>
-          <h1 className="pl-title">Configuración Global</h1>
-          <p className="pl-subtitle">Define los valores por defecto para toda la empresa. Las rutas pueden personalizar o heredar cada ajuste.</p>
-        </div>
-      </div>
+      {/* HERO */}
+      <PageHero
+        image={imagenConfiguracion}
+        title="Configuración avanzada"
+        description="Define los valores por defecto para toda la empresa. Las rutas pueden personalizar o heredar cada ajuste."
+      />
 
       {/* INFO BANNER */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        background: '#eff6ff', border: 'none',
+        background: 'var(--blue-bg)', border: 'none',
         borderRadius: 12, padding: '14px 18px', marginBottom: 20,
       }}>
-        <Info size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
-        <div style={{ fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
+        <Info size={18} style={{ color: 'var(--blue)', flexShrink: 0 }} />
+        <div style={{ fontSize: 12, color: 'var(--blue)', lineHeight: 1.5 }}>
           Lo que configures aquí son los valores por defecto para toda la empresa. Cada ruta puede heredarlos, personalizarlos o desactivarlos — pero si apagas algo aquí, ninguna ruta podrá usarlo.
         </div>
       </div>
 
-      {/* TRONCO COMÚN */}
-      <div style={{
-        background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
-        padding: '20px 24px', marginBottom: 16,
-      }}>
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
-          onClick={() => setTroncoExpanded(!troncoExpanded)}
-        >
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: '#0C2D40', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <Shield size={17} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Inducción general</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
-              Se aplican automáticamente en todas las rutas de onboarding, sin excepción. Los jefes de área y colaboradores no pueden eliminarlas.
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {troncoConfigured ? (
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#10DC97', background: 'rgba(16,220,151,0.1)', padding: '3px 10px', borderRadius: 6 }}>
-                Configurado
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', background: '#fef3c7', padding: '3px 10px', borderRadius: 6 }}>
-                Sin configurar
-              </span>
-            )}
-            {troncoExpanded ? <ChevronDown size={16} style={{ color: '#94a3b8' }} /> : <ChevronRight size={16} style={{ color: '#94a3b8' }} />}
-          </div>
-        </div>
-
-        {troncoExpanded && (
-          <div style={{ marginTop: 16, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
-
-            {troncoConfigured ? (
-              <>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 }}>
-                  {tronco.etapas.length} etapa{tronco.etapas.length !== 1 ? 's' : ''} · {tronco.etapas.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)} tareas
-                </div>
-
-                {tronco.etapas.map((etapa, ei) => (
-                  <div key={ei} style={{ marginBottom: 14 }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: 700, color: '#0C2D40',
-                      padding: '6px 0', marginBottom: 6,
-                      display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                      <Lock size={11} style={{ color: '#94a3b8' }} />
-                      {etapa.name}
-                    </div>
-                    {etapa.actividades.map((act, ai) => (
-                      <div key={ai} style={{ marginBottom: 8 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', padding: '0 0 4px 8px' }}>
-                          {act.name}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 8 }}>
-                          {act.tareas.map((t, ti) => (
-                            <div key={ti} style={{
-                              display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '7px 12px', background: '#f8fafc', borderRadius: 8,
-                            }}>
-                              <div style={{
-                                width: 24, height: 24, borderRadius: 6,
-                                background: '#0C2D40', color: '#fff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0, fontSize: 10,
-                              }}>
-                                <FileText size={11} />
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#0C2D40' }}>{t.name}</div>
-                              </div>
-                              <Lock size={10} style={{ color: '#cbd5e1' }} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-                  <button
-                    onClick={() => setEditingTronco(true)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '10px 20px', borderRadius: 10, border: 'none',
-                      background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                      fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                    }}
-                  >
-                    <Pencil size={13} />
-                    Editar inducción general
-                  </button>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                    Abre el editor para modificar actividades y tareas
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div style={{
-                borderRadius: 12, border: '1.5px dashed #e2e8f0',
-                background: '#fafbfc', padding: '24px',
-                display: 'flex', alignItems: 'center', gap: 24,
-              }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-                  background: '#f1f5f9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Shield size={22} style={{ color: '#94a3b8' }} />
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
-                    Aún no tienes una inducción general
-                  </div>
-                  <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
-                    Define las etapas y tareas que todos los nuevos colaboradores deben completar sin importar su área — bienvenida, documentación, cultura, etc.
-                  </p>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {['👋 Bienvenida', '📄 Documentación', '🎯 Cultura'].map(tag => (
-                      <span key={tag} style={{
-                        fontSize: 10, fontWeight: 600, color: '#475569',
-                        background: '#f1f5f9', border: '1px solid #e2e8f0',
-                        padding: '3px 10px', borderRadius: 20,
-                      }}>{tag}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setEditingTronco(true)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7,
-                    padding: '10px 18px', borderRadius: 10, border: 'none',
-                    background: '#0C2D40', color: '#fff', cursor: 'pointer',
-                    fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                    flexShrink: 0, whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                  }}
-                >
-                  <Shield size={13} />
-                  Crear inducción
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* ASIGNACIÓN DE RUTA */}
       <div style={{
-        background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0',
-        padding: '20px 24px', marginBottom: 16,
+        background: 'var(--surface-card)', borderRadius: 16, boxShadow: 'var(--shadow-card)',
+        border: '1px solid var(--border-soft)', padding: '20px 24px', marginBottom: 20,
       }}>
         <div
           style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
@@ -377,35 +204,35 @@ export default function Configuracion() {
             <Route size={17} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Asignación de ruta</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-heading)' }}>Asignación de ruta</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
               ¿Cómo y cuándo se asigna la ruta al nuevo colaborador?
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
               fontSize: 10, fontWeight: 700,
-              color: '#475569', background: '#f1f5f9',
+              color: 'var(--text-muted)', background: 'var(--surface-hover)',
               padding: '3px 10px', borderRadius: 6,
             }}>
               {asignacion === 'manual' ? 'Manual' : 'Automática'}
             </span>
             {asignacionExpanded
-              ? <ChevronDown size={16} style={{ color: '#94a3b8' }} />
-              : <ChevronRight size={16} style={{ color: '#94a3b8' }} />}
+              ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
+              : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
           </div>
         </div>
 
         {asignacionExpanded && (
-        <div style={{ marginTop: 16, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--surface-hover)', paddingTop: 16 }}>
 
         {/* OPCIONES */}
         <div style={{
-          borderRadius: 12, border: '1.5px dashed #e2e8f0',
-          background: '#fafbfc', padding: '14px',
+          borderRadius: 12, border: '1.5px dashed var(--border-dark)',
+          background: 'var(--input-bg)', padding: '14px',
           marginBottom: asignacion === 'auto' ? 12 : 0,
         }}>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
             Selecciona cómo se asigna la ruta al colaborador:
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -418,18 +245,18 @@ export default function Configuracion() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '11px 14px', borderRadius: 10,
-                    background: selected ? '#fff' : 'transparent',
-                    border: `1px solid ${selected ? '#e2e8f0' : 'transparent'}`,
+                    background: selected ? 'var(--surface-card)' : 'transparent',
+                    border: `1px solid ${selected ? 'var(--border-soft)' : 'transparent'}`,
                     boxShadow: selected ? '0 1px 4px rgba(0,0,0,.06)' : 'none',
                     cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                     transition: 'all .15s',
                   }}
-                  onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#f1f5f9' }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--surface-hover)' }}
                   onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{
                     width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                    border: `2px solid ${selected ? '#0C2D40' : '#d1d5db'}`,
+                    border: `2px solid ${selected ? '#0C2D40' : 'var(--border-dark)'}`,
                     background: selected ? '#0C2D40' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all .2s',
@@ -437,8 +264,8 @@ export default function Configuracion() {
                     {selected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 2 }}>{m.label}</div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{m.desc}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 2 }}>{m.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>{m.desc}</div>
                   </div>
                 </button>
               )
@@ -449,23 +276,23 @@ export default function Configuracion() {
         {/* HORA — solo si es automática */}
         {asignacion === 'auto' && (
           <div style={{
-            borderRadius: 12, border: '1.5px dashed #e2e8f0',
-            background: '#fafbfc', padding: '18px',
+            borderRadius: 12, border: '1.5px dashed var(--border-dark)',
+            background: 'var(--input-bg)', padding: '18px',
             display: 'flex', alignItems: 'center', gap: 16,
           }}>
             <div style={{
               width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-              background: '#f1f5f9',
+              background: 'var(--surface-hover)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Clock size={20} style={{ color: '#94a3b8' }} />
+              <Clock size={20} style={{ color: 'var(--text-muted)' }} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 3 }}>
                 Hora de asignación automática
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
-                El sistema asignará la ruta a las <strong style={{ color: '#0C2D40' }}>{horaAsignacion} hrs</strong> del día de ingreso, según el área y cargo configurados en cada ruta.
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
+                El sistema asignará la ruta a las <strong style={{ color: 'var(--text-heading)' }}>{horaAsignacion} hrs</strong> del día de ingreso, según el área y cargo configurados en cada ruta.
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <input
@@ -474,20 +301,20 @@ export default function Configuracion() {
                   onChange={e => updateHora(e.target.value)}
                   style={{
                     padding: '7px 12px', borderRadius: 8,
-                    border: '1.5px solid #e2e8f0',
-                    fontSize: 14, fontFamily: 'inherit', fontWeight: 700, color: '#0C2D40',
-                    outline: 'none', background: '#fff', cursor: 'pointer',
+                    border: '1.5px solid var(--border-soft)',
+                    fontSize: 14, fontFamily: 'inherit', fontWeight: 700, color: 'var(--text-heading)',
+                    outline: 'none', background: 'var(--input-bg)', cursor: 'pointer',
                     letterSpacing: '.04em',
                   }}
-                  onFocus={e => e.target.style.borderColor = '#0C2D40'}
-                  onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  onFocus={e => e.target.style.borderColor = 'var(--focus)'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border-soft)'}
                 />
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>hora del día de ingreso</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>hora del día de ingreso</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <AlertCircle size={11} style={{ color: '#d97706', flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: '#92400e' }}>
-                  Si la fecha ya pasó, asigna manualmente desde <strong>Asignaciones</strong> o <strong>Colaboradores</strong>.
+                <AlertCircle size={11} style={{ color: 'var(--yellow)', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: 'var(--yellow)' }}>
+                  Si la fecha ya pasó, asigna manualmente desde <strong>Seguimiento</strong> o <strong>Colaboradores</strong>.
                 </span>
               </div>
             </div>
@@ -499,7 +326,7 @@ export default function Configuracion() {
       </div>
 
       {/* AJUSTES */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {config.map(c => {
           const Icon = c.icon
           const hasDefaults = ['buddy', 'menciones', 'riesgo', 'extension'].includes(c.key)
@@ -508,8 +335,8 @@ export default function Configuracion() {
             <div
               key={c.key}
               style={{
-                background: '#fff', borderRadius: 14,
-                border: '1px solid #e2e8f0',
+                background: 'var(--surface-card)', borderRadius: 16,
+                boxShadow: 'var(--shadow-card)', border: '1px solid var(--border-soft)',
                 overflow: 'hidden', transition: 'all .2s',
               }}
             >
@@ -523,22 +350,22 @@ export default function Configuracion() {
               >
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: c.enabled ? '#0C2D40' : '#e2e8f0',
-                  color: '#fff',
+                  background: c.enabled ? '#0C2D40' : 'var(--surface-hover)',
+                  color: c.enabled ? '#fff' : 'var(--text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, transition: 'background .2s',
                 }}>
                   <Icon size={17} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: c.enabled ? '#0C2D40' : '#94a3b8' }}>{c.label}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: c.enabled ? 'var(--text-heading)' : 'var(--text-muted)' }}>{c.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 6,
-                    color: c.enabled ? '#16a34a' : '#94a3b8',
-                    background: c.enabled ? '#dcfce7' : '#f1f5f9',
+                    color: c.enabled ? 'var(--green)' : 'var(--text-muted)',
+                    background: c.enabled ? 'var(--green-tint)' : 'var(--surface-hover)',
                   }}>
                     {c.enabled ? 'Activo' : 'Inactivo'}
                   </span>
@@ -546,7 +373,7 @@ export default function Configuracion() {
                     onClick={e => { e.stopPropagation(); requestToggle(c.key) }}
                     style={{
                       width: 40, height: 22, borderRadius: 99,
-                      background: c.enabled ? '#10DC97' : '#d1d5db',
+                      background: c.enabled ? '#00E091' : 'var(--surface-hover)',
                       padding: 2, cursor: 'pointer',
                       transition: 'background .2s',
                       display: 'flex', alignItems: 'center',
@@ -562,7 +389,7 @@ export default function Configuracion() {
                   </div>
                   {hasDefaults && c.enabled && (
                     <div style={{ transition: 'transform .2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                      <ChevronDown size={16} style={{ color: '#94a3b8' }} />
+                      <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
                     </div>
                   )}
                 </div>
@@ -570,31 +397,31 @@ export default function Configuracion() {
 
               {/* CONTENIDO EXPANDIDO */}
               {isExpanded && (
-                <div style={{ borderTop: '1px solid #f1f5f9', padding: '16px 20px 18px' }}>
+                <div style={{ borderTop: '1px solid var(--surface-hover)', padding: '16px 20px 18px' }}>
 
                   {c.key === 'buddy' && (
                     <div style={{
-                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
-                      background: '#fafbfc', padding: '18px',
+                      borderRadius: 12, border: '1.5px dashed var(--border-dark)',
+                      background: 'var(--input-bg)', padding: '18px',
                       display: 'flex', alignItems: 'center', gap: 16,
                     }}>
                       <div style={{
                         width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-                        background: '#f1f5f9',
+                        background: 'var(--surface-hover)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Bot size={22} style={{ color: '#94a3b8' }} />
+                        <Bot size={22} style={{ color: 'var(--text-muted)' }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 3 }}>
                           {c.defaults.modelo}
                         </div>
-                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 10 }}>
-                          Responde preguntas de los colaboradores usando los documentos de tu Biblioteca de recursos.
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 10 }}>
+                          Responde preguntas de los colaboradores usando los documentos de tus Recursos corporativos.
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <AlertCircle size={11} style={{ color: '#d97706', flexShrink: 0 }} />
-                          <span style={{ fontSize: 10, color: '#92400e' }}>
+                          <AlertCircle size={11} style={{ color: 'var(--yellow)', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10, color: 'var(--yellow)' }}>
                             Necesita al menos un documento en la Biblioteca para funcionar.
                           </span>
                         </div>
@@ -603,9 +430,9 @@ export default function Configuracion() {
                   )}
 
                   {c.key === 'menciones' && (
-                    <div style={{ borderRadius: 12, border: '1.5px dashed #e2e8f0', background: '#fafbfc', overflow: 'hidden' }}>
+                    <div style={{ borderRadius: 12, border: '1.5px dashed var(--border-dark)', background: 'var(--input-bg)', overflow: 'hidden' }}>
                       <div style={{ padding: '12px 16px 8px' }}>
-                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
                           Publica automáticamente en el muro cuando ocurre:
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -613,27 +440,27 @@ export default function Configuracion() {
                             <button key={m.key} onClick={() => toggleSubItem('menciones', 'menciones', i)} style={{
                               display: 'flex', alignItems: 'center', gap: 12,
                               padding: '10px 12px', borderRadius: 10,
-                              background: m.activo ? '#fff' : 'transparent',
-                              border: `1px solid ${m.activo ? '#e2e8f0' : 'transparent'}`,
+                              background: m.activo ? 'var(--surface-card)' : 'transparent',
+                              border: `1px solid ${m.activo ? 'var(--border-soft)' : 'transparent'}`,
                               boxShadow: m.activo ? '0 1px 4px rgba(0,0,0,.05)' : 'none',
                               cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                               transition: 'all .15s',
                             }}>
                               <div style={{
                                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                                background: m.activo ? '#f1f5f9' : 'transparent',
+                                background: m.activo ? 'var(--surface-hover)' : 'transparent',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 transition: 'all .15s',
                               }}>
-                                <Megaphone size={14} style={{ color: m.activo ? '#0C2D40' : '#cbd5e1' }} />
+                                <Megaphone size={14} style={{ color: m.activo ? 'var(--text-heading)' : 'var(--border-dark)' }} />
                               </div>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: m.activo ? '#0C2D40' : '#94a3b8' }}>{m.label}</div>
-                                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{m.desc}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: m.activo ? 'var(--text-heading)' : 'var(--text-muted)' }}>{m.label}</div>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{m.desc}</div>
                               </div>
                               <div style={{
                                 width: 36, height: 20, borderRadius: 99, flexShrink: 0,
-                                background: m.activo ? '#10DC97' : '#e2e8f0',
+                                background: m.activo ? '#00E091' : 'var(--surface-hover)',
                                 padding: 2, display: 'flex', alignItems: 'center',
                                 transition: 'background .2s',
                               }}>
@@ -653,22 +480,22 @@ export default function Configuracion() {
 
                   {c.key === 'riesgo' && (
                     <div style={{
-                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
-                      background: '#fafbfc', padding: '18px',
+                      borderRadius: 12, border: '1.5px dashed var(--border-dark)',
+                      background: 'var(--input-bg)', padding: '18px',
                       display: 'flex', alignItems: 'center', gap: 16,
                     }}>
                       <div style={{
                         width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-                        background: '#f1f5f9',
+                        background: 'var(--surface-hover)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <AlertTriangle size={20} style={{ color: '#94a3b8' }} />
+                        <AlertTriangle size={20} style={{ color: 'var(--text-muted)' }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 3 }}>
                           Umbral de inactividad
                         </div>
-                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                           Un colaborador se marca como "en riesgo" cuando lleva este número de días sin actividad.
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -678,16 +505,16 @@ export default function Configuracion() {
                             min={1} max={30}
                             style={{
                               width: 60, padding: '7px 0', borderRadius: 8,
-                              border: '1.5px solid #e2e8f0', textAlign: 'center',
+                              border: '1.5px solid var(--border-soft)', textAlign: 'center',
                               fontSize: 18, fontWeight: 800, fontFamily: 'inherit',
-                              color: '#0C2D40', outline: 'none', background: '#fff',
+                              color: 'var(--text-heading)', outline: 'none', background: 'var(--input-bg)',
                             }}
-                            onFocus={e => e.target.style.borderColor = '#0C2D40'}
-                            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                            onFocus={e => e.target.style.borderColor = 'var(--focus)'}
+                            onBlur={e => e.target.style.borderColor = 'var(--border-soft)'}
                           />
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>días sin actividad</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Cada ruta puede ajustar este valor.</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>días sin actividad</div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>Cada ruta puede ajustar este valor.</div>
                           </div>
                         </div>
                       </div>
@@ -696,29 +523,29 @@ export default function Configuracion() {
 
                   {c.key === 'extension' && (
                     <div style={{
-                      borderRadius: 12, border: '1.5px dashed #e2e8f0',
-                      background: '#fafbfc', padding: '18px',
+                      borderRadius: 12, border: '1.5px dashed var(--border-dark)',
+                      background: 'var(--input-bg)', padding: '18px',
                       display: 'flex', alignItems: 'center', gap: 16,
                     }}>
                       <div style={{
                         width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-                        background: '#f1f5f9',
+                        background: 'var(--surface-hover)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Clock size={20} style={{ color: '#94a3b8' }} />
+                        <Clock size={20} style={{ color: 'var(--text-muted)' }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 3 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 3 }}>
                           Extensión libre por jefes de área
                         </div>
-                        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
                           Los jefes de área pueden ampliar el plazo de las rutas de sus colaboradores sin necesitar aprobación de RR.HH.
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           {['✅ Jefe extiende directo', '🚫 Sin solicitar a RR.HH.', '📋 Queda en el historial'].map(tag => (
                             <span key={tag} style={{
-                              fontSize: 10, fontWeight: 600, color: '#475569',
-                              background: '#f1f5f9', border: '1px solid #e2e8f0',
+                              fontSize: 10, fontWeight: 600, color: 'var(--text-muted)',
+                              background: 'var(--surface-hover)', border: '1px solid var(--border-soft)',
                               padding: '3px 10px', borderRadius: 20,
                             }}>{tag}</span>
                           ))}
@@ -748,15 +575,15 @@ export default function Configuracion() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
                 padding: '12px 14px', borderRadius: 10,
-                background: toggleConfirm.willEnable ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${toggleConfirm.willEnable ? '#bbf7d0' : '#fecaca'}`,
+                background: toggleConfirm.willEnable ? 'var(--green-tint)' : 'var(--red-bg)',
+                border: '1px solid var(--border-soft)',
               }}>
-                <Info size={16} style={{ color: toggleConfirm.willEnable ? '#16a34a' : '#ef4444', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: toggleConfirm.willEnable ? '#166534' : '#991b1b' }}>
+                <Info size={16} style={{ color: toggleConfirm.willEnable ? 'var(--green)' : 'var(--red)', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: toggleConfirm.willEnable ? 'var(--green)' : 'var(--red)' }}>
                   {toggleConfirm.willEnable ? 'Esta función se activará para toda la empresa' : 'Esta función se desactivará para toda la empresa'}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
                 {toggleConfirm.message}
               </p>
             </div>
@@ -766,7 +593,7 @@ export default function Configuracion() {
                 onClick={confirmToggle}
                 style={{
                   padding: '9px 20px', borderRadius: 10, border: 'none',
-                  background: toggleConfirm.willEnable ? '#10DC97' : '#ef4444',
+                  background: toggleConfirm.willEnable ? '#00E091' : 'var(--red)',
                   color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
                   fontSize: 13, fontWeight: 700,
                 }}

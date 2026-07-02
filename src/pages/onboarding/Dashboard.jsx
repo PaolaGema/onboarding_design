@@ -4,15 +4,15 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import JourneyBuilder from './JourneyBuilder'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
+import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
-  Loader, AlertTriangle, CheckCircle2, LayoutTemplate,
-  TrendingUp, Zap, UserPlus, PencilRuler, Settings2,
-  CalendarPlus, Activity, Rocket, Sparkles, Download,
-  Smartphone, Plus, ClipboardList, Clock, CircleAlert,
-  Search, Route, Users, Star, CalendarHeart,
+  AlertTriangle, CheckCircle2,
+  UserPlus, Settings2,
+  Plus, ClipboardList,
+  Star, CalendarHeart, Trophy, Medal,
   X, ChevronDown, Check,
-  Shield, BookOpen, FileText as FileTextIcon, ArrowRight
 } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 const cargosPorArea = {
   'Ventas': ['Pasante Comercial', 'SDR Junior', 'Ejecutiva Comercial', 'Ejecutivo Senior', 'Account Manager', 'Gerente de Ventas'],
@@ -30,12 +30,20 @@ const areas = Object.keys(cargosPorArea)
 
 /* ── DATA ────────────────────────────────────── */
 
-const quickAccess = [
-  { icon: LayoutTemplate, color: 'var(--purple)', bg: 'var(--purple-bg)', label: 'Rutas', desc: 'Crear y editar rutas', sub: '7 activas', path: '/onboarding/plantillas' },
-  { icon: UserPlus, color: 'var(--blue)', bg: 'var(--blue-bg)', label: 'Asignación', desc: 'Asignar rutas a colaboradores', sub: '2 pendientes', path: '/onboarding/asignaciones' },
-  { icon: PencilRuler, color: 'var(--navy)', bg: '#e0e7ef', label: 'Biblioteca de recursos', desc: 'Documentos y materiales', sub: 'Contenido', path: '/onboarding/conocimiento' },
-  { icon: Settings2, color: 'var(--green)', bg: 'var(--green-bg)', label: 'Configuración', desc: 'Puntos, notificaciones y permisos', sub: 'Ajustes globales', path: '/onboarding/configuracion' },
-]
+const STATUS_COLORS = {
+  'en-curso': '#3b82f6',
+  'completado': '#00E091',
+  'atrasado': '#f59e0b',
+  'en-riesgo': '#ef4444',
+}
+const STATUS_LABELS = {
+  'en-curso': 'En curso',
+  'completado': 'Completados',
+  'atrasado': 'Atrasados',
+  'en-riesgo': 'En riesgo',
+}
+const AREA_COLORS = ['#3b82f6', '#00E091', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#0d9488']
+const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#c2703d']
 
 const upcomingData = [
   { day: '10', month: 'JUN', name: 'Sofía Ramírez', sub: 'Ventas · Ruta asignada', color: '#f59e0b' },
@@ -50,23 +58,6 @@ const feedData = [
   { text: <><strong>Valentina Cruz</strong> fue marcada "en riesgo" por inactividad</>, time: 'Hace 5 h' },
   { text: <>Nueva ruta <strong>"Onboarding Finanzas"</strong> creada por Paola A.</>, time: 'Ayer' },
   { text: <><strong>Sofía Ramírez</strong> fue asignada a Onboarding Ventas 2026</>, time: 'Ayer' },
-]
-
-const rutasActivas = [
-  { name: 'Ventas — Pasante', count: 8, color: 'var(--blue)' },
-  { name: 'Comercial — Ejecutivo', count: 5, color: 'var(--green)' },
-  { name: 'Liderazgo', count: 2, color: 'var(--purple)' },
-  { name: 'Operaciones', count: 3, color: 'var(--yellow)' },
-]
-
-const colaboradores = [
-  { initials: 'PP', name: 'Ventas · Pasante', route: 'Ventas — Pasante', pct: 45, day: '14 / 30', status: 'En tiempo', statusCls: 'st-ok', color: '#3b82f6' },
-  { initials: 'IV', name: 'Ventas · Pasante de Atención', route: 'Ventas — Pasante', pct: 64, day: '18 / 30', status: 'En tiempo', statusCls: 'st-ok', color: '#10b981' },
-  { initials: 'AN', name: 'Ventas · Pasante de Atención', route: 'Ventas — Pasante', pct: 67, day: '20 / 30', status: 'En tiempo', statusCls: 'st-ok', color: '#f97316' },
-  { initials: 'NR', name: 'Ventas · Pasante de Atención', route: 'Ventas — Pasante', pct: 27, day: '21 / 30', status: 'En riesgo', statusCls: 'st-risk', color: '#ef4444' },
-  { initials: 'NZ', name: 'Ventas · Ejecutivo Comercial', route: 'Comercial — Ejecutivo', pct: 73, day: '24 / 30', status: 'En tiempo', statusCls: 'st-ok', color: '#8b5cf6' },
-  { initials: 'RP', name: 'Ventas · Gerente de Ventas', route: 'Liderazgo', pct: 90, day: '28 / 30', status: 'En tiempo', statusCls: 'st-ok', color: '#0d9488' },
-  { initials: 'AR', name: 'Psicometría · Psicómetra', route: 'Operaciones', pct: 100, day: '30 / 30', status: 'Completado', statusCls: 'st-done', color: '#f59e0b' },
 ]
 
 /* ── DATA MANAGER (Marketing) ───────────────── */
@@ -109,22 +100,19 @@ const managerTareasPendientes = [
 export default function Dashboard() {
   const { currentUser } = useUser()
   const navigate = useNavigate()
-  const [searchColab, setSearchColab] = useState('')
   const [modalCrear, setModalCrear] = useState(false)
   const [modalAsignar, setModalAsignar] = useState(false)
-  const [formRuta, setFormRuta] = useState({ name: '', area: 'Ventas', cargo: '' })
+  const [formRuta, setFormRuta] = useState({ name: '', area: 'Ventas', cargo: '', esGlobal: false })
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
   const [activeJourney, setActiveJourney] = useState(null)
-  const { isDemoFresh, loadSampleData, asignaciones: ctxAsignaciones, plantillas, recursos, configToggles, tronco } = useOnboardingData()
-  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('onb_demo_welcome_seen'))
+  const { isDemoFresh, loadSampleData, asignaciones: ctxAsignaciones, plantillas, setPlantillas, addFeedEntry, recursos } = useOnboardingData()
   const [showCelebration, setShowCelebration] = useState(false)
 
-  const step1Done = Object.values(configToggles).some(v => v === true) || tronco?.configured === true
   const step2Done = recursos.some(c => c.docs.length > 0)
   const step3Done = plantillas.length > 0
   const step4Done = ctxAsignaciones.length > 0
-  const allStepsDone = step1Done && step2Done && step3Done && step4Done
+  const allStepsDone = step2Done && step3Done && step4Done
 
   useEffect(() => {
     if (allStepsDone && !localStorage.getItem('onb_celebration_seen')) {
@@ -149,11 +137,6 @@ export default function Dashboard() {
   const isManager = currentUser.role === 'manager'
   const managerArea = 'Marketing'
 
-  const filteredColab = colaboradores.filter(c =>
-    c.name.toLowerCase().includes(searchColab.toLowerCase()) ||
-    c.route.toLowerCase().includes(searchColab.toLowerCase())
-  )
-
   const firstName = currentUser.name.split(' ')[0]
 
   const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
@@ -162,15 +145,28 @@ export default function Dashboard() {
     if (!formRuta.name.trim()) return
     const newId = Date.now()
     const color = colores[newId % colores.length]
-    setModalCrear(false)
-    setActiveJourney({
+    const nextOrdenGlobal = () => {
+      const globales = plantillas.filter(p => p.esGlobal)
+      return globales.length ? Math.max(...globales.map(p => p.ordenGlobal ?? 0)) + 1 : 0
+    }
+    const newPlantilla = {
       id: newId,
       name: formRuta.name.trim(),
       area: formRuta.area,
       cargo: formRuta.cargo || '',
+      etapas: 0,
+      tareas: 0,
+      asignados: 0,
+      status: 'borrador',
+      updated: 'Ahora',
       color,
-      isNew: true,
-    })
+      esGlobal: formRuta.esGlobal,
+      ordenGlobal: formRuta.esGlobal ? nextOrdenGlobal() : null,
+    }
+    setPlantillas([...plantillas, newPlantilla])
+    addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
+    setModalCrear(false)
+    setActiveJourney({ ...newPlantilla, isNew: true })
   }
 
   if (activeJourney) {
@@ -179,7 +175,7 @@ export default function Dashboard() {
         plantilla={activeJourney}
         onBack={() => setActiveJourney(null)}
         empty={activeJourney.isNew}
-        backLabel="Panel de onboarding"
+        backLabel="Dashboard"
       />
     )
   }
@@ -202,7 +198,7 @@ export default function Dashboard() {
         {/* KPIs */}
         <div className="kpi-strip">
           {managerKpis.map((k) => (
-            <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`}>
+            <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`} style={{ '--kpi-accent': k.accent }}>
               <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
               <div className="kpi-val">{k.value}</div>
               <div className="kpi-lbl">{k.label}</div>
@@ -212,7 +208,7 @@ export default function Dashboard() {
 
         <div className="two-col">
           {/* IZQUIERDA */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
             {/* EQUIPO EN PROGRESO */}
             <div className="sec-card">
@@ -306,7 +302,7 @@ export default function Dashboard() {
           </div>
 
           {/* DERECHA */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
             {/* ALERTAS */}
             <div className="sec-card">
@@ -330,7 +326,7 @@ export default function Dashboard() {
                   </div>
                 )) : (
                   <div style={{ padding: 20, textAlign: 'center' }}>
-                    <CheckCircle2 size={24} style={{ color: '#10DC97', margin: '0 auto 8px' }} />
+                    <CheckCircle2 size={24} style={{ color: '#00E091', margin: '0 auto 8px' }} />
                     <div style={{ fontSize: 12, color: '#64748b' }}>Sin alertas en tu equipo</div>
                   </div>
                 )}
@@ -368,8 +364,10 @@ export default function Dashboard() {
 
       {/* ── WELCOME BANNER ──────────────────── */}
       <div className="welcome-banner">
+        <div className="welcome-left">
+        <img src={viaSaludando} alt="" className="welcome-mascot" />
         <div className="welcome-content">
-          <div className="welcome-title">Bienvenido al panel de Onboarding</div>
+          <div className="welcome-title">Bienvenido a tu Dashboard</div>
           <div className="welcome-sub">
             {isDemoFresh
               ? 'Configura el módulo y empieza a gestionar onboardings.'
@@ -383,9 +381,10 @@ export default function Dashboard() {
             }
           </div>
         </div>
+        </div>
         <div className="welcome-actions">
-          <button className="btn-accent-light" onClick={() => { setFormRuta({ name: '', area: 'Ventas', cargo: '' }); setDropArea(false); setDropCargo(false); setModalCrear(true) }}>
-            <Plus size={13} />
+          <button className="btn-accent-light" onClick={() => { setFormRuta({ name: '', area: 'Ventas', cargo: '', esGlobal: false }); setDropArea(false); setDropCargo(false); setModalCrear(true) }}>
+            <Plus size={13} color="#00E091" />
             Nueva ruta
           </button>
           <button className="btn-outline-light" onClick={() => setModalAsignar(true)}>
@@ -398,13 +397,12 @@ export default function Dashboard() {
       {/* ── BANNER PRIMEROS PASOS ──────────────────────── */}
       {(() => {
         const steps = [
-          { label: 'Configurar módulo', sub: 'Funcionalidades y permisos', done: step1Done, path: '/onboarding/configuracion' },
           { label: 'Subir recursos', sub: 'Documentos y materiales', done: step2Done, path: '/onboarding/conocimiento' },
           { label: 'Crear una ruta', sub: 'Diseña el recorrido', done: step3Done, path: '/onboarding/plantillas' },
           { label: 'Asignar la ruta', sub: 'Activa un onboarding', done: step4Done, path: '/onboarding/asignaciones' },
         ]
         if (allStepsDone) return null
-        const doneCount = [step1Done, step2Done, step3Done, step4Done].filter(Boolean).length
+        const doneCount = [step2Done, step3Done, step4Done].filter(Boolean).length
         const nextStep = steps.find(s => !s.done)
         const firstName = currentUser?.name?.split(' ')[0] || 'Admin'
         return (
@@ -414,29 +412,29 @@ export default function Dashboard() {
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>
                   {doneCount === 0
-                    ? `¡Hola, ${firstName}! Configura tu módulo para empezar`
-                    : doneCount < 3
-                    ? `¡Vas bien, ${firstName}! Te faltan ${4 - doneCount} pasos más`
-                    : `¡Casi lista, ${firstName}! Un paso más y todo está listo`}
+                    ? `¡Hola, ${firstName}! Preparemos el onboarding de tu equipo`
+                    : doneCount < 2
+                    ? `¡Vas bien, ${firstName}! Te faltan ${3 - doneCount} pasos más`
+                    : `¡Casi listo, ${firstName}! Un paso más y todo está listo`}
                 </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>Completa los pasos para activar tu módulo de onboarding</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>Completa estos pasos para empezar a recibir nuevos colaboradores</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <div style={{ width: 110, height: 5, borderRadius: 10, background: 'rgba(255,255,255,.15)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(doneCount / 4) * 100}%`, background: '#10b981', borderRadius: 10, transition: 'width .5s ease' }} />
+                  <div style={{ height: '100%', width: `${(doneCount / 3) * 100}%`, background: '#00E091', borderRadius: 10, transition: 'width .5s ease' }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/4</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/3</span>
               </div>
             </div>
             {/* pasos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: '#fff' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', background: '#fff' }}>
               {steps.map((s, i) => {
                 const isNext = s === nextStep
                 return (
                   <button key={s.label} onClick={() => navigate(s.path)} style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
                     padding: '14px 18px', border: 'none',
-                    borderRight: i < 3 ? '1px solid #f1f5f9' : 'none',
+                    borderRight: i < 2 ? '1px solid #f1f5f9' : 'none',
                     background: s.done ? '#f6fdf8' : isNext ? '#f8faff' : '#fff',
                     cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                     transition: 'background .15s',
@@ -449,12 +447,12 @@ export default function Dashboard() {
                         width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 10, fontWeight: 800,
-                        background: s.done ? '#10b981' : isNext ? '#0C2D40' : '#e2e8f0',
+                        background: s.done ? '#00E091' : isNext ? '#0C2D40' : '#e2e8f0',
                         color: '#fff',
                       }}>
                         {s.done ? '✓' : i + 1}
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#10b981' : isNext ? '#0C2D40' : '#94a3b8' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8' }}>
                         {s.label}
                       </span>
                     </div>
@@ -490,7 +488,7 @@ export default function Dashboard() {
         return (
           <div className="kpi-strip">
             {dynKpis.map((k) => (
-              <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`}>
+              <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`} style={{ '--kpi-accent': k.accent }}>
                 <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
                 <div className="kpi-val">{k.value}</div>
                 <div className="kpi-lbl">{k.label}</div>
@@ -500,34 +498,159 @@ export default function Dashboard() {
         )
       })()}
 
+      {/* ── ANALYTICS: DONUT + BARRAS ────────── */}
+      {(() => {
+        const statusData = ['en-curso', 'completado', 'atrasado', 'en-riesgo']
+          .map(status => ({
+            status,
+            label: STATUS_LABELS[status],
+            value: ctxAsignaciones.filter(a => a.status === status).length,
+            color: STATUS_COLORS[status],
+          }))
+          .filter(d => d.value > 0)
+        const totalAsig = ctxAsignaciones.length
+
+        const areaCounts = {}
+        ctxAsignaciones.forEach(a => { areaCounts[a.area] = (areaCounts[a.area] || 0) + 1 })
+        const areaData = Object.entries(areaCounts)
+          .map(([area, count]) => ({ area, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6)
+
+        if (totalAsig === 0) return null
+
+        return (
+          <div className="analytics-row">
+            <div className="sec-card">
+              <div className="sc-hd"><h3>Distribución por estado</h3></div>
+              <div className="sc-body" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div className="donut-wrap" style={{ width: 150, height: 150, flexShrink: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={statusData} dataKey="value" nameKey="label" innerRadius={48} outerRadius={72} paddingAngle={3} strokeWidth={0}>
+                        {statusData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [value, name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="donut-center">
+                    <div className="donut-center-val">{totalAsig}</div>
+                    <div className="donut-center-lbl">total</div>
+                  </div>
+                </div>
+                <div className="donut-legend" style={{ flex: 1 }}>
+                  {statusData.map(d => (
+                    <div key={d.status} className="donut-legend-item">
+                      <span className="donut-legend-dot" style={{ background: d.color }} />
+                      <span className="donut-legend-label">{d.label}</span>
+                      <span className="donut-legend-val">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="sec-card">
+              <div className="sc-hd"><h3>Onboardings por área</h3></div>
+              <div className="sc-body">
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={areaData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="area" width={90} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: 'var(--input-bg)' }} />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={16}>
+                      {areaData.map((d, i) => <Cell key={i} fill={AREA_COLORS[i % AREA_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── TOP RUTAS / COLABORADORES / ÁREAS ── */}
+      {(() => {
+        if (ctxAsignaciones.length === 0) return null
+
+        const rutaCounts = {}
+        ctxAsignaciones.forEach(a => { rutaCounts[a.ruta] = (rutaCounts[a.ruta] || 0) + 1 })
+        const topRutas = Object.entries(rutaCounts)
+          .map(([ruta, count]) => ({ ruta, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5)
+
+        const topColaboradores = ctxAsignaciones
+          .filter(a => a.status === 'en-curso')
+          .sort((a, b) => b.pct - a.pct)
+          .slice(0, 5)
+
+        const areaStats = {}
+        ctxAsignaciones.forEach(a => {
+          if (!areaStats[a.area]) areaStats[a.area] = { total: 0, completados: 0 }
+          areaStats[a.area].total++
+          if (a.status === 'completado') areaStats[a.area].completados++
+        })
+        const topAreas = Object.entries(areaStats)
+          .map(([area, s]) => ({ area, pct: Math.round((s.completados / s.total) * 100), total: s.total }))
+          .sort((a, b) => b.pct - a.pct)
+          .slice(0, 5)
+
+        return (
+          <div className="top-row">
+            <div className="sec-card">
+              <div className="sc-hd"><h3><Trophy size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top rutas más usadas</h3></div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {topRutas.length > 0 ? topRutas.map((r, i) => (
+                  <div key={r.ruta} className="ruta-row">
+                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="ruta-name">{r.ruta}</div>
+                    <div className="ruta-count">{r.count} {r.count === 1 ? 'persona' : 'personas'}</div>
+                  </div>
+                )) : (
+                  <div style={{ padding: '12px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Sin datos aún</div>
+                )}
+              </div>
+            </div>
+
+            <div className="sec-card">
+              <div className="sc-hd"><h3><Medal size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top colaboradores por avance</h3></div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {topColaboradores.length > 0 ? topColaboradores.map((a, i) => (
+                  <div key={a.id} className="ruta-row">
+                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="ruta-name">{a.nombre}</div>
+                    <div className="ruta-count">{a.pct}%</div>
+                  </div>
+                )) : (
+                  <div style={{ padding: '12px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Sin datos aún</div>
+                )}
+              </div>
+            </div>
+
+            <div className="sec-card">
+              <div className="sc-hd"><h3><Trophy size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top áreas con mejor completitud</h3></div>
+              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+                {topAreas.length > 0 ? topAreas.map((a, i) => (
+                  <div key={a.area} className="ruta-row">
+                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="ruta-name">{a.area}</div>
+                    <div className="ruta-count">{a.pct}%</div>
+                  </div>
+                )) : (
+                  <div style={{ padding: '12px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Sin datos aún</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── TWO COLUMN ─────────────────────── */}
       <div className="two-col">
 
         {/* LEFT COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* ACCESOS RÁPIDOS */}
-          <div className="sec-card">
-            <div className="sc-hd">
-              <h3>Accesos rápidos</h3>
-            </div>
-            <div className="sc-body">
-              <div className="qa-grid">
-                {quickAccess.map((qa) => (
-                  <a key={qa.label} href="#" className="qa-card" onClick={e => { e.preventDefault(); navigate(qa.path) }}>
-                    <div className="qa-ico" style={{ background: qa.bg }}>
-                      <qa.icon size={20} style={{ color: qa.color }} />
-                    </div>
-                    <div className="qa-text">
-                      <div className="qa-label">{qa.label}</div>
-                      <div className="qa-desc">{qa.desc}</div>
-                      <div className="qa-sub">{qa.sub}</div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* EN PROGRESO */}
           {(() => {
@@ -564,26 +687,6 @@ export default function Dashboard() {
             )
           })()}
 
-          {/* RUTAS ACTIVAS */}
-          <div className="sec-card">
-            <div className="sc-hd">
-              <h3>Rutas activas <span className="sc-hd-count">12</span></h3>
-              <a href="#">Ver todas →</a>
-            </div>
-            <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-              {rutasActivas.slice(0, 5).map((r) => (
-                <div key={r.name} className="ruta-row">
-                  <div className="ruta-dot" style={{ background: r.color }} />
-                  <div className="ruta-name">{r.name}</div>
-                  <div className="ruta-count">{r.count} personas</div>
-                </div>
-              ))}
-              {rutasActivas.length > 5 && (
-                <div className="ruta-more">+{rutasActivas.length - 5} rutas más</div>
-              )}
-            </div>
-          </div>
-
           {/* PRÓXIMO HITO */}
           <div className="hito-card">
             <div className="hito-ico">
@@ -601,7 +704,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
           {/* ALERTAS */}
           {(() => {
@@ -745,6 +848,19 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={formRuta.esGlobal}
+                  onChange={e => setFormRuta({ ...formRuta, esGlobal: e.target.checked })}
+                  style={{ marginTop: 2, width: 15, height: 15, accentColor: '#0C2D40', cursor: 'pointer' }}
+                />
+                <span>
+                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>Aplicar a todas las rutas</span>
+                  <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginTop: 1 }}>Sus etapas se insertarán, protegidas, al inicio de todas las demás rutas.</span>
+                </span>
+              </label>
             </div>
             <div className="pl-modal-footer">
               <button className="pl-btn-cancel" onClick={() => setModalCrear(false)}>Cancelar</button>
@@ -762,64 +878,6 @@ export default function Dashboard() {
           onClose={() => setModalAsignar(false)}
           onConfirm={() => { setModalAsignar(false); navigate('/onboarding/asignaciones') }}
         />
-      )}
-
-      {/* MODAL BIENVENIDA — se muestra solo si isDemoFresh y no fue cerrado antes */}
-      {showWelcome && isDemoFresh && !isManager && (
-        <div className="pl-overlay" style={{ zIndex: 60 }} onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false) }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,.18)', overflow: 'hidden', animation: 'plSlideUp .25s ease-out' }}>
-
-            {/* HEADER */}
-            <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #164e63 100%)', padding: '36px 32px 28px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>👋</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-                Bienvenida al módulo de Onboarding
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', lineHeight: 1.5 }}>
-                Desde aquí podrás gestionar la experiencia de ingreso de todos tus colaboradores.
-              </div>
-            </div>
-
-            {/* PASOS */}
-            <div style={{ padding: '24px 32px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Para comenzar necesitas</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { n: '1', text: 'Configurar el módulo', sub: 'Activa gamificación, asistente IA y define cómo se asignarán las rutas.', path: '/onboarding/configuracion' },
-                  { n: '2', text: 'Subir recursos', sub: 'Documentos, videos y materiales que tus colaboradores consultarán.', path: '/onboarding/conocimiento' },
-                  { n: '3', text: 'Crear una ruta', sub: 'El camino paso a paso que seguirá cada nuevo ingreso.', path: '/onboarding/plantillas' },
-                  { n: '4', text: 'Asignar la ruta', sub: 'Elige un colaborador y activa su onboarding.', path: '/onboarding/asignaciones' },
-                ].map(s => (
-                  <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#0C2D40', flexShrink: 0 }}>{s.n}</div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{s.text}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* FOOTER */}
-            <div style={{ padding: '0 32px 28px', display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false); navigate('/onboarding/configuracion') }}
-                style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <Rocket size={15} />
-                Empezar configuración
-              </button>
-              <button
-                onClick={() => { localStorage.setItem('onb_demo_welcome_seen', '1'); setShowWelcome(false) }}
-                style={{ height: 44, padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                Explorar
-              </button>
-            </div>
-
-          </div>
-        </div>
       )}
 
       {/* CELEBRACIÓN — confetti + modal al completar los 4 pasos */}

@@ -4,10 +4,15 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, LayoutTemplate, Copy, Pencil, Trash2, X, AlertTriangle, Filter, CheckCircle2,
-  LayoutGrid, List, MoreHorizontal, ChevronDown, Check, UserPlus, Users, Archive, Route
+  LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
+import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import rutaImg from '../../assets/imagenes/ruta.webp'
+import PageHero from '../../components/layout/PageHero'
+import EmptyState from '../../components/layout/EmptyState'
+import imagenRuta from '../../assets/imagenes/imagen_ruta.png'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
@@ -34,7 +39,9 @@ export default function Plantillas() {
   const isAreaRole = isManager || isAuxiliar
   const managerArea = 'Marketing'
 
-  const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, addFeedEntry } = useOnboardingData()
+  const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, asignaciones, setAsignaciones, addFeedEntry } = useOnboardingData()
+  const isAdmin = !isAreaRole
+  const rutasGlobales = allPlantillas.filter(p => p.esGlobal).sort((a, b) => (a.ordenGlobal ?? 0) - (b.ordenGlobal ?? 0))
   const plantillas = isAreaRole ? allPlantillas.filter(p => p.area === managerArea) : allPlantillas
   function setPlantillas(next) {
     if (!isAreaRole) { setAllPlantillas(next); return }
@@ -49,8 +56,10 @@ export default function Plantillas() {
   const [rfDropStatus, setRfDropStatus] = useState(false)
   const [rfDropArea, setRfDropArea] = useState(false)
   const [rfDropCargo, setRfDropCargo] = useState(false)
-  const [viewMode, setViewMode] = useState('grid')
+  const [viewMode, setViewMode] = useState('list')
   const [cardMenu, setCardMenu] = useState(null)
+  const [rowMenuPos, setRowMenuPos] = useState(null)
+  const [asignarModal, setAsignarModal] = useState(null)
 
   const [activeJourney, setActiveJourney] = useState(null)
   const [modal, setModal] = useState(null)
@@ -60,7 +69,9 @@ export default function Plantillas() {
   const [etapasModal, setEtapasModal] = useState(null)
   const [tareasModal, setTareasModal] = useState(null)
 
-  const [form, setForm] = useState({ name: '', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
+  const [form, setForm] = useState({ name: '', descripcion: '', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
+  const [rutaBaseConfirm, setRutaBaseConfirm] = useState(null)
+  const [globalesExpanded, setGlobalesExpanded] = useState(false)
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
   const [showResponsables, setShowResponsables] = useState(null)
@@ -99,22 +110,31 @@ export default function Plantillas() {
     const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
     return matchSearch && matchStatus && matchArea && matchCargo
   })
-  function clearRutaFilters() { setFilterStatus('todas'); setFilterArea('todas'); setFilterCargo('todos') }
+  function clearRutaFilters() { setFilterStatus('todas'); setFilterArea('todas'); setFilterCargo('todos'); setPage(1) }
+
+  const [page, setPage] = useState(1)
+  const perPage = 8
+  const totalPages = Math.ceil(filtered.length / perPage)
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage)
 
   const totalTareas = plantillas.reduce((s, p) => s + p.tareas, 0)
   const totalActivas = plantillas.filter(p => p.status === 'activa').length
   const totalBorrador = plantillas.filter(p => p.status === 'borrador').length
   const totalArchivadas = plantillas.filter(p => p.status === 'archivada').length
 
+  function nextOrdenGlobal() {
+    return rutasGlobales.length ? Math.max(...rutasGlobales.map(p => p.ordenGlobal ?? 0)) + 1 : 0
+  }
+
   function openCreate() {
-    setForm({ name: '', area: 'Ventas', cargo: '' })
+    setForm({ name: '', descripcion: '', area: 'Ventas', cargo: '' })
     setDropArea(false)
     setDropCargo(false)
     setModal('crear')
   }
 
   function openEdit(p) {
-    setForm({ name: p.name, area: p.area, cargo: p.cargo || '', id: p.id })
+    setForm({ name: p.name, descripcion: p.descripcion || '', area: p.area, cargo: p.cargo || '', id: p.id })
     setModal('editar')
   }
 
@@ -127,6 +147,7 @@ export default function Plantillas() {
       const newPlantilla = {
         id: newId,
         name: form.name.trim(),
+        descripcion: form.descripcion?.trim() || '',
         area: form.area,
         cargo: form.cargo || '',
         etapas: 0,
@@ -135,17 +156,43 @@ export default function Plantillas() {
         status: 'borrador',
         updated: 'Ahora',
         color,
+        esGlobal: false,
+        ordenGlobal: null,
       }
       setPlantillas([...plantillas, newPlantilla])
       addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
       setModal(null)
       setActiveJourney({ ...newPlantilla, isNew: true })
     } else {
-      setPlantillas(plantillas.map(p =>
-        p.id === form.id ? { ...p, name: form.name.trim(), area: form.area, updated: 'Ahora' } : p
-      ))
+      setPlantillas(plantillas.map(p => {
+        if (p.id !== form.id) return p
+        return {
+          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', area: form.area, updated: 'Ahora',
+        }
+      }))
       setModal(null)
     }
+  }
+
+  function toggleGlobal(p) {
+    const willBeGlobal = !p.esGlobal
+    setPlantillas(prev => prev.map(x => x.id === p.id
+      ? { ...x, esGlobal: willBeGlobal, ordenGlobal: willBeGlobal ? nextOrdenGlobal() : null }
+      : x))
+    setCardMenu(null)
+    setRutaBaseConfirm(null)
+  }
+
+  function moveGlobalOrder(p, direction) {
+    const idx = rutasGlobales.findIndex(x => x.id === p.id)
+    const swapIdx = idx + direction
+    if (swapIdx < 0 || swapIdx >= rutasGlobales.length) return
+    const other = rutasGlobales[swapIdx]
+    setPlantillas(prev => prev.map(x => {
+      if (x.id === p.id) return { ...x, ordenGlobal: other.ordenGlobal }
+      if (x.id === other.id) return { ...x, ordenGlobal: p.ordenGlobal }
+      return x
+    }))
   }
 
   function handleDuplicate(p) {
@@ -164,6 +211,26 @@ export default function Plantillas() {
     setDeleteTarget(p)
   }
 
+  function handleAsignarRuta(colabs, ruta, fecha) {
+    if (!colabs.length || !ruta) return
+    const baseId = Math.max(0, ...asignaciones.map(a => a.id))
+    const newItems = colabs.map((c, i) => ({
+      id: baseId + i + 1,
+      nombre: c.name,
+      area: c.depto || 'Sin asignar',
+      ruta: ruta.name,
+      dia: 0,
+      totalDias: 30,
+      pct: 0,
+      status: 'pendiente',
+      fechaInicio: fecha || 'Por definir',
+      color: c.color || '#3b82f6',
+    }))
+    setAsignaciones([...asignaciones, ...newItems])
+    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}`))
+    setAsignarModal(null)
+  }
+
   function handleDelete() {
     setPlantillas(plantillas.filter(p => p.id !== deleteTarget.id))
     setDeleteTarget(null)
@@ -175,55 +242,111 @@ export default function Plantillas() {
         plantilla={activeJourney}
         onBack={() => setActiveJourney(null)}
         empty={activeJourney.isNew}
+        backLabel="Rutas"
       />
     )
   }
 
   return (
-    <div className="content-scroll">
+    <div className="content-scroll" onClick={() => setCardMenu(null)}>
 
-      {/* HEADER */}
-      <div className="pl-header">
-        <div>
-          <h1 className="pl-title">{isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}</h1>
-          <p className="pl-subtitle">{isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}</p>
-        </div>
-        {!isAreaRole && (
-          <button className="pl-btn-new" onClick={openCreate}>
-            <Plus size={15} />
-            Nueva ruta
-          </button>
-        )}
-      </div>
+      {/* HERO */}
+      <PageHero
+        image={imagenRuta}
+        title={isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}
+        description={isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}
+        actionLabel={!isAreaRole ? 'Nueva ruta' : undefined}
+        actionIcon={Plus}
+        onAction={openCreate}
+      />
 
       {/* KPI STRIP */}
       <div className="kpi-strip">
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--blue)' }}>
           <div className="kpi-title" style={{ color: 'var(--blue)' }}>Rutas totales</div>
           <div className="kpi-val">{plantillas.length}</div>
           <div className="kpi-lbl">Creadas en la plataforma</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
           <div className="kpi-title" style={{ color: 'var(--green)' }}>Activas</div>
           <div className="kpi-val">{totalActivas}</div>
           <div className="kpi-lbl">En uso actualmente</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: 'var(--yellow)' }}>En borrador</div>
           <div className="kpi-val">{totalBorrador}</div>
           <div className="kpi-lbl">Pendientes de activar</div>
         </div>
-        <div className="kpi-card">
-          <div className="kpi-title" style={{ color: '#64748b' }}>Archivadas</div>
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--text-muted)' }}>
+          <div className="kpi-title" style={{ color: 'var(--text-muted)' }}>Archivadas</div>
           <div className="kpi-val">{totalArchivadas}</div>
           <div className="kpi-lbl">Fuera de uso</div>
         </div>
-        <div className="kpi-card">
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--purple)' }}>
           <div className="kpi-title" style={{ color: 'var(--purple)' }}>Tareas en total</div>
           <div className="kpi-val">{totalTareas}</div>
           <div className="kpi-lbl">Distribuidas en todas las rutas</div>
         </div>
       </div>
+
+      {/* RUTAS BASE */}
+      {isAdmin && rutasGlobales.length > 0 && (
+        <div style={{
+          background: 'var(--surface-card)', border: '1px solid var(--border-soft)', borderRadius: 14,
+          boxShadow: 'var(--shadow-card)', padding: '12px 18px', marginBottom: 18,
+        }}>
+          <button
+            onClick={() => setGlobalesExpanded(!globalesExpanded)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+              border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+              fontFamily: 'inherit', textAlign: 'left',
+            }}
+          >
+            <ShieldCheck size={14} style={{ color: '#0C2D40', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
+              {rutasGlobales.length} {rutasGlobales.length === 1 ? 'ruta base' : 'rutas base'}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              — se aplican, en este orden, a todas las demás rutas{!globalesExpanded && `: ${rutasGlobales.map(p => p.name).join(', ')}`}
+            </span>
+            {globalesExpanded ? <ChevronUp size={15} style={{ color: '#64748b', flexShrink: 0 }} /> : <ChevronDown size={15} style={{ color: '#64748b', flexShrink: 0 }} />}
+          </button>
+          {globalesExpanded && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+            {rutasGlobales.map((p, i) => (
+              <div key={p.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                borderRadius: 10, background: 'var(--bg-secondary)',
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', width: 16 }}>{i + 1}</span>
+                <Lock size={12} style={{ color: '#0C2D40', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', flex: 1 }}>{p.name}</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                  background: p.status === 'activa' ? '#f0fdf4' : '#fef3c7',
+                  color: p.status === 'activa' ? '#16a34a' : '#b45309',
+                }}>
+                  {p.status === 'activa' ? 'Activa' : 'No propaga (no está activa)'}
+                </span>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  <button
+                    onClick={() => moveGlobalOrder(p, -1)}
+                    disabled={i === 0}
+                    style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                  ><ChevronUp size={14} /></button>
+                  <button
+                    onClick={() => moveGlobalOrder(p, 1)}
+                    disabled={i === rutasGlobales.length - 1}
+                    style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: i === rutasGlobales.length - 1 ? 'default' : 'pointer', opacity: i === rutasGlobales.length - 1 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                  ><ChevronDown size={14} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+      )}
 
       {/* SEARCH & FILTERS */}
       <div className="pl-toolbar">
@@ -234,7 +357,7 @@ export default function Plantillas() {
             className="pl-search"
             placeholder="Buscar ruta por nombre o área…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
         <button onClick={() => setShowRutaFilters(true)} style={{
@@ -262,7 +385,7 @@ export default function Plantillas() {
         {hasRutaFilters && (
           <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
             {filterStatus !== 'todas' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: filterStatus === 'activa' ? '#f0fdf4' : filterStatus === 'borrador' ? '#fef3c7' : '#f1f5f9', color: filterStatus === 'activa' ? '#166534' : filterStatus === 'borrador' ? '#92400e' : '#475569', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: filterStatus === 'activa' ? '#f0fdf4' : filterStatus === 'borrador' ? '#fef3c7' : 'var(--surface-hover)', color: filterStatus === 'activa' ? '#166534' : filterStatus === 'borrador' ? '#92400e' : '#475569', display: 'flex', alignItems: 'center', gap: 3 }}>
                 {{ activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}
                 <button onClick={() => setFilterStatus('todas')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: filterStatus === 'activa' ? '#bbf7d0' : filterStatus === 'borrador' ? '#fde68a' : '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: filterStatus === 'activa' ? '#166534' : filterStatus === 'borrador' ? '#92400e' : '#475569' }} /></button>
               </span>
@@ -279,7 +402,7 @@ export default function Plantillas() {
                 <button onClick={() => setFilterCargo('todos')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#92400e' }} /></button>
               </span>
             )}
-            <button onClick={clearRutaFilters} style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+            <button onClick={clearRutaFilters} style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
           </div>
         )}
 
@@ -287,19 +410,19 @@ export default function Plantillas() {
         {showRutaFilters && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowRutaFilters(false)}>
             <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--surface-hover)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Filter size={16} style={{ color: '#0C2D40' }} />
                   <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar rutas</span>
                 </div>
-                <button onClick={() => setShowRutaFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={14} style={{ color: '#64748b' }} />
+                <button onClick={() => setShowRutaFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--surface-hover)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={14} style={{ color: 'var(--text-muted)' }} />
                 </button>
               </div>
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false) }}>
                 {/* ESTADO */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Estado</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Estado</span>
                   <div className="pl-dropdown-wrap">
                     <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropArea(false); setRfDropCargo(false) }}>
                       <span>{{ todas: 'Todos los estados', activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}</span>
@@ -319,7 +442,7 @@ export default function Plantillas() {
                 </div>
                 {/* ÁREA */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Área</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Área</span>
                   <div className="pl-dropdown-wrap">
                     <button type="button" className={`pl-dropdown-trigger${rfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropArea(!rfDropArea); setRfDropStatus(false); setRfDropCargo(false) }}>
                       <span>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
@@ -327,7 +450,7 @@ export default function Plantillas() {
                     </button>
                     {rfDropArea && (
                       <div className="pl-dropdown-menu">
-                        {['todas', ...new Set(plantillas.map(p => p.area))].map(a => (
+                        {['todas', ...new Set(plantillas.map(p => p.area).filter(a => a !== 'Todas las áreas'))].map(a => (
                           <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setRfDropArea(false) }}>
                             <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
                             {filterArea === a && <Check size={14} />}
@@ -339,7 +462,7 @@ export default function Plantillas() {
                 </div>
                 {/* CARGO */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Cargo</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Cargo</span>
                   <div className="pl-dropdown-wrap">
                     <button type="button" className={`pl-dropdown-trigger${rfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropCargo(!rfDropCargo); setRfDropStatus(false); setRfDropArea(false) }}>
                       <span>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
@@ -358,16 +481,16 @@ export default function Plantillas() {
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid var(--surface-hover)' }}>
                 <button onClick={clearRutaFilters} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
-                <button onClick={() => setShowRutaFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
+                <button onClick={() => { setShowRutaFilters(false); setPage(1) }} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
               </div>
             </div>
           </div>
         )}
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3 }}>
-          {[{ key: 'grid', icon: LayoutGrid }, { key: 'list', icon: List }].map(v => {
+        <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3 }}>
+          {[{ key: 'list', icon: List }, { key: 'grid', icon: LayoutGrid }].map(v => {
             const VIcon = v.icon
             return (
               <button
@@ -391,10 +514,10 @@ export default function Plantillas() {
       {/* VISTA GRID */}
       {viewMode === 'grid' && (
       <div className="pl-grid">
-        {filtered.map((p) => (
+        {paginated.map((p) => (
           <div key={p.id} className="pl-card" style={{ overflow: 'visible', position: 'relative', padding: 0 }}>
             {/* HEADER */}
-            <div style={{ padding: '14px 16px 12px', background: '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid #f1f5f9' }}>
+            <div style={{ padding: '14px 16px 12px', background: '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
@@ -403,7 +526,10 @@ export default function Plantillas() {
                   <img src={rutaImg} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                    {p.esGlobal && <Lock size={12} style={{ color: '#0C2D40', flexShrink: 0 }} title="Aplica a todas las rutas" />}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                   <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
@@ -411,12 +537,12 @@ export default function Plantillas() {
                   </span>
                   <div style={{ position: 'relative' }}>
                     <button
-                      onClick={() => setCardMenu(cardMenu === p.id ? null : p.id)}
+                      onClick={e => { e.stopPropagation(); setCardMenu(cardMenu === p.id ? null : p.id) }}
                       style={{
                         width: 24, height: 24, borderRadius: 6, border: 'none',
-                        background: cardMenu === p.id ? '#f1f5f9' : 'transparent',
+                        background: cardMenu === p.id ? 'var(--surface-hover)' : 'transparent',
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#94a3b8', fontFamily: 'inherit',
+                        color: 'var(--text-muted)', fontFamily: 'inherit',
                       }}
                     >
                       <MoreHorizontal size={14} />
@@ -429,9 +555,11 @@ export default function Plantillas() {
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
                         {[
-                          { icon: Pencil, label: 'Editar', color: '#475569', fn: () => { openEdit(p); setCardMenu(null) } },
-                          { icon: Copy, label: 'Duplicar', color: '#475569', fn: () => { handleDuplicate(p); setCardMenu(null) } },
-                          { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: '#64748b', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
+                          ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                          { icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } },
+                          { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
+                          ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
+                          { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
                           { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
                         ].map(a => {
                           const AIcon = a.icon
@@ -461,12 +589,12 @@ export default function Plantillas() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="6" y="10" width="12" height="12" rx="2" ry="2"/></svg>
-                  <span style={{ fontSize: 10, color: '#475569' }}>{p.area}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.area}</span>
                 </div>
                 {p.cargo && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                    <span style={{ fontSize: 10, color: '#475569' }}>{p.cargo}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.cargo}</span>
                   </div>
                 )}
               </div>
@@ -476,14 +604,14 @@ export default function Plantillas() {
             <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
               <div style={{ cursor: 'pointer' }} onClick={() => setEtapasModal(p)}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{p.etapas}</div>
-                <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Etapas</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>Etapas</div>
               </div>
-              <div style={{ width: 1, background: '#f1f5f9' }} />
+              <div style={{ width: 1, background: 'var(--surface-hover)' }} />
               <div style={{ cursor: 'pointer' }} onClick={() => setTareasModal(p)}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{p.tareas}</div>
-                <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Tareas</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>Tareas</div>
               </div>
-              <div style={{ width: 1, background: '#f1f5f9' }} />
+              <div style={{ width: 1, background: 'var(--surface-hover)' }} />
               <div style={{ cursor: p.asignados > 0 ? 'pointer' : 'default' }} onClick={() => p.asignados > 0 && setAsignadosModal(p)}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: p.asignados > 0 ? '#0C2D40' : '#cbd5e1' }}>{p.asignados}</div>
                 <div style={{ fontSize: 9, color: p.asignados > 0 ? '#3b82f6' : '#94a3b8', fontWeight: 600 }}>Asignados</div>
@@ -492,9 +620,9 @@ export default function Plantillas() {
 
             {/* RESPONSABLES — solo visible para manager */}
             {isManager && (
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 2 }}>
+              <div style={{ borderTop: '1px solid var(--surface-hover)', paddingTop: 8, marginTop: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Responsables</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Responsables</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowResponsables(showResponsables === p.id ? null : p.id) }}
                     style={{
@@ -511,7 +639,7 @@ export default function Plantillas() {
                     <div key={r.name} style={{
                       display: 'flex', alignItems: 'center', gap: 5,
                       padding: '3px 8px 3px 3px', borderRadius: 20,
-                      background: '#f8fafc', border: '1px solid #f1f5f9',
+                      background: '#f8fafc', border: '1px solid var(--surface-hover)',
                     }}>
                       <div style={{
                         width: 18, height: 18, borderRadius: '50%', background: r.color,
@@ -519,14 +647,14 @@ export default function Plantillas() {
                       }}>
                         <span style={{ color: '#fff', fontSize: 7, fontWeight: 700 }}>{r.initials}</span>
                       </div>
-                      <span style={{ fontSize: 9, fontWeight: 600, color: '#475569' }}>{r.name.split(' ')[0]}</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)' }}>{r.name.split(' ')[0]}</span>
                       {r.role !== 'Líder de área' && (
                         <button onClick={(e) => { e.stopPropagation(); removeResponsable(p.id, r.name) }} style={{
                           width: 12, height: 12, borderRadius: '50%', border: 'none',
                           background: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                           padding: 0, marginLeft: -2,
                         }}>
-                          <X size={7} style={{ color: '#94a3b8' }} />
+                          <X size={7} style={{ color: 'var(--text-muted)' }} />
                         </button>
                       )}
                     </div>
@@ -542,7 +670,7 @@ export default function Plantillas() {
                     background: '#fff', border: '1px solid #e2e8f0',
                     boxShadow: '0 4px 12px rgba(0,0,0,.08)',
                   }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
                     {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).map(e => (
                       <button
                         key={e.name}
@@ -564,12 +692,12 @@ export default function Plantillas() {
                         </div>
                         <div>
                           <div style={{ fontSize: 10, fontWeight: 600, color: '#334155' }}>{e.name}</div>
-                          <div style={{ fontSize: 8, color: '#94a3b8' }}>{e.cargo}</div>
+                          <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>{e.cargo}</div>
                         </div>
                       </button>
                     ))}
                     {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).length === 0 && (
-                      <div style={{ fontSize: 9, color: '#94a3b8', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
                     )}
                   </div>
                 )}
@@ -579,15 +707,15 @@ export default function Plantillas() {
             {/* BADGE AUXILIAR — delegado por */}
             {isAuxiliar && (
               <div style={{
-                borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 2,
+                borderTop: '1px solid var(--surface-hover)', paddingTop: 8, marginTop: 2,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
                 <Users size={11} style={{ color: '#14b8a6' }} />
-                <span style={{ fontSize: 9, color: '#64748b' }}>Acceso delegado por <strong style={{ color: '#0C2D40' }}>{currentUser.delegadoPor}</strong></span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Acceso delegado por <strong style={{ color: '#0C2D40' }}>{currentUser.delegadoPor}</strong></span>
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid var(--surface-hover)' }}>
               <span style={{ fontSize: 10, color: '#b0b8c4' }}>{p.updated}</span>
               <button onClick={() => setActiveJourney(p)} style={{
                 padding: '5px 12px', borderRadius: 7, border: '1px solid #e2e8f0',
@@ -614,124 +742,239 @@ export default function Plantillas() {
           <table className="as-table">
             <thead>
               <tr>
-                <th>Ruta</th>
-                <th>Área</th>
+                <th>Nombre de la ruta</th>
+                <th>Descripción</th>
                 <th>Etapas</th>
-                <th>Tareas</th>
-                <th>Asignados</th>
+                <th>Colaboradores</th>
                 <th>Estado</th>
-                <th>Actualización</th>
-                <th></th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {paginated.map(p => (
                 <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setActiveJourney(p)}>
                   <td>
-                    <div className="as-name">{p.name}</div>
+                    <div className="as-name" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {p.name}
+                      {p.esGlobal && <Lock size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} title="Aplica a todas las rutas" />}
+                    </div>
                   </td>
-                  <td><span className="as-ruta">{p.area}</span></td>
+                  <td>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                      {p.descripcion || '—'}
+                    </span>
+                  </td>
                   <td><span className="as-dia">{p.etapas}</span></td>
-                  <td><span className="as-dia">{p.tareas}</span></td>
                   <td><span className="as-dia">{p.asignados}</span></td>
                   <td>
                     <span style={{
                       fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                      background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? '#f1f5f9' : '#fef3c7',
+                      background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
                       color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
                     }}>
                       {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
                     </span>
                   </td>
-                  <td><span className="as-fecha">{p.updated}</span></td>
                   <td onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="pl-action" onClick={() => openEdit(p)}><Pencil size={12} /></button>
-                      <button className="pl-action" onClick={() => handleDuplicate(p)}><Copy size={12} /></button>
-                      <button className="pl-action pl-action-del" onClick={() => confirmDelete(p)}><Trash2 size={12} /></button>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={(e) => {
+                          if (cardMenu === p.id) { setCardMenu(null); return }
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const itemCount = 4 + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0)
+                          const menuH = itemCount * 34 + 8
+                          const margin = 10
+                          const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
+                            ? Math.max(margin, rect.top - menuH - 4)
+                            : rect.bottom + 4
+                          setRowMenuPos({ top, right: window.innerWidth - rect.right })
+                          setCardMenu(p.id)
+                        }}
+                        style={{
+                          width: 26, height: 26, borderRadius: 6, border: 'none',
+                          background: cardMenu === p.id ? 'var(--surface-hover)' : 'transparent',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--text-muted)', fontFamily: 'inherit',
+                        }}
+                      >
+                        <MoreHorizontal size={15} />
+                      </button>
+                      {cardMenu === p.id && rowMenuPos && (
+                        <div style={{
+                          position: 'fixed', top: rowMenuPos.top, right: rowMenuPos.right,
+                          background: '#fff', borderRadius: 10, padding: 4,
+                          boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid #e2e8f0',
+                          zIndex: 20, minWidth: 180, maxHeight: 'calc(100vh - 20px)', overflowY: 'auto',
+                          animation: 'plSlideUp .12s',
+                        }}>
+                          {[
+                            ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                            { icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } },
+                            { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
+                            ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
+                            { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
+                            { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
+                          ].map(a => {
+                            const AIcon = a.icon
+                            return (
+                              <button
+                                key={a.label}
+                                onClick={a.fn}
+                                style={{
+                                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                                  padding: '7px 10px', border: 'none', borderRadius: 7,
+                                  background: 'transparent', cursor: 'pointer', fontSize: 12,
+                                  fontWeight: 500, color: a.color, fontFamily: 'inherit', textAlign: 'left',
+                                  transition: 'background .1s',
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = a.color === '#ef4444' ? '#fef2f2' : '#f8fafc'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                              >
+                                <AIcon size={13} /> {a.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {totalPages > 1 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderTop: '1px solid var(--border-soft)',
+            }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} de {filtered.length} rutas
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)',
+                    background: 'var(--surface-card)', cursor: page === 1 ? 'default' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: page === 1 ? 'var(--border-dark)' : 'var(--text-muted)',
+                    opacity: page === 1 ? 0.5 : 1,
+                  }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      border: p === page ? 'none' : '1px solid var(--border-soft)',
+                      background: p === page ? '#0C2D40' : 'var(--surface-card)',
+                      color: p === page ? '#fff' : 'var(--text-muted)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'inherit',
+                    }}
+                  >{p}</button>
+                ))}
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{
+                    width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)',
+                    background: 'var(--surface-card)', cursor: page === totalPages ? 'default' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: page === totalPages ? 'var(--border-dark)' : 'var(--text-muted)',
+                    opacity: page === totalPages ? 0.5 : 1,
+                  }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
           {filtered.length === 0 && (
             <div style={{ padding: '12px 16px 16px' }}>
-              <div style={{
-                borderRadius: 12, border: '1.5px dashed #e2e8f0',
-                background: '#fafbfc', padding: '20px',
-                display: 'flex', alignItems: 'center', gap: 20,
-              }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-                  background: '#f1f5f9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Route size={22} style={{ color: '#94a3b8' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
-                    {plantillas.length === 0 ? 'Aún no has creado rutas de onboarding' : 'No se encontraron rutas'}
-                  </div>
-                  <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
-                    {plantillas.length === 0
-                      ? 'Define el camino que seguirán los nuevos colaboradores: etapas, tareas y recursos, organizados por área y cargo.'
-                      : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
-                  </p>
-                  {plantillas.length === 0 && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {['🗺️ Etapas', '✅ Tareas', '👤 Por área y cargo'].map(tag => (
-                        <span key={tag} style={{
-                          fontSize: 10, fontWeight: 600, color: '#475569',
-                          background: '#f1f5f9', border: '1px solid #e2e8f0',
-                          padding: '3px 10px', borderRadius: 20,
-                        }}>{tag}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <EmptyState
+                icon={Route}
+                title={plantillas.length === 0 ? 'Aún no hay rutas de onboarding creadas' : 'No se encontraron rutas'}
+                description={plantillas.length === 0 ? 'Para crear una ruta, haz clic en "Nueva ruta".' : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
+                actionLabel={plantillas.length === 0 && !isAreaRole ? 'Nueva ruta' : undefined}
+                actionIcon={Plus}
+                onAction={openCreate}
+              />
             </div>
           )}
         </div>
       )}
 
+      {viewMode === 'grid' && totalPages > 1 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px',
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} de {filtered.length} rutas
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)',
+                background: 'var(--surface-card)', cursor: page === 1 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: page === 1 ? 'var(--border-dark)' : 'var(--text-muted)',
+                opacity: page === 1 ? 0.5 : 1,
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                style={{
+                  width: 30, height: 30, borderRadius: 8,
+                  border: p === page ? 'none' : '1px solid var(--border-soft)',
+                  background: p === page ? '#0C2D40' : 'var(--surface-card)',
+                  color: p === page ? '#fff' : 'var(--text-muted)',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'inherit',
+                }}
+              >{p}</button>
+            ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)',
+                background: 'var(--surface-card)', cursor: page === totalPages ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: page === totalPages ? 'var(--border-dark)' : 'var(--text-muted)',
+                opacity: page === totalPages ? 0.5 : 1,
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'grid' && filtered.length === 0 && (
         <div style={{ padding: '0 16px 16px' }}>
-          <div style={{
-            borderRadius: 12, border: '1.5px dashed #e2e8f0',
-            background: '#fafbfc', padding: '20px',
-            display: 'flex', alignItems: 'center', gap: 20,
-          }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-              background: '#f1f5f9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Route size={22} style={{ color: '#94a3b8' }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>
-                {plantillas.length === 0 ? 'Aún no has creado rutas de onboarding' : 'No se encontraron rutas'}
-              </div>
-              <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.55, margin: '0 0 12px' }}>
-                {plantillas.length === 0
-                  ? 'Define el camino que seguirán los nuevos colaboradores: etapas, tareas y recursos, organizados por área y cargo.'
-                  : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
-              </p>
-              {plantillas.length === 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {['🗺️ Etapas', '✅ Tareas', '👤 Por área y cargo'].map(tag => (
-                    <span key={tag} style={{
-                      fontSize: 10, fontWeight: 600, color: '#475569',
-                      background: '#f1f5f9', border: '1px solid #e2e8f0',
-                      padding: '3px 10px', borderRadius: 20,
-                    }}>{tag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <EmptyState
+            icon={Route}
+            title={plantillas.length === 0 ? 'Aún no hay rutas de onboarding creadas' : 'No se encontraron rutas'}
+            description={plantillas.length === 0 ? 'Para crear una ruta, haz clic en "Nueva ruta".' : 'Intenta con otro término de búsqueda o ajusta los filtros.'}
+            actionLabel={plantillas.length === 0 && !isAreaRole ? 'Nueva ruta' : undefined}
+            actionIcon={Plus}
+            onAction={openCreate}
+          />
         </div>
       )}
 
@@ -761,6 +1004,18 @@ export default function Plantillas() {
                 />
               </label>
 
+              <label className="pl-label">
+                Descripción
+                <textarea
+                  className="pl-input"
+                  style={{ resize: 'vertical', minHeight: '52px' }}
+                  rows={2}
+                  placeholder="Breve descripción de esta ruta de onboarding"
+                  value={form.descripcion || ''}
+                  onChange={e => setForm({ ...form, descripcion: e.target.value })}
+                />
+              </label>
+
               <div className="pl-label">
                 Área
                 <div className="pl-dropdown-wrap">
@@ -774,7 +1029,7 @@ export default function Plantillas() {
                   </button>
                   {dropArea && (
                     <div className="pl-dropdown-menu">
-                      {areas.map(a => (
+                      {['Todas las áreas', ...areas].map(a => (
                         <button
                           key={a}
                           type="button"
@@ -795,13 +1050,15 @@ export default function Plantillas() {
                 <div className="pl-dropdown-wrap">
                   <button
                     type="button"
+                    disabled={form.area === 'Todas las áreas'}
                     className={`pl-dropdown-trigger${dropCargo ? ' open' : ''}${!form.cargo ? ' placeholder' : ''}`}
                     onClick={() => { setDropCargo(!dropCargo); setDropArea(false) }}
+                    style={form.area === 'Todas las áreas' ? { opacity: 0.5, cursor: 'default' } : undefined}
                   >
-                    <span>{form.cargo || 'Seleccionar cargo'}</span>
+                    <span>{form.area === 'Todas las áreas' ? 'Todos los cargos' : (form.cargo || 'Seleccionar cargo')}</span>
                     <ChevronDown size={14} className="pl-dropdown-chevron" />
                   </button>
-                  {dropCargo && (
+                  {dropCargo && form.area !== 'Todas las áreas' && (
                     <div className="pl-dropdown-menu">
                       {(cargosPorArea[form.area] || []).map(c => (
                         <button
@@ -818,6 +1075,18 @@ export default function Plantillas() {
                   )}
                 </div>
               </div>
+
+              {isAdmin && modal === 'crear' && (
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
+                  padding: '10px 12px', borderRadius: 10, background: 'var(--bg-secondary)',
+                }}>
+                  <Info size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta base</strong> desde el menú de acciones si querés que se aplique a todas las demás rutas.
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="pl-modal-footer">
@@ -833,6 +1102,61 @@ export default function Plantillas() {
           </div>
         </div>
       )}
+
+      {/* MODAL ASIGNAR RUTA */}
+      {asignarModal && (
+        <AsignarRutaModal
+          onClose={() => setAsignarModal(null)}
+          onConfirm={handleAsignarRuta}
+          preselectedRutaId={asignarModal.id}
+        />
+      )}
+
+      {/* MODAL CONFIRMAR RUTA BASE */}
+      {rutaBaseConfirm && (() => {
+        const willBeGlobal = !rutaBaseConfirm.esGlobal
+        return (
+          <div className="pl-overlay" onClick={() => setRutaBaseConfirm(null)}>
+            <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <ShieldCheck size={15} color="#fff" />
+                  </div>
+                  <h2 style={{ margin: 0, fontSize: 15 }}>{willBeGlobal ? 'Establecer como ruta base' : 'Quitar como ruta base'}</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setRutaBaseConfirm(null)}><X size={18} /></button>
+              </div>
+              <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                  {willBeGlobal
+                    ? <>Estás por convertir <strong>"{rutaBaseConfirm.name}"</strong> en una ruta base.</>
+                    : <><strong>"{rutaBaseConfirm.name}"</strong> dejará de ser una ruta base.</>}
+                </p>
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                  padding: '12px 14px', borderRadius: 10,
+                  background: willBeGlobal ? '#f0f9ff' : 'var(--bg-secondary)',
+                  border: willBeGlobal ? '1px solid #dbeafe' : '1px solid var(--border-soft)',
+                }}>
+                  <Info size={15} style={{ color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ margin: 0, fontSize: 11.5, color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', lineHeight: 1.6 }}>
+                    {willBeGlobal
+                      ? <><strong>¿Qué es una ruta base?</strong> Sus etapas se insertan, protegidas, al inicio de <strong>todas</strong> las demás rutas activas. Todo colaborador que reciba cualquier ruta también recibirá primero estas etapas — ideal para contenido obligatorio para toda la empresa, como cultura o políticas generales.</>
+                      : <>Sus etapas dejarán de insertarse automáticamente en las demás rutas. Las rutas que ya las incluían mantendrán su contenido actual hasta que las edites.</>}
+                  </p>
+                </div>
+              </div>
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setRutaBaseConfirm(null)}>Cancelar</button>
+                <button className="pl-btn-save" onClick={() => toggleGlobal(rutaBaseConfirm)}>
+                  {willBeGlobal ? 'Establecer como ruta base' : 'Quitar como ruta base'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* MODAL ELIMINAR */}
       {deleteTarget && (
@@ -878,16 +1202,16 @@ export default function Plantillas() {
                 {list.map((etapa, i) => (
                   <div key={i} style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0',
-                    borderBottom: i < list.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    borderBottom: i < list.length - 1 ? '1px solid var(--surface-hover)' : 'none',
                   }}>
                     <div style={{
-                      width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9',
+                      width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-hover)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      fontSize: 10, fontWeight: 700, color: '#94a3b8',
+                      fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
                     }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{etapa}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>Día {i * 7 + 1} — Día {(i + 1) * 7}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Día {i * 7 + 1} — Día {(i + 1) * 7}</div>
                     </div>
                   </div>
                 ))}
@@ -903,12 +1227,12 @@ export default function Plantillas() {
           1: [
             { name: 'Recorrido presencial', tipo: 'Recorrido', obligatoria: true },
             { name: 'Video "Así trabajamos"', tipo: 'Video', obligatoria: false },
-            { name: 'Evaluación — Conoce tu área', tipo: 'Cuestionario', obligatoria: true },
+            { name: 'Evaluación — Conoce tu área', tipo: 'Prueba', obligatoria: true },
             { name: 'Manual de funciones', tipo: 'Documento', obligatoria: false },
             { name: 'Demo del producto', tipo: 'Video', obligatoria: true },
             { name: 'Tutorial CRM', tipo: 'Video', obligatoria: true },
             { name: 'Práctica en CRM', tipo: 'Formulario', obligatoria: true },
-            { name: 'Cuestionario de producto', tipo: 'Cuestionario', obligatoria: true },
+            { name: 'Prueba de producto', tipo: 'Prueba', obligatoria: true },
           ],
           5: [
             { name: 'Setup de entorno', tipo: 'Documento', obligatoria: true },
@@ -916,11 +1240,11 @@ export default function Plantillas() {
             { name: 'Primer PR', tipo: 'Tarea', obligatoria: true },
             { name: 'Code review', tipo: 'Tarea', obligatoria: true },
             { name: 'Deploy a staging', tipo: 'Tarea', obligatoria: true },
-            { name: 'Evaluación técnica', tipo: 'Cuestionario', obligatoria: true },
+            { name: 'Evaluación técnica', tipo: 'Prueba', obligatoria: true },
           ],
         }
         const list = tareasData[tareasModal.id] || Array.from({ length: Math.min(tareasModal.tareas, 8) }, (_, i) => ({ name: `Tarea ${i + 1}`, tipo: 'Tarea', obligatoria: i % 2 === 0 }))
-        const tipoColor = { Video: '#3b82f6', Cuestionario: '#f59e0b', Documento: '#f97316', Recorrido: '#d946ef', Formulario: '#10b981', Tarea: '#64748b' }
+        const tipoColor = { Video: '#3b82f6', Prueba: '#f59e0b', Documento: '#f97316', Recorrido: '#d946ef', Formulario: '#10b981', Tarea: '#64748b' }
         return (
           <div className="pl-overlay" onClick={() => setTareasModal(null)}>
             <div className="pl-modal" style={{ maxWidth: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -954,7 +1278,7 @@ export default function Plantillas() {
                   </div>
                 ))}
                 {tareasModal.tareas > list.length && (
-                  <div style={{ padding: '10px 0', fontSize: 10, color: '#94a3b8', textAlign: 'center' }}>
+                  <div style={{ padding: '10px 0', fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
                     +{tareasModal.tareas - list.length} tareas más
                   </div>
                 )}
@@ -988,7 +1312,7 @@ export default function Plantillas() {
             { name: 'Andrés Villanueva', cargo: 'Backend Developer', area: 'Tecnología', pct: 10, initials: 'AV', color: '#06b6d4' },
           ],
         }
-        const list = asignadosData[asignadosModal.id] || [{ name: 'Colaborador asignado', cargo: asignadosModal.cargo || '', area: asignadosModal.area, pct: 50, initials: 'CA', color: '#94a3b8' }]
+        const list = asignadosData[asignadosModal.id] || [{ name: 'Colaborador asignado', cargo: asignadosModal.cargo || '', area: asignadosModal.area, pct: 50, initials: 'CA', color: 'var(--text-muted)' }]
         const filtered = list.filter(u => u.name.toLowerCase().includes(asignadosSearch.toLowerCase()) || u.cargo.toLowerCase().includes(asignadosSearch.toLowerCase()))
 
         return (
@@ -1026,23 +1350,23 @@ export default function Plantillas() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{u.name}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{u.cargo}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{u.cargo}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: u.pct === 100 ? '#10b981' : '#0C2D40' }}>{u.pct}%</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: u.pct === 100 ? '#00E091' : '#0C2D40' }}>{u.pct}%</div>
                       <div style={{
-                        width: 50, height: 4, borderRadius: 99, background: '#f1f5f9', marginTop: 3,
+                        width: 50, height: 4, borderRadius: 99, background: 'var(--surface-hover)', marginTop: 3,
                       }}>
                         <div style={{
                           height: '100%', width: `${u.pct}%`, borderRadius: 99,
-                          background: u.pct === 100 ? '#10DC97' : u.pct > 50 ? '#3b82f6' : '#f59e0b',
+                          background: u.pct === 100 ? '#00E091' : u.pct > 50 ? '#3b82f6' : '#f59e0b',
                         }} />
                       </div>
                     </div>
                   </div>
                 ))}
                 {filtered.length === 0 && (
-                  <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No se encontraron colaboradores</div>
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>No se encontraron colaboradores</div>
                 )}
               </div>
             </div>

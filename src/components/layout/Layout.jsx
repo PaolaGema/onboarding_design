@@ -10,7 +10,7 @@ import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Su
 const landingByRole = {
   admin: '/onboarding',
   manager: '/onboarding',
-  colaborador: '/onboarding/bienvenida',
+  colaborador: '/onboarding/mi-onboarding',
 }
 
 export default function Layout() {
@@ -26,7 +26,7 @@ export default function Layout() {
     const isAdminRoute = ['/onboarding', '/onboarding/asignaciones', '/onboarding/plantillas', '/onboarding/conocimiento', '/onboarding/configuracion'].includes(location.pathname)
 
     if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas)) {
-      navigate(isMobile ? '/onboarding/mi-onboarding' : '/onboarding/bienvenida', { replace: true })
+      navigate('/onboarding/mi-onboarding', { replace: true })
     }
   }, [currentUser.id, location.pathname])
 
@@ -50,7 +50,7 @@ export default function Layout() {
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           <div style={{
-            width: 8, height: 8, borderRadius: '50%', background: '#10DC97',
+            width: 8, height: 8, borderRadius: '50%', background: '#00E091',
           }} />
           Vista Mobile — Prototipo UX
         </div>
@@ -80,7 +80,7 @@ export default function Layout() {
               left: '50%', transform: 'translateX(-50%)',
             }} />
             <span style={{ fontSize: 8, color: 'rgba(255,255,255,.6)', fontWeight: 600 }}>
-              TrabajitHR
+              SoulyHR
             </span>
           </div>
 
@@ -193,7 +193,7 @@ export default function Layout() {
                           border: `2px solid ${e.border}`,
                         }}>
                           {e.isEvent ? (
-                            <span style={{ fontSize: 5, fontWeight: 700, color: '#10DC97' }}>🏢</span>
+                            <span style={{ fontSize: 5, fontWeight: 700, color: '#00E091' }}>🏢</span>
                           ) : (
                             <span style={{ fontSize: 7, fontWeight: 700, color: '#fff' }}>{e.name[0]}</span>
                           )}
@@ -257,7 +257,7 @@ export default function Layout() {
 
                   {/* Post body */}
                   <p style={{ fontSize: 7, color: '#475569', margin: '0 0 8px', lineHeight: 1.5 }}>
-                    ¡Hoy celebramos a Carlos Mendoza por cumplir su primer día con nosotros! Gracias por el compromiso y todo lo que aportas al equipo. <span style={{ color: '#3b82f6' }}>#BienvenidaTrabajitHR</span>
+                    ¡Hoy celebramos a Carlos Mendoza por cumplir su primer día con nosotros! Gracias por el compromiso y todo lo que aportas al equipo. <span style={{ color: '#3b82f6' }}>#BienvenidaSoulyHR</span>
                   </p>
 
                   {/* Post card celebración */}
@@ -304,10 +304,10 @@ export default function Layout() {
                 >
                   <div style={{
                     width: 26, height: 26, borderRadius: 8,
-                    background: 'rgba(16,220,151,.15)',
+                    background: 'rgba(0,224,145,.15)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
-                    <Route size={11} style={{ color: '#10DC97' }} />
+                    <Route size={11} style={{ color: '#00E091' }} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 7.5, fontWeight: 700, color: '#fff' }}>Continuar mi Onboarding</div>
@@ -321,7 +321,7 @@ export default function Layout() {
             )}
           </div>
 
-          {/* Bottom nav — estilo TrabajitHR */}
+          {/* Bottom nav — estilo SoulyHR */}
           <div style={{
             flexShrink: 0,
             padding: '4px 10px 8px',
@@ -376,7 +376,7 @@ export default function Layout() {
         <Header />
         <div className="flex flex-1 overflow-hidden">
           <ModuleNav />
-          <main className="flex-1 overflow-y-auto bg-gray-50" style={{ padding: '1.25rem 1rem' }}>
+          <main className="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-[#07131D]" style={{ padding: '1.25rem 1rem' }}>
             <Outlet />
           </main>
         </div>
