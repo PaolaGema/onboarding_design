@@ -1858,21 +1858,6 @@ select.pl-input:focus {
   text-transform: none;
 }
 
-.jb-config-select {
-  font-size: 11.5px;
-  font-family: inherit;
-  font-weight: 500;
-  color: var(--text-heading);
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  padding: 4px 8px;
-  outline: none;
-  background: var(--input-bg);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.jb-config-select:focus { border-color: var(--green); }
-
 .jb-sb-hint {
   font-size: 10px;
   color: var(--text-muted);
@@ -2894,21 +2879,6 @@ select.pl-input:focus {
   border-radius: 12px;
   margin-bottom: 8px;
   box-shadow: var(--shadow-card);
-}
-
-.jb-config-label { font-size: 13px; font-weight: 600; color: var(--text-heading); }
-
-.jb-config-select {
-  padding: 6px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  font-size: 12px;
-  font-family: inherit;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--input-bg);
-  outline: none;
-  cursor: pointer;
 }
 
 /* MODAL PROPIEDADES */

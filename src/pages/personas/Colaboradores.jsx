@@ -5,9 +5,9 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 
-const departamentos = ['Todos', 'Ventas', 'Tecnología', 'Marketing', 'Operaciones', 'Recursos Humanos', 'Finanzas', 'Diseño']
+export const departamentos = ['Todos', 'Ventas', 'Tecnología', 'Marketing', 'Operaciones', 'Recursos Humanos', 'Finanzas', 'Diseño']
 
-const colaboradoresData = [
+export const colaboradoresData = [
   { id: 1, name: 'Diego Morales', email: 'diego.morales@trabajito.com', depto: 'Tecnología', cargo: 'Desarrollador Backend', rol: 'Colaborador', ingreso: '15 Mar 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'DM', color: '#3b82f6' },
   { id: 2, name: 'Camila Herrera', email: 'camila.herrera@trabajito.com', depto: 'Ventas', cargo: 'Ejecutiva Comercial', rol: 'Colaborador', ingreso: '02 Ene 2026', status: 'activo', registro: 100, onb: 'en-curso', initials: 'CH', color: '#f97316' },
   { id: 3, name: 'Valentina Cruz', email: 'valentina.cruz@trabajito.com', depto: 'Diseño', cargo: 'Diseñadora UX/UI', rol: 'Colaborador', ingreso: '20 May 2026', status: 'activo', registro: 100, onb: 'en-riesgo', initials: 'VC', color: '#ec4899' },

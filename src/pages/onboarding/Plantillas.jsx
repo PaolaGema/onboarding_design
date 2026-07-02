@@ -5,7 +5,7 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, LayoutTemplate, Copy, Pencil, Trash2, X, AlertTriangle, Filter, CheckCircle2,
   LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Sparkles, ArrowRight, ArrowLeft
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
@@ -13,6 +13,7 @@ import rutaImg from '../../assets/imagenes/ruta.webp'
 import PageHero from '../../components/layout/PageHero'
 import EmptyState from '../../components/layout/EmptyState'
 import imagenRuta from '../../assets/imagenes/imagen_ruta.png'
+import { rutaPlantillas } from '../../data/rutaPlantillas'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
@@ -63,6 +64,7 @@ export default function Plantillas() {
 
   const [activeJourney, setActiveJourney] = useState(null)
   const [modal, setModal] = useState(null)
+  const [selectedTpl, setSelectedTpl] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [asignadosModal, setAsignadosModal] = useState(null)
   const [asignadosSearch, setAsignadosSearch] = useState('')
@@ -127,7 +129,18 @@ export default function Plantillas() {
   }
 
   function openCreate() {
-    setForm({ name: '', descripcion: '', area: 'Ventas', cargo: '' })
+    setSelectedTpl(null)
+    setModal('plantilla')
+  }
+
+  function chooseTpl(tpl) {
+    setSelectedTpl(tpl)
+    setForm({
+      name: tpl ? '' : '',
+      descripcion: tpl?.descripcion || '',
+      area: tpl?.area === 'Todas las áreas' ? 'Todas las áreas' : (tpl?.area || 'Ventas'),
+      cargo: '',
+    })
     setDropArea(false)
     setDropCargo(false)
     setModal('crear')
@@ -144,25 +157,27 @@ export default function Plantillas() {
     if (modal === 'crear') {
       const newId = Math.max(...plantillas.map(p => p.id), 0) + 1
       const color = colores[newId % colores.length]
+      const etapasData = selectedTpl ? JSON.parse(JSON.stringify(selectedTpl.etapasData)) : undefined
       const newPlantilla = {
         id: newId,
         name: form.name.trim(),
         descripcion: form.descripcion?.trim() || '',
         area: form.area,
         cargo: form.cargo || '',
-        etapas: 0,
-        tareas: 0,
+        etapas: etapasData?.length || 0,
+        tareas: etapasData ? etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0) : 0,
         asignados: 0,
         status: 'borrador',
         updated: 'Ahora',
         color,
         esGlobal: false,
         ordenGlobal: null,
+        ...(etapasData ? { etapasData } : {}),
       }
       setPlantillas([...plantillas, newPlantilla])
-      addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
+      addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada${selectedTpl ? ` desde la plantilla "${selectedTpl.name}"` : ''}`)
       setModal(null)
-      setActiveJourney({ ...newPlantilla, isNew: true })
+      setActiveJourney({ ...newPlantilla, isNew: !etapasData })
     } else {
       setPlantillas(plantillas.map(p => {
         if (p.id !== form.id) return p
@@ -211,7 +226,7 @@ export default function Plantillas() {
     setDeleteTarget(p)
   }
 
-  function handleAsignarRuta(colabs, ruta, fecha) {
+  function handleAsignarRuta(colabs, ruta, fecha, buddy) {
     if (!colabs.length || !ruta) return
     const baseId = Math.max(0, ...asignaciones.map(a => a.id))
     const newItems = colabs.map((c, i) => ({
@@ -225,9 +240,10 @@ export default function Plantillas() {
       status: 'pendiente',
       fechaInicio: fecha || 'Por definir',
       color: c.color || '#3b82f6',
+      buddy: buddy?.name || null,
     }))
     setAsignaciones([...asignaciones, ...newItems])
-    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}`))
+    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}${buddy ? ` con ${buddy.name} como buddy` : ''}`))
     setAsignarModal(null)
   }
 
@@ -980,18 +996,109 @@ export default function Plantillas() {
 
       <div style={{ height: '8px' }} />
 
+      {/* MODAL ELEGIR PLANTILLA */}
+      {modal === 'plantilla' && (
+        <div className="pl-overlay" onClick={() => setModal(null)}>
+          <div className="pl-modal" style={{ width: 720, maxWidth: '94vw' }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <div>
+                <h2>Nueva ruta</h2>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>¿Cómo querés empezar?</span>
+              </div>
+              <button className="pl-modal-close" onClick={() => setModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="pl-modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <button
+                  onClick={() => chooseTpl(null)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
+                    padding: '16px 18px', borderRadius: 14, border: '1.5px dashed var(--border-dark)',
+                    background: 'var(--bg-secondary)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                    transition: 'all .12s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = 'var(--surface-hover)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-dark)'; e.currentTarget.style.background = 'var(--bg-secondary)' }}
+                >
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={17} style={{ color: '#475569' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Empezar en blanco</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>Diseña tu ruta desde cero, sin etapas ni tareas precargadas.</div>
+                  </div>
+                </button>
+
+                {rutaPlantillas.map(tpl => {
+                  const TplIcon = tpl.icon
+                  const tplTareas = tpl.etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => chooseTpl(tpl)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
+                        padding: '16px 18px', borderRadius: 14, border: '1.5px solid var(--border-soft)',
+                        background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                        transition: 'all .12s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = tpl.color; e.currentTarget.style.boxShadow = `0 4px 14px ${tpl.color}22` }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.boxShadow = 'none' }}
+                    >
+                      <div style={{ width: 34, height: 34, borderRadius: 9, background: `${tpl.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <TplIcon size={17} style={{ color: tpl.color }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>{tpl.name}</div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{tpl.descripcion}</div>
+                      </div>
+                      <div style={{ fontSize: 9.5, fontWeight: 600, color: tpl.color, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <Sparkles size={11} /> {tpl.etapasData.length} etapas · {tplTareas} tareas incluidas
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL CREAR / EDITAR */}
-      {modal && (
+      {(modal === 'crear' || modal === 'editar') && (
         <div className="pl-overlay" onClick={() => setModal(null)}>
           <div className="pl-modal" onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
-              <h2>{modal === 'crear' ? 'Nueva ruta' : 'Editar ruta'}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {modal === 'crear' && (
+                  <button
+                    onClick={() => setModal('plantilla')}
+                    title="Volver a elegir plantilla"
+                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    <ArrowLeft size={13} color="#fff" />
+                  </button>
+                )}
+                <h2>{modal === 'crear' ? 'Nueva ruta' : 'Editar ruta'}</h2>
+              </div>
               <button className="pl-modal-close" onClick={() => setModal(null)}>
                 <X size={18} />
               </button>
             </div>
 
             <div className="pl-modal-body">
+              {selectedTpl && modal === 'crear' && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                  borderRadius: 10, background: `${selectedTpl.color}12`, border: `1px solid ${selectedTpl.color}30`,
+                  marginBottom: 4,
+                }}>
+                  <selectedTpl.icon size={14} style={{ color: selectedTpl.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0C2D40' }}>Desde la plantilla "{selectedTpl.name}"</span>
+                </div>
+              )}
               <label className="pl-label">
                 Nombre de la ruta
                 <input

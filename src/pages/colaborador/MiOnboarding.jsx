@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
@@ -8,8 +9,8 @@ import {
   ClipboardList, UserCheck, MapPin, ShieldCheck,
   ExternalLink, X, Route, Info, Rocket, Sparkles,
   Play, Pause, Volume2, Download, ChevronRight,
-  Send, Camera, Link2, CircleDot, RotateCcw,
-  MessageSquare, Award, PackageOpen, ArrowLeft, Bot
+  Send, Link2, CircleDot, RotateCcw,
+  MessageSquare, Award, PackageOpen, ArrowLeft, Bot, Smile, Users
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
@@ -26,6 +27,7 @@ const iconMap = {
   subida: Upload, 'tarea-otro': UserCheck,
   recorrido: MapPin, lectura: FileText,
   enlace: ExternalLink, 'form-custom': ClipboardList, confirmacion: Trophy,
+  pulso: Smile,
 }
 
 const colorMap = {
@@ -34,6 +36,7 @@ const colorMap = {
   'tarea-otro': '#ef4444', recorrido: '#d946ef',
   lectura: '#f97316', enlace: '#6366f1',
   'form-custom': '#10b981', confirmacion: '#f59e0b',
+  pulso: '#f472b6',
 }
 
 function flatTareas(etapa) {
@@ -51,6 +54,7 @@ const chatSuggestions = Object.keys(chatResponses)
 
 export default function MiOnboarding({ forcePhone = false }) {
   const { currentUser } = useUser()
+  const navigate = useNavigate()
   const { rutaActiva, rutaGraduado, rutaAdmin, actualizarEtapas } = useRutaActiva()
   const { asistenteIA } = useConfig()
   const isMobile = forcePhone || currentUser.id === 4
@@ -69,6 +73,11 @@ export default function MiOnboarding({ forcePhone = false }) {
   const [quizAnswers, setQuizAnswers] = useState({})
   const [quizSubmitted, setQuizSubmitted] = useState({})
   const [videoEnded, setVideoEnded] = useState({})
+  const [pulsoRespuestas, setPulsoRespuestas] = useState({})
+  const [pulsoComentario, setPulsoComentario] = useState({})
+  const [pulsoSubmitted, setPulsoSubmitted] = useState({})
+  const [formRespuestas, setFormRespuestas] = useState({})
+  const [formSubmitted, setFormSubmitted] = useState({})
   const [selContext, setSelContext] = useState(null)
   const [etapasOpen, setEtapasOpen] = useState(true)
   const [infoOpen, setInfoOpen] = useState(true)
@@ -101,6 +110,11 @@ export default function MiOnboarding({ forcePhone = false }) {
     setQuizSubmitted({})
     setRecorridoStops({})
     setVideoEnded({})
+    setPulsoRespuestas({})
+    setPulsoComentario({})
+    setPulsoSubmitted({})
+    setFormRespuestas({})
+    setFormSubmitted({})
   }
 
   function sendChat(text) {
@@ -148,22 +162,20 @@ export default function MiOnboarding({ forcePhone = false }) {
 
   function toggleDone(tareaId) {
     if (readOnly) return
-    setEtapas(prev => {
-      const next = prev.map(et => ({
-        ...et,
-        actividades: et.actividades.map(a => ({
-          ...a,
-          tareas: a.tareas.map(t => t.id === tareaId ? { ...t, done: !t.done } : t),
-        })),
-      }))
-      const allTareas = next.flatMap(e => flatTareas(e))
-      const allDone = allTareas.length > 0 && allTareas.every(t => t.done)
-      if (allDone) {
-        setTimeout(() => { setShowCelebration(true); launchConfetti() }, 300)
-      }
-      if (currentUser.role === 'colaborador') actualizarEtapas(next)
-      return next
-    })
+    const next = etapas.map(et => ({
+      ...et,
+      actividades: et.actividades.map(a => ({
+        ...a,
+        tareas: a.tareas.map(t => t.id === tareaId ? { ...t, done: !t.done } : t),
+      })),
+    }))
+    setEtapas(next)
+    const allTareas = next.flatMap(e => flatTareas(e))
+    const allDone = allTareas.length > 0 && allTareas.every(t => t.done)
+    if (allDone) {
+      setTimeout(() => { setShowCelebration(true); launchConfetti() }, 300)
+    }
+    if (currentUser.role === 'colaborador') actualizarEtapas(next)
   }
 
   // Carga la API de YouTube y detecta cuándo el colaborador termina de ver un video
@@ -353,19 +365,34 @@ export default function MiOnboarding({ forcePhone = false }) {
               </div>
             ))}
           </div>
-          <button
-            onClick={() => setStarted(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: '#0C2D40', color: '#fff', border: 'none',
-              borderRadius: 8, padding: '8px 16px',
-              fontSize: 9, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            <Rocket size={10} />
-            Empezar mi onboarding
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => setStarted(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: '#0C2D40', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '8px 16px',
+                fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <Rocket size={10} />
+              Empezar mi onboarding
+            </button>
+            <button
+              onClick={() => navigate('/personas/organigrama')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
+                borderRadius: 8, padding: '8px 12px',
+                fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <Users size={10} />
+              Mi equipo
+            </button>
+          </div>
         </div>
       )
     }
@@ -396,10 +423,24 @@ export default function MiOnboarding({ forcePhone = false }) {
                         <span className="jb-welcome-pill-label">Pts</span>
                       </div>
                     </div>
-                    <button className="jb-welcome-btn" onClick={() => setStarted(true)}>
-                      <Rocket size={16} />
-                      Empezar mi onboarding
-                    </button>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button className="jb-welcome-btn" onClick={() => setStarted(true)}>
+                        <Rocket size={16} />
+                        Empezar mi onboarding
+                      </button>
+                      <button
+                        onClick={() => navigate('/personas/organigrama')}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                          background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
+                          borderRadius: 10, padding: '0 18px', height: 44,
+                          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        <Users size={15} />
+                        Mi equipo
+                      </button>
+                    </div>
                   </div>
                   <img src={viaBebe} alt="Mascota" className="jb-welcome-mascot" />
                 </div>
@@ -730,6 +771,50 @@ export default function MiOnboarding({ forcePhone = false }) {
             </div>
           )
         }
+        case 'pulso': {
+          const preguntas = selTarea.pulsoPreguntas?.length ? selTarea.pulsoPreguntas : ['¿Cómo te sientes con tu proceso de onboarding hasta ahora?']
+          const tid = selTarea.id
+          const isPulsoDone = readOnly || !!pulsoSubmitted[tid]
+          const respuestas = pulsoRespuestas[tid] || {}
+          const allAns = preguntas.every((_, i) => respuestas[i] !== undefined)
+          if (isPulsoDone) {
+            return (
+              <div style={{ border: '1px solid #fbcfe8', borderRadius: 8, padding: 10, textAlign: 'center', background: '#fdf2f8' }}>
+                <CheckCircle2 size={16} style={{ color: '#db2777' }} />
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#9d174d', marginTop: 2 }}>¡Gracias por contarnos!</div>
+              </div>
+            )
+          }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {preguntas.map((p, qi) => (
+                <div key={qi} style={{ border: '1px solid #fbcfe8', borderRadius: 8, padding: 8, background: '#fdf2f8' }}>
+                  <p style={{ fontSize: 8, fontWeight: 600, color: '#831843', margin: '0 0 5px' }}>{p}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    {['😞', '😕', '😐', '🙂', '😄'].map((emoji, vi) => (
+                      <button key={vi} onClick={() => setPulsoRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qi]: vi } }))} style={{
+                        width: 26, height: 26, borderRadius: '50%', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: respuestas[qi] === vi ? '2px solid #db2777' : '1px solid #f5d0e0',
+                        background: respuestas[qi] === vi ? '#fce7f3' : '#fff', cursor: 'pointer',
+                      }}>{emoji}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <textarea
+                placeholder="¿Algo que quieras contarnos? (opcional)"
+                value={pulsoComentario[tid] || ''}
+                onChange={e => setPulsoComentario(prev => ({ ...prev, [tid]: e.target.value }))}
+                style={{ fontSize: 8, padding: 6, borderRadius: 6, border: '1px solid #e2e8f0', fontFamily: 'inherit', resize: 'none', minHeight: 36 }}
+              />
+              <button
+                disabled={!allAns}
+                onClick={() => { setPulsoSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                style={{ padding: '6px 12px', borderRadius: 6, background: allAns ? '#db2777' : '#e2e8f0', color: allAns ? '#fff' : '#94a3b8', border: 'none', fontSize: 8, fontWeight: 700, cursor: allAns ? 'pointer' : 'default', fontFamily: 'inherit' }}
+              >Enviar</button>
+            </div>
+          )
+        }
         case 'recorrido': {
           const stops = [
             { name: 'Recepción y entrada principal', guia: 'Carlos Méndez', rol: 'Seguridad' },
@@ -797,23 +882,87 @@ export default function MiOnboarding({ forcePhone = false }) {
               <p style={{ fontSize: 7, color: '#be185d', margin: 0 }}>o haz clic para seleccionar</p>
             </div>
           )
-        case 'completar-perfil':
+        case 'completar-perfil': {
+          const campos = selTarea.formCampos?.length ? selTarea.formCampos : []
+          const tid = selTarea.id
+          const isFormDone = readOnly || !!formSubmitted[tid]
+          const frs = formRespuestas[tid] || {}
+          const allReq = campos.every(c => !c.obligatorio || (Array.isArray(frs[c.id]) ? frs[c.id].length > 0 : (frs[c.id] || '').toString().trim()))
+
+          if (campos.length === 0) {
+            return (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 10, background: '#f8fafc', textAlign: 'center' }}>
+                <ClipboardList size={14} style={{ color: '#94a3b8' }} />
+                <div style={{ fontSize: 8, color: '#94a3b8', marginTop: 3 }}>Este formulario aún no tiene campos configurados</div>
+              </div>
+            )
+          }
+          if (isFormDone) {
+            return (
+              <div style={{ border: '1px solid #a7f3d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#ecfdf5' }}>
+                <CheckCircle2 size={14} style={{ color: '#059669' }} />
+                <div style={{ fontSize: 8, fontWeight: 700, color: '#065f46', marginTop: 2 }}>Formulario enviado</div>
+              </div>
+            )
+          }
           return (
             <div style={{ border: '1px solid #a7f3d0', borderRadius: 8, overflow: 'hidden' }}>
               <div style={{ padding: '6px 10px', background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <ClipboardList size={10} style={{ color: '#059669' }} />
-                <span style={{ fontSize: 8, fontWeight: 700, color: '#065f46' }}>Completa tu perfil</span>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#065f46' }}>Formulario</span>
               </div>
-              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {['Teléfono', 'Contacto emergencia', 'Dirección'].map((field, i) => (
-                  <div key={i}>
-                    <label style={{ fontSize: 7, fontWeight: 600, color: '#64748b', marginBottom: 2, display: 'block' }}>{field}</label>
-                    <div style={{ height: 22, borderRadius: 5, border: '1px solid #e2e8f0', background: '#f8fafc' }} />
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {campos.map(campo => (
+                  <div key={campo.id}>
+                    <label style={{ fontSize: 7, fontWeight: 600, color: '#64748b', marginBottom: 2, display: 'block' }}>
+                      {campo.etiqueta}{campo.obligatorio && <span style={{ color: '#ef4444' }}> *</span>}
+                    </label>
+                    {campo.tipo === 'parrafo' && (
+                      <textarea value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} style={{ width: '100%', fontSize: 7, padding: 5, borderRadius: 5, border: '1px solid #e2e8f0', fontFamily: 'inherit', resize: 'none', minHeight: 30 }} />
+                    )}
+                    {campo.tipo === 'texto-corto' && (
+                      <input type="text" value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} style={{ width: '100%', fontSize: 7, padding: 5, borderRadius: 5, border: '1px solid #e2e8f0', fontFamily: 'inherit' }} />
+                    )}
+                    {campo.tipo === 'opcion-multiple' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {campo.opciones.map(opt => (
+                          <button key={opt.id} onClick={() => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: opt.texto } }))} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 5px', borderRadius: 4, border: frs[campo.id] === opt.texto ? '1.5px solid #059669' : '1px solid #f1f5f9', background: frs[campo.id] === opt.texto ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 7, color: '#475569', fontFamily: 'inherit', textAlign: 'left' }}>
+                            <div style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, border: frs[campo.id] === opt.texto ? '3px solid #059669' : '1.5px solid #cbd5e1' }} />
+                            {opt.texto}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {campo.tipo === 'casillas' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {campo.opciones.map(opt => {
+                          const sel = (frs[campo.id] || []).includes(opt.texto)
+                          return (
+                            <button key={opt.id} onClick={() => setFormRespuestas(prev => { const cur = prev[tid]?.[campo.id] || []; const next = sel ? cur.filter(v => v !== opt.texto) : [...cur, opt.texto]; return { ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: next } } })} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 5px', borderRadius: 4, border: sel ? '1.5px solid #059669' : '1px solid #f1f5f9', background: sel ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 7, color: '#475569', fontFamily: 'inherit', textAlign: 'left' }}>
+                              <div style={{ width: 9, height: 9, borderRadius: 2, flexShrink: 0, border: sel ? 'none' : '1.5px solid #cbd5e1', background: sel ? '#059669' : '#fff' }} />
+                              {opt.texto}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {campo.tipo === 'desplegable' && (
+                      <select value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} style={{ width: '100%', fontSize: 7, padding: 5, borderRadius: 5, border: '1px solid #e2e8f0', fontFamily: 'inherit', background: '#fff' }}>
+                        <option value="">Selecciona...</option>
+                        {campo.opciones.map(opt => <option key={opt.id} value={opt.texto}>{opt.texto}</option>)}
+                      </select>
+                    )}
                   </div>
                 ))}
+                <button
+                  disabled={!allReq}
+                  onClick={() => { setFormSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                  style={{ padding: '5px 12px', borderRadius: 6, background: allReq ? '#059669' : '#e2e8f0', color: allReq ? '#fff' : '#94a3b8', border: 'none', fontSize: 8, fontWeight: 700, cursor: allReq ? 'pointer' : 'default', fontFamily: 'inherit' }}
+                >Enviar formulario</button>
               </div>
             </div>
           )
+        }
         case 'tarea-otro':
           return (
             <div style={{ border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden' }}>
@@ -835,15 +984,20 @@ export default function MiOnboarding({ forcePhone = false }) {
             </div>
           )
         case 'quiz': {
-          const quizQs = [
-            { id: 1, texto: '¿Cuáles son las áreas principales?', opciones: ['Solo oficinas', 'Recepción, área de trabajo, salas', 'Solo el comedor', 'No hubo recorrido'], correcta: 1 },
-            { id: 2, texto: '¿A quién acudir por acceso a sistemas?', opciones: ['RRHH', 'Tu líder directo', 'El área de TI', 'Seguridad'], correcta: 2 },
-          ]
+          const quizQs = selTarea.quizPreguntas?.length ? selTarea.quizPreguntas : []
           const tid = selTarea.id
           const isStarted = !!quizStarted[tid]
           const isDone = readOnly || !!quizSubmitted[tid]
           const ans = quizAnswers[tid] || {}
-          const allAns = quizQs.every((_, i) => ans[i] !== undefined)
+          const allAns = quizQs.every((q, i) => q.tipo === 'abierta' ? (ans[i] || '').trim() : ans[i] !== undefined)
+          if (quizQs.length === 0) {
+            return (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, background: '#f8fafc', textAlign: 'center' }}>
+                <HelpCircle size={16} style={{ color: '#94a3b8', marginBottom: 4 }} />
+                <div style={{ fontSize: 8, color: '#94a3b8' }}>Esta prueba aún no tiene preguntas configuradas</div>
+              </div>
+            )
+          }
           if (!isStarted && !isDone) {
             return (
               <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 12, background: '#fffbeb', textAlign: 'center' }}>
@@ -866,25 +1020,38 @@ export default function MiOnboarding({ forcePhone = false }) {
                   {quizQs.map((q, qIdx) => (
                     <div key={q.id}>
                       <p style={{ fontSize: 8, fontWeight: 600, color: '#1e293b', margin: '0 0 4px' }}>{qIdx + 1}. {q.texto}</p>
+                      {q.tipo === 'abierta' ? (
+                        <textarea
+                          value={ans[qIdx] || ''}
+                          onChange={e => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: e.target.value } }))}
+                          placeholder="Escribe tu respuesta"
+                          style={{ width: '100%', fontSize: 8, padding: 6, borderRadius: 5, border: '1px solid #e2e8f0', fontFamily: 'inherit', resize: 'none', minHeight: 32 }}
+                        />
+                      ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {q.opciones.map((opt, oIdx) => {
                           const selected = ans[qIdx] === oIdx
                           return (
-                            <button key={oIdx} onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))} style={{
+                            <button key={opt.id ?? oIdx} onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))} style={{
                               display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', borderRadius: 5,
                               border: selected ? '1.5px solid #d97706' : '1px solid #f1f5f9',
                               background: selected ? '#fef3c7' : '#fff',
                               cursor: 'pointer', fontSize: 8, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%',
                             }}>
                               <div style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, border: selected ? '3px solid #d97706' : '1.5px solid #cbd5e1', background: '#fff' }} />
-                              {opt}
+                              {opt.texto}
                             </button>
                           )
                         })}
                       </div>
+                      )}
                     </div>
                   ))}
-                  <button onClick={() => { const correct = quizQs.filter((q, i) => ans[i] === q.correcta).length; setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: quizQs.length } })) }} disabled={!allAns} style={{
+                  <button onClick={() => {
+                    const mcQs = quizQs.filter(q => q.tipo !== 'abierta')
+                    const correct = mcQs.filter(q => { const qi = quizQs.indexOf(q); return q.opciones[ans[qi]]?.correcta }).length
+                    setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: mcQs.length } }))
+                  }} disabled={!allAns} style={{
                     padding: '5px 12px', borderRadius: 6, background: allAns ? '#d97706' : '#e2e8f0', color: allAns ? '#fff' : '#94a3b8',
                     border: 'none', fontSize: 8, fontWeight: 700, cursor: allAns ? 'pointer' : 'default', fontFamily: 'inherit',
                   }}>Enviar</button>
@@ -893,11 +1060,14 @@ export default function MiOnboarding({ forcePhone = false }) {
             )
           }
           if (isDone) {
-            const result = quizSubmitted[tid] || { correct: quizQs.length, total: quizQs.length }
+            const mcCount = quizQs.filter(q => q.tipo !== 'abierta').length
+            const result = quizSubmitted[tid] || { correct: mcCount, total: mcCount }
             return (
               <div style={{ border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f0fdf4' }}>
                 <CheckCircle2 size={14} style={{ color: '#16a34a' }} />
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#166534', marginTop: 2 }}>{result.correct}/{result.total} correctas</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#166534', marginTop: 2 }}>
+                  {result.total > 0 ? `${result.correct}/${result.total} correctas` : 'Respuestas enviadas'}
+                </div>
               </div>
             )
           }
@@ -967,6 +1137,16 @@ export default function MiOnboarding({ forcePhone = false }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: '#eff6ff', border: '1px solid #dbeafe', flexShrink: 0 }}>
               <Info size={8} style={{ color: '#3b82f6' }} />
               <span style={{ fontSize: 6.5, fontWeight: 600, color: '#1e40af' }}>Se completa sola</span>
+            </div>
+          ) : selTarea.tipo === 'pulso' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: '#fdf2f8', border: '1px solid #fbcfe8', flexShrink: 0 }}>
+              <Info size={8} style={{ color: '#db2777' }} />
+              <span style={{ fontSize: 6.5, fontWeight: 600, color: '#9d174d' }}>Envía tus respuestas</span>
+            </div>
+          ) : selTarea.tipo === 'completar-perfil' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: '#ecfdf5', border: '1px solid #a7f3d0', flexShrink: 0 }}>
+              <Info size={8} style={{ color: '#059669' }} />
+              <span style={{ fontSize: 6.5, fontWeight: 600, color: '#065f46' }}>Envía el formulario</span>
             </div>
           ) : (
             <button onClick={() => {
@@ -1384,16 +1564,21 @@ export default function MiOnboarding({ forcePhone = false }) {
         }
 
         case 'quiz': {
-          const quizQs = [
-            { id: 1, texto: '¿Cuáles son las áreas principales que visitaste en el recorrido?', opciones: ['Solo oficinas', 'Recepción, área de trabajo, salas y áreas comunes', 'Solo el comedor', 'No hubo recorrido'], correcta: 1 },
-            { id: 2, texto: '¿A quién debes acudir si tienes problemas con el acceso a sistemas?', opciones: ['Recursos Humanos', 'Tu líder directo', 'El área de TI', 'Seguridad'], correcta: 2 },
-            { id: 3, texto: '¿Cuál es la metodología de trabajo del equipo según el video?', opciones: ['Cascada tradicional', 'Trabajo individual', 'Metodología ágil con sprints semanales', 'No se mencionó'], correcta: 2 },
-          ]
+          const quizQs = selTarea.quizPreguntas?.length ? selTarea.quizPreguntas : []
           const tid = selTarea.id
           const isStarted = !!quizStarted[tid]
           const isDone = readOnly || !!quizSubmitted[tid]
           const ans = quizAnswers[tid] || {}
-          const allAns = quizQs.every((_, i) => ans[i] !== undefined)
+          const allAns = quizQs.every((q, i) => q.tipo === 'abierta' ? (ans[i] || '').trim() : ans[i] !== undefined)
+
+          if (quizQs.length === 0) {
+            return (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: '20px 24px', background: '#f8fafc', textAlign: 'center' }}>
+                <HelpCircle size={24} style={{ color: '#94a3b8', marginBottom: 6 }} />
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Esta prueba aún no tiene preguntas configuradas</div>
+              </div>
+            )
+          }
 
           if (!isStarted && !isDone) {
             return (
@@ -1445,12 +1630,21 @@ export default function MiOnboarding({ forcePhone = false }) {
                       <p style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', margin: '0 0 8px' }}>
                         {qIdx + 1}. {q.texto}
                       </p>
+                      {q.tipo === 'abierta' ? (
+                        <textarea
+                          value={ans[qIdx] || ''}
+                          onChange={e => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: e.target.value } }))}
+                          placeholder="Escribe tu respuesta"
+                          className="pl-input"
+                          style={{ width: '100%', minHeight: 70, resize: 'none' }}
+                        />
+                      ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {q.opciones.map((opt, oIdx) => {
                           const selected = ans[qIdx] === oIdx
                           return (
                             <button
-                              key={oIdx}
+                              key={opt.id ?? oIdx}
                               onClick={() => setQuizAnswers(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qIdx]: oIdx } }))}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 10,
@@ -1467,17 +1661,19 @@ export default function MiOnboarding({ forcePhone = false }) {
                                 border: selected ? '5px solid #d97706' : '2px solid #cbd5e1',
                                 background: '#fff',
                               }} />
-                              {opt}
+                              {opt.texto}
                             </button>
                           )
                         })}
                       </div>
+                      )}
                     </div>
                   ))}
                   <button
                     onClick={() => {
-                      const correct = quizQs.filter((q, i) => ans[i] === q.correcta).length
-                      setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: quizQs.length } }))
+                      const mcQs = quizQs.filter(q => q.tipo !== 'abierta')
+                      const correct = mcQs.filter(q => { const qi = quizQs.indexOf(q); return q.opciones[ans[qi]]?.correcta }).length
+                      setQuizSubmitted(prev => ({ ...prev, [tid]: { correct, total: mcQs.length } }))
                     }}
                     disabled={!allAns}
                     style={{
@@ -1497,8 +1693,9 @@ export default function MiOnboarding({ forcePhone = false }) {
           }
 
           if (isDone) {
-            const result = quizSubmitted[tid] || { correct: quizQs.length, total: quizQs.length }
-            const pctResult = Math.round((result.correct / result.total) * 100)
+            const mcCount = quizQs.filter(q => q.tipo !== 'abierta').length
+            const result = quizSubmitted[tid] || { correct: mcCount, total: mcCount }
+            const pctResult = result.total > 0 ? Math.round((result.correct / result.total) * 100) : null
             return (
               <div style={{
                 border: '1px solid #bbf7d0', borderRadius: 12,
@@ -1509,7 +1706,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                 <CheckCircle2 size={24} style={{ color: '#16a34a' }} />
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Evaluación completada</div>
                 <div style={{ fontSize: 12, color: '#166534' }}>
-                  {result.correct} de {result.total} respuestas correctas ({pctResult}%)
+                  {result.total > 0 ? `${result.correct} de ${result.total} respuestas correctas (${pctResult}%)` : 'Tus respuestas fueron enviadas'}
                 </div>
               </div>
             )
@@ -1530,27 +1727,151 @@ export default function MiOnboarding({ forcePhone = false }) {
             </div>
           )
 
-        case 'completar-perfil':
+        case 'completar-perfil': {
+          const campos = selTarea.formCampos?.length ? selTarea.formCampos : []
+          const tid = selTarea.id
+          const isFormDone = readOnly || !!formSubmitted[tid]
+          const frs = formRespuestas[tid] || {}
+          const allReq = campos.every(c => !c.obligatorio || (Array.isArray(frs[c.id]) ? frs[c.id].length > 0 : (frs[c.id] || '').toString().trim()))
+
+          if (campos.length === 0) {
+            return (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: '20px 24px', background: '#f8fafc', textAlign: 'center' }}>
+                <ClipboardList size={24} style={{ color: '#94a3b8', marginBottom: 6 }} />
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Este formulario aún no tiene campos configurados</div>
+              </div>
+            )
+          }
+          if (isFormDone) {
+            return (
+              <div style={{ border: '1px solid #a7f3d0', borderRadius: 12, padding: '20px 24px', textAlign: 'center', background: '#ecfdf5', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <CheckCircle2 size={24} style={{ color: '#059669' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#065f46' }}>Formulario enviado</div>
+              </div>
+            )
+          }
           return (
             <div style={{ border: '1px solid #a7f3d0', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: '#ecfdf5', borderBottom: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ClipboardList size={15} style={{ color: '#059669' }} /><span style={{ fontSize: 12, fontWeight: 700, color: '#065f46' }}>Completa tu perfil</span>
+                <ClipboardList size={15} style={{ color: '#059669' }} /><span style={{ fontSize: 12, fontWeight: 700, color: '#065f46' }}>Formulario</span>
               </div>
-              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #cbd5e1', cursor: 'pointer' }}><Camera size={18} style={{ color: '#94a3b8' }} /></div>
-                  <div><div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Foto de perfil</div><div style={{ fontSize: 10, color: '#94a3b8' }}>Sube una foto tuya</div></div>
-                </div>
-                {['Teléfono personal', 'Contacto de emergencia', 'Dirección'].map((field, i) => (
-                  <div key={i}>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, display: 'block' }}>{field}</label>
-                    <div style={{ height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 10px', display: 'flex', alignItems: 'center', fontSize: 11, color: '#94a3b8' }}>Ingresa {field.toLowerCase()}...</div>
+              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {campos.map(campo => (
+                  <div key={campo.id}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6, display: 'block' }}>
+                      {campo.etiqueta}{campo.obligatorio && <span style={{ color: '#ef4444' }}> *</span>}
+                    </label>
+                    {campo.tipo === 'parrafo' && (
+                      <textarea value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} className="pl-input" style={{ width: '100%', minHeight: 70, resize: 'none' }} />
+                    )}
+                    {campo.tipo === 'texto-corto' && (
+                      <input type="text" value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} className="pl-input" style={{ width: '100%' }} />
+                    )}
+                    {campo.tipo === 'opcion-multiple' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {campo.opciones.map(opt => (
+                          <button key={opt.id} onClick={() => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: opt.texto } }))} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: frs[campo.id] === opt.texto ? '1.5px solid #059669' : '1px solid #f1f5f9', background: frs[campo.id] === opt.texto ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 12, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}>
+                            <div style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, border: frs[campo.id] === opt.texto ? '5px solid #059669' : '2px solid #cbd5e1' }} />
+                            {opt.texto}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {campo.tipo === 'casillas' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {campo.opciones.map(opt => {
+                          const sel = (frs[campo.id] || []).includes(opt.texto)
+                          return (
+                            <button key={opt.id} onClick={() => setFormRespuestas(prev => { const cur = prev[tid]?.[campo.id] || []; const next = sel ? cur.filter(v => v !== opt.texto) : [...cur, opt.texto]; return { ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: next } } })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: sel ? '1.5px solid #059669' : '1px solid #f1f5f9', background: sel ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: 12, color: '#475569', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}>
+                              <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: sel ? 'none' : '2px solid #cbd5e1', background: sel ? '#059669' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{sel && <CheckCircle2 size={11} style={{ color: '#fff' }} />}</div>
+                              {opt.texto}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {campo.tipo === 'desplegable' && (
+                      <select value={frs[campo.id] || ''} onChange={e => setFormRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [campo.id]: e.target.value } }))} className="pl-input" style={{ width: '100%' }}>
+                        <option value="">Selecciona...</option>
+                        {campo.opciones.map(opt => <option key={opt.id} value={opt.texto}>{opt.texto}</option>)}
+                      </select>
+                    )}
                   </div>
                 ))}
+                <button
+                  disabled={!allReq}
+                  onClick={() => { setFormSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                  style={{
+                    alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 8,
+                    background: allReq ? '#059669' : '#e2e8f0', color: allReq ? '#fff' : '#94a3b8', border: 'none',
+                    fontSize: 12, fontWeight: 700, cursor: allReq ? 'pointer' : 'default', fontFamily: 'inherit',
+                  }}
+                >
+                  <ClipboardList size={14} />
+                  Enviar formulario
+                </button>
               </div>
             </div>
           )
+        }
 
+
+        case 'pulso': {
+          const preguntas = selTarea.pulsoPreguntas?.length ? selTarea.pulsoPreguntas : ['¿Cómo te sientes con tu proceso de onboarding hasta ahora?']
+          const tid = selTarea.id
+          const isPulsoDone = readOnly || !!pulsoSubmitted[tid]
+          const respuestas = pulsoRespuestas[tid] || {}
+          const allAns = preguntas.every((_, i) => respuestas[i] !== undefined)
+          if (isPulsoDone) {
+            return (
+              <div style={{ border: '1px solid #fbcfe8', borderRadius: 12, padding: '20px 24px', textAlign: 'center', background: '#fdf2f8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <CheckCircle2 size={24} style={{ color: '#db2777' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#9d174d' }}>¡Gracias por contarnos cómo te sientes!</div>
+                <p style={{ fontSize: 12, color: '#be185d', margin: 0 }}>Tu líder podrá ver tus respuestas para acompañarte mejor.</p>
+              </div>
+            )
+          }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {preguntas.map((p, qi) => (
+                <div key={qi} style={{ border: '1px solid #fbcfe8', borderRadius: 12, padding: '14px 18px', background: '#fdf2f8' }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#831843', margin: '0 0 10px' }}>{p}</p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {['😞', '😕', '😐', '🙂', '😄'].map((emoji, vi) => (
+                      <button key={vi} onClick={() => setPulsoRespuestas(prev => ({ ...prev, [tid]: { ...(prev[tid] || {}), [qi]: vi } }))} style={{
+                        width: 40, height: 40, borderRadius: '50%', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: respuestas[qi] === vi ? '2px solid #db2777' : '1px solid #f5d0e0',
+                        background: respuestas[qi] === vi ? '#fce7f3' : '#fff', cursor: 'pointer', transition: 'all .12s',
+                      }}>{emoji}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
+                ¿Algo que quieras contarnos? (opcional)
+                <textarea
+                  value={pulsoComentario[tid] || ''}
+                  onChange={e => setPulsoComentario(prev => ({ ...prev, [tid]: e.target.value }))}
+                  className="pl-input"
+                  style={{ minHeight: 70, resize: 'none' }}
+                  placeholder="Escribe aquí si hay algo que quieras compartir con tu líder"
+                />
+              </label>
+              <button
+                disabled={!allAns}
+                onClick={() => { setPulsoSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                style={{
+                  alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 8,
+                  background: allAns ? '#db2777' : '#e2e8f0', color: allAns ? '#fff' : '#94a3b8', border: 'none',
+                  fontSize: 12, fontWeight: 700, cursor: allAns ? 'pointer' : 'default', fontFamily: 'inherit',
+                }}
+              >
+                <Smile size={14} />
+                Enviar respuestas
+              </button>
+            </div>
+          )
+        }
 
         case 'recorrido': {
           const recorridoTipo = 'libre'
@@ -1698,6 +2019,16 @@ export default function MiOnboarding({ forcePhone = false }) {
                 <Info size={14} style={{ color: '#3b82f6' }} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#1e40af' }}>Se completa automáticamente al terminar el video{selTarea.verificarQuiz !== false ? ' y la evaluación' : ''}</span>
               </div>
+            ) : selTarea.tipo === 'pulso' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: '#fdf2f8', border: '1px solid #fbcfe8' }}>
+                <Info size={14} style={{ color: '#db2777' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#9d174d' }}>Se completa al enviar tus respuestas</span>
+              </div>
+            ) : selTarea.tipo === 'completar-perfil' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, background: '#ecfdf5', border: '1px solid #a7f3d0' }}>
+                <Info size={14} style={{ color: '#059669' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#065f46' }}>Se completa al enviar el formulario</span>
+              </div>
             ) : (
               <button
                 className="jb-btn-primary"
@@ -1789,6 +2120,10 @@ export default function MiOnboarding({ forcePhone = false }) {
         }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: '#0C2D40' }}>Mi Onboarding</span>
           <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => navigate('/personas/organigrama')} style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff', border: '1px solid #e2e8f0', padding: '3px 6px', borderRadius: 5, cursor: 'pointer' }}>
+              <Users size={8} style={{ color: '#0C2D40' }} />
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#0C2D40' }}>Mi equipo</span>
+            </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fef3c7', padding: '3px 6px', borderRadius: 5 }}>
               <Star size={8} style={{ color: '#d97706' }} />
               <span style={{ fontSize: 7, fontWeight: 800, color: '#92400e' }}>{totalPuntos}</span>
@@ -1811,6 +2146,17 @@ export default function MiOnboarding({ forcePhone = false }) {
             </span>
           </div>
           <div className="jb-topbar-actions" style={{ gap: 10 }}>
+            <button
+              onClick={() => navigate('/personas/organigrama')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: '#fff', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 8,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <Users size={13} style={{ color: '#0C2D40' }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>Mi equipo</span>
+            </button>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: '#fef3c7', padding: '6px 12px', borderRadius: 8,

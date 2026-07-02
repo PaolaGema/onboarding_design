@@ -45,6 +45,7 @@ const onboardingManagerNav = [
 const personasNav = [
   { section: 'Administración', items: [
     { label: 'Colaboradores', path: '/personas/colaboradores', icon: UserRound, end: true },
+    { label: 'Organigrama', path: '/personas/organigrama', icon: Building2 },
   ]},
 ]
 

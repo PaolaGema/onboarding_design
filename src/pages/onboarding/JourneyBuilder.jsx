@@ -9,7 +9,7 @@ import {
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList, FormInput, Upload, MousePointerClick,
   UserCheck, Calendar, MapPin, ShoppingBag, ExternalLink,
-  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen
+  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
@@ -23,6 +23,24 @@ const tiposTarea = [
   { key: 'subida', label: 'Subida de archivo', icon: Upload, color: '#ec4899', resp: 'Colaborador' },
   { key: 'tarea-otro', label: 'Otra tarea', icon: UserCheck, color: '#ef4444', resp: 'Otro usuario' },
   { key: 'recorrido', label: 'Recorrido por área', icon: MapPin, color: '#d946ef', resp: 'Colab + responsable' },
+  { key: 'pulso', label: 'Cómo se siente', icon: Smile, color: '#f472b6', resp: 'Colaborador' },
+]
+
+const pulsoPreguntasSugeridas = [
+  '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
+  '¿Sientes que tienes las herramientas y la información que necesitas?',
+  '¿Qué tan claro tienes tu rol y tus responsabilidades?',
+  '¿Cómo calificarías el acompañamiento de tu líder o mentor?',
+  '¿Hay algo que te esté generando dudas o preocupación?',
+  '¿Qué tan a gusto te sientes con el equipo hasta ahora?',
+]
+
+const formTiposCampo = [
+  { v: 'texto-corto', l: 'Texto corto' },
+  { v: 'parrafo', l: 'Párrafo' },
+  { v: 'opcion-multiple', l: 'Opción múltiple' },
+  { v: 'casillas', l: 'Casillas' },
+  { v: 'desplegable', l: 'Desplegable' },
 ]
 
 const tipoMap = Object.fromEntries(tiposTarea.map(t => [t.key, t]))
@@ -94,6 +112,28 @@ const emptyRuta = {
   etapas: [],
 }
 
+const rutaConfigOpciones = [
+  { key: 'gamificacion', label: 'Gamificación (Puntos)', hint: 'Los colaboradores ganan puntos al completar tareas',
+    onMsg: 'Los colaboradores volverán a ganar puntos al completar tareas en esta ruta.',
+    offMsg: 'Los colaboradores dejarán de ganar puntos al completar tareas en esta ruta.' },
+  { key: 'notificaciones', label: 'Notificaciones automáticas', hint: 'Recordatorios por email y push',
+    onMsg: 'Los colaboradores volverán a recibir recordatorios por email y push para esta ruta.',
+    offMsg: 'Los colaboradores dejarán de recibir recordatorios por email y push para esta ruta.' },
+  { key: 'plazosEstrictos', label: 'Plazos estrictos', hint: 'Bloquea avance si hay tareas vencidas',
+    onMsg: 'Se bloqueará el avance de los colaboradores si tienen tareas vencidas.',
+    offMsg: 'Los colaboradores podrán seguir avanzando aunque tengan tareas vencidas.' },
+  { key: 'saltarOpcionales', label: 'Permitir saltar tareas opcionales', hint: 'El colaborador puede omitir tareas no obligatorias',
+    onMsg: 'Los colaboradores podrán omitir las tareas marcadas como no obligatorias.',
+    offMsg: 'Los colaboradores deberán completar todas las tareas, incluso las no obligatorias.' },
+  { key: 'notaMinima', label: 'Prueba con nota mínima', hint: 'Requiere un puntaje mínimo para aprobar',
+    onMsg: 'Se exigirá un puntaje mínimo para aprobar las pruebas de esta ruta.',
+    offMsg: 'Ya no se exigirá un puntaje mínimo para aprobar las pruebas de esta ruta.' },
+  { key: 'asistenteIA', label: 'Asistente IA', hint: 'Un asistente inteligente que guía al nuevo colaborador',
+    onMsg: 'Los colaboradores tendrán disponible el asistente inteligente para guiarlos.',
+    offMsg: 'El asistente inteligente dejará de estar disponible para guiarlos en esta ruta.' },
+]
+const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key, true]))
+
 export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) {
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
@@ -110,6 +150,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
     }
     return data
   })
+  const [rutaConfig, setRutaConfig] = useState(() => ({ ...defaultRutaConfig, ...(plantilla.config || {}) }))
+  const [configConfirm, setConfigConfirm] = useState(null)
   const [selEtapa, setSelEtapa] = useState(0)
   const [selTarea, setSelTarea] = useState(null)
   const [tareaForm, setTareaForm] = useState(null)
@@ -121,6 +163,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
   const [deleteInput, setDeleteInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [quizEditorJB, setQuizEditorJB] = useState(null)
+  const [formEditorJB, setFormEditorJB] = useState(null)
   const [quizPreview, setQuizPreview] = useState(null)
   const [addPickerTarget, setAddPickerTarget] = useState(null)
   const [quizDropOpen, setQuizDropOpen] = useState(false)
@@ -160,6 +203,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
             etapas: etapasPropias.length,
             tareas: etapasPropias.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0),
             updated: 'Ahora',
+            config: rutaConfig,
           }
         : p
     ))
@@ -171,7 +215,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
     if (isFirstRutaRender.current) { isFirstRutaRender.current = false; return }
     const t = setTimeout(() => saveDraft(), 800)
     return () => clearTimeout(t)
-  }, [rutaState])
+  }, [rutaState, rutaConfig])
 
   const handleCanvasDragOver = useCallback((e) => {
     e.preventDefault()
@@ -537,6 +581,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     etapas: etapasPropias.length,
                     tareas: etapasPropias.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0),
                     updated: 'Ahora',
+                    config: rutaConfig,
                   }
                 : p
             ))
@@ -1312,7 +1357,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     {/* Card resumen preguntas */}
                     {(() => {
                       const preguntas = tareaForm.quizPreguntas || []
-                      const completas = preguntas.filter(p => p.texto.trim() && p.opciones.some(o => o.correcta && o.texto.trim())).length
+                      const completas = preguntas.filter(p => p.texto.trim() && (p.tipo === 'abierta' || p.opciones.some(o => o.correcta && o.texto.trim()))).length
                       return (
                         <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1353,6 +1398,70 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 )}
 
 
+                {tareaForm.tipo === 'pulso' && (() => {
+                  const preguntas = tareaForm.pulsoPreguntas || []
+                  function togglePregunta(texto) {
+                    const next = preguntas.includes(texto) ? preguntas.filter(p => p !== texto) : [...preguntas, texto]
+                    updateForm('pulsoPreguntas', next)
+                  }
+                  function addCustom() {
+                    const texto = (tareaForm._pulsoCustom || '').trim()
+                    if (!texto) return
+                    updateForm('pulsoPreguntas', [...preguntas, texto])
+                    updateForm('_pulsoCustom', '')
+                  }
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Preguntas sugeridas</div>
+                        {pulsoPreguntasSugeridas.map(p => {
+                          const checked = preguntas.includes(p)
+                          return (
+                            <div key={p} onClick={() => togglePregunta(p)} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                              <div style={{
+                                width: 15, height: 15, borderRadius: 4, marginTop: 1, flexShrink: 0,
+                                border: checked ? '2px solid #f472b6' : '1.5px solid #d1d5db',
+                                background: checked ? '#f472b6' : '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                {checked && <Check size={9} style={{ color: '#fff' }} />}
+                              </div>
+                              <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.4 }}>{p}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
+                        Agregar pregunta personalizada
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            type="text" className="pl-input" placeholder="Escribe tu propia pregunta"
+                            value={tareaForm._pulsoCustom || ''}
+                            onChange={e => updateForm('_pulsoCustom', e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+                          />
+                          <button type="button" onClick={addCustom} style={{ padding: '0 14px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                            Agregar
+                          </button>
+                        </div>
+                      </label>
+                      {preguntas.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {preguntas.map((p, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 6, background: '#fdf2f8' }}>
+                              <Smile size={11} style={{ color: '#f472b6', flexShrink: 0 }} />
+                              <span style={{ fontSize: 11, color: '#334155', flex: 1 }}>{p}</span>
+                              <button onClick={() => updateForm('pulsoPreguntas', preguntas.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 {tareaForm.tipo === 'recorrido' && (
                   <div className="jb-form-row">
                     <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
@@ -1380,7 +1489,35 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                   </label>
                 )}
 
-                {['form-custom', 'completar-perfil'].includes(tareaForm.tipo) && (
+                {tareaForm.tipo === 'completar-perfil' && (() => {
+                  const campos = tareaForm.formCampos || []
+                  return (
+                    <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: campos.length > 0 ? '#d1fae5' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <ClipboardList size={16} style={{ color: campos.length > 0 ? '#059669' : '#94a3b8' }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
+                            {campos.length === 0 ? 'Sin campos aún' : `${campos.length} campo${campos.length !== 1 ? 's' : ''}`}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+                            {campos.length === 0 ? 'Crea los campos de este formulario' : campos.map(c => c.etiqueta || '(sin nombre)').join(', ')}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setFormEditorJB({ campos: campos.length ? JSON.parse(JSON.stringify(campos)) : [] })}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#0C2D40', color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        <Pencil size={11} />
+                        {campos.length === 0 ? 'Crear campos' : 'Editar campos'}
+                      </button>
+                    </div>
+                  )
+                })()}
+
+                {tareaForm.tipo === 'form-custom' && (
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
                     Enlace al formulario
                     <input type="url" className="pl-input" placeholder="https://..." value={tareaForm.enlace || ''} onChange={e => updateForm('enlace', e.target.value)} />
@@ -1854,31 +1991,66 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
               </button>
             </div>
             <div className="pl-modal-body">
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px' }}>Cada ajuste puede heredar la configuración global, personalizarse o desactivarse.</p>
-              {[
-                { label: 'Gamificación (Puntos)', hint: 'Los colaboradores ganan puntos al completar tareas' },
-                { label: 'Notificaciones automáticas', hint: 'Recordatorios por email y push' },
-                { label: 'Plazos estrictos', hint: 'Bloquea avance si hay tareas vencidas' },
-                { label: 'Permitir saltar tareas opcionales', hint: 'El colaborador puede omitir tareas no obligatorias' },
-                { label: 'Prueba con nota mínima', hint: 'Requiere un puntaje mínimo para aprobar' },
-                { label: 'Asistente IA', hint: 'Un asistente inteligente que guía al nuevo colaborador' },
-              ].map((cfg, i) => (
-                <div key={i} className="jb-field-toggle">
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px' }}>Activa o desactiva cada ajuste para esta ruta. Por defecto, todos están activos.</p>
+              {rutaConfigOpciones.map((cfg) => (
+                <div key={cfg.key} className="jb-field-toggle" onClick={() => setConfigConfirm({ key: cfg.key, label: cfg.label, next: !rutaConfig[cfg.key], msg: !rutaConfig[cfg.key] ? cfg.onMsg : cfg.offMsg })} style={{ cursor: 'pointer' }}>
                   <div>
                     <span>{cfg.label}</span>
                     <div className="jb-toggle-hint">{cfg.hint}</div>
                   </div>
-                  <select className="jb-config-select" defaultValue="Heredar">
-                    <option>Heredar</option>
-                    <option>Personalizar</option>
-                    <option>Desactivar</option>
-                  </select>
+                  <div className={`jb-toggle ${rutaConfig[cfg.key] ? 'on' : ''}`}>
+                    <div className="jb-toggle-dot" />
+                  </div>
                 </div>
               ))}
             </div>
             <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setShowConfig(false)}>Cancelar</button>
-              <button className="pl-btn-save" onClick={() => setShowConfig(false)}>Guardar</button>
+              <button className="pl-btn-save" onClick={() => setShowConfig(false)}>Listo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAR CAMBIO DE CONFIGURACIÓN */}
+      {configConfirm && (
+        <div className="pl-overlay" style={{ zIndex: 1200 }} onClick={() => setConfigConfirm(null)}>
+          <div className="pl-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Settings2 size={15} color="#fff" />
+                </div>
+                <h2 style={{ margin: 0, fontSize: 15 }}>{configConfirm.next ? 'Activar' : 'Desactivar'} "{configConfirm.label}"</h2>
+              </div>
+              <button className="pl-modal-close" onClick={() => setConfigConfirm(null)}><X size={18} /></button>
+            </div>
+            <div className="pl-modal-body">
+              <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                ¿Estás seguro de {configConfirm.next ? 'activar' : 'desactivar'} este ajuste para esta ruta?
+              </p>
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 12,
+                padding: '12px 14px', borderRadius: 10,
+                background: configConfirm.next ? '#f0f9ff' : '#fef2f2',
+                border: `1px solid ${configConfirm.next ? '#dbeafe' : '#fecaca'}`,
+              }}>
+                <Info size={15} style={{ color: configConfirm.next ? '#1e40af' : '#dc2626', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ margin: 0, fontSize: 11.5, color: configConfirm.next ? '#1e40af' : '#991b1b', lineHeight: 1.6 }}>
+                  {configConfirm.msg}
+                </p>
+              </div>
+            </div>
+            <div className="pl-modal-footer">
+              <button className="pl-btn-cancel" onClick={() => setConfigConfirm(null)}>Cancelar</button>
+              <button
+                className="pl-btn-save"
+                onClick={() => { setRutaConfig(prev => ({ ...prev, [configConfirm.key]: configConfirm.next })); setConfigConfirm(null) }}
+              >
+                {configConfirm.next ? 'Activar' : 'Desactivar'}
+              </button>
             </div>
           </div>
         </div>
@@ -1999,10 +2171,183 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
       {previewTask && (() => {
         const tipo = tipoMap[previewTask.tipo] || tiposTarea[0]
         const TpIcon = tipo.icon
+        const hasQuiz = previewTask.verificarQuiz !== false
+
+        function renderContenido() {
+          switch (previewTask.tipo) {
+            case 'video': {
+              const videoId = previewTask.videoUrl ? (toEmbedUrl(previewTask.videoUrl).match(/embed\/([a-zA-Z0-9_-]+)/)?.[1]) : null
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
+                    <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+                      {videoId ? (
+                        <iframe src={`https://www.youtube.com/embed/${videoId}`} title={previewTask.name} frameBorder="0" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
+                      ) : (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'rgba(255,255,255,.5)' }}>
+                          <Video size={28} />
+                          <span style={{ fontSize: 11 }}>Sin video vinculado aún</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {hasQuiz && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                      <HelpCircle size={15} style={{ color: '#d97706' }} />
+                      <span style={{ fontSize: 11.5, color: '#92400e', fontWeight: 600 }}>Incluye una prueba de verificación al finalizar</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                    <Info size={14} style={{ color: '#3b82f6' }} />
+                    <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>Se completa automáticamente al terminar el video{hasQuiz ? ' y la evaluación' : ''}</span>
+                  </div>
+                </div>
+              )
+            }
+            case 'audio':
+              return (
+                <div style={{ padding: 20, borderRadius: 12, background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Headphones size={22} style={{ color: '#fff' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{previewTask.name}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Audio / Podcast</div>
+                  </div>
+                </div>
+              )
+            case 'documento':
+              return (
+                <div style={{ border: '1px solid #fed7aa', borderRadius: 12, overflow: 'hidden', background: '#fffbf5' }}>
+                  <div style={{ padding: '12px 16px', background: '#fff7ed', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FileText size={16} style={{ color: '#ea580c' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#9a3412' }}>{previewTask.name}.pdf</span>
+                  </div>
+                  {hasQuiz && (
+                    <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid #fed7aa' }}>
+                      <HelpCircle size={14} style={{ color: '#d97706' }} />
+                      <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Incluye una prueba de verificación</span>
+                    </div>
+                  )}
+                </div>
+              )
+            case 'quiz': {
+              const preguntas = previewTask.quizPreguntas || []
+              if (preguntas.length === 0) {
+                return <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8', background: '#f8fafc', borderRadius: 10 }}>Esta prueba aún no tiene preguntas configuradas</div>
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {preguntas.map((p, i) => (
+                    <div key={p.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', marginBottom: 8 }}>{i + 1}. {p.texto}</div>
+                      {p.tipo === 'abierta' ? (
+                        <div style={{ padding: '8px 10px', borderRadius: 7, background: '#fff', border: '1.5px dashed #cbd5e1', fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                          Respuesta abierta
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {p.opciones.map(o => (
+                            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: '#fff', border: `1.5px solid ${o.correcta ? '#00E091' : '#e2e8f0'}` }}>
+                              <div style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${o.correcta ? '#00E091' : '#cbd5e1'}`, background: o.correcta ? '#00E091' : '#fff' }} />
+                              <span style={{ fontSize: 11, color: '#334155' }}>{o.texto}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+            case 'completar-perfil': {
+              const campos = previewTask.formCampos || []
+              if (campos.length === 0) {
+                return <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8', background: '#f8fafc', borderRadius: 10 }}>Este formulario aún no tiene campos configurados</div>
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {campos.map(c => (
+                    <div key={c.id}>
+                      <label style={{ fontSize: 11.5, fontWeight: 600, color: '#334155', marginBottom: 5, display: 'block' }}>
+                        {c.etiqueta}{c.obligatorio && <span style={{ color: '#ef4444' }}> *</span>}
+                      </label>
+                      {c.tipo === 'parrafo' && <div style={{ height: 56, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }} />}
+                      {c.tipo === 'texto-corto' && <div style={{ height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }} />}
+                      {c.tipo === 'desplegable' && <div style={{ height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11, color: '#94a3b8' }}>Selecciona...</div>}
+                      {(c.tipo === 'opcion-multiple' || c.tipo === 'casillas') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {c.opciones.map(o => (
+                            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                              <div style={{ width: 13, height: 13, borderRadius: c.tipo === 'casillas' ? 4 : '50%', flexShrink: 0, border: '1.5px solid #cbd5e1' }} />
+                              <span style={{ fontSize: 11, color: '#334155' }}>{o.texto}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+            case 'pulso': {
+              const preguntas = previewTask.pulsoPreguntas?.length ? previewTask.pulsoPreguntas : ['¿Cómo te sientes con tu proceso de onboarding hasta ahora?']
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {preguntas.map((p, i) => (
+                    <div key={i} style={{ border: '1px solid #fbcfe8', borderRadius: 12, padding: '12px 16px', background: '#fdf2f8' }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#831843', margin: '0 0 8px' }}>{p}</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {['😞', '😕', '😐', '🙂', '😄'].map((e, ei) => (
+                          <div key={ei} style={{ width: 30, height: 30, borderRadius: '50%', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f5d0e0', background: '#fff' }}>{e}</div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+            case 'recorrido':
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 5, background: '#eff6ff', color: '#2563eb', alignSelf: 'flex-start' }}>Recorrido libre</div>
+                  {['Recepción y entrada principal', 'Tu área de trabajo', 'Sala de reuniones', 'Comedor y áreas comunes'].map((s, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: '1.5px solid #d1d5db' }} />
+                      <span style={{ fontSize: 12, color: '#334155' }}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            case 'subida':
+              return (
+                <div style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 28, textAlign: 'center', background: '#fdf2f8' }}>
+                  <Upload size={28} style={{ color: '#ec4899', marginBottom: 8 }} />
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', margin: '0 0 3px' }}>Arrastra tus archivos aquí</p>
+                  <p style={{ fontSize: 10.5, color: '#be185d', margin: 0 }}>o haz clic para seleccionar{previewTask.formatos ? ` — ${previewTask.formatos}` : ''}</p>
+                </div>
+              )
+            case 'tarea-otro':
+              return (
+                <div style={{ border: '1px solid #fecaca', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: '#fef2f2', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <UserCheck size={15} style={{ color: '#dc2626' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Tarea supervisada</span>
+                  </div>
+                  <div style={{ padding: 16, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
+                    {previewTask.desc || 'Requiere validación del responsable asignado.'}
+                  </div>
+                </div>
+              )
+            default:
+              return null
+          }
+        }
+
         return (
           <div className="pl-overlay" onClick={() => setPreviewTask(null)}>
-            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header">
+            <div className="pl-modal" style={{ width: 560, maxWidth: '94vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header" style={{ flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: 8,
@@ -2018,46 +2363,30 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 </button>
               </div>
 
-              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                <div style={{ position: 'relative', marginBottom: 12 }}>
-                  <div style={{
-                    width: 56, height: 56, borderRadius: '50%', background: '#0C2D40',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 14px rgba(12,45,64,.25)',
-                  }}>
-                    <TpIcon size={24} style={{ color: '#fff' }} />
+              <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: `${tipo.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <TpIcon size={16} style={{ color: tipo.color }} />
                   </div>
-                  {gamificacion && previewTask.puntos > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -6, right: -10,
-                      background: '#00E091', color: '#fff', fontSize: 10, fontWeight: 800,
-                      padding: '2px 7px', borderRadius: 10, lineHeight: 1.4,
-                    }}>
-                      +{previewTask.puntos}
-                    </span>
-                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>{previewTask.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: tipo.color }}>{tipo.label}</span>
+                      {gamificacion && previewTask.puntos > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#00E091' }}>+{previewTask.puntos} Pts</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0C2D40', margin: 0 }}>{previewTask.name}</h2>
-                <span style={{ fontSize: 11, fontWeight: 600, color: tipo.color, marginTop: 4 }}>{tipo.label}</span>
-
                 {previewTask.desc && (
-                  <p style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6, marginTop: 12 }}>{previewTask.desc}</p>
+                  <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6, margin: '10px 0 16px' }}>{previewTask.desc}</p>
                 )}
+                {!previewTask.desc && <div style={{ height: 12 }} />}
 
-                <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: 20 }}>
-                    Responsable: {Array.isArray(previewTask.responsable) ? (previewTask.responsable.join(', ') || tipo.resp) : (previewTask.responsable || tipo.resp)}
-                  </span>
-                  {previewTask.fechaRel && (
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: 20 }}>
-                      {previewTask.fechaRel}
-                    </span>
-                  )}
-                </div>
+                {renderContenido()}
               </div>
 
-              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
+              <div className="pl-modal-footer" style={{ justifyContent: 'center', flexShrink: 0 }}>
                 <button className="pl-btn-cancel" onClick={() => setPreviewTask(null)}>Cerrar</button>
                 <button className="pl-btn-save" onClick={() => { selectTarea(previewTask); setPreviewTask(null) }}>
                   <Pencil size={13} />
@@ -2421,7 +2750,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
           setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.filter((_, i) => i !== pIdx) }))
         }
         function addQ() {
-          setQuizEditorJB(prev => ({ ...prev, preguntas: [...prev.preguntas, { id: Date.now(), texto: '', opciones: [{ id: Date.now()+1, texto: '', correcta: true }, { id: Date.now()+2, texto: '', correcta: false }, { id: Date.now()+3, texto: '', correcta: false }, { id: Date.now()+4, texto: '', correcta: false }] }] }))
+          setQuizEditorJB(prev => ({ ...prev, preguntas: [...prev.preguntas, { id: Date.now(), texto: '', tipo: 'opcion_multiple', opciones: [{ id: Date.now()+1, texto: '', correcta: true }, { id: Date.now()+2, texto: '', correcta: false }, { id: Date.now()+3, texto: '', correcta: false }, { id: Date.now()+4, texto: '', correcta: false }] }] }))
+        }
+        function setTipoQ(pIdx, tipo) {
+          setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, tipo } : p) }))
         }
         function updateOpt(pIdx, oIdx, texto) {
           setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: p.opciones.map((o, j) => j === oIdx ? { ...o, texto } : o) } : p) }))
@@ -2477,6 +2809,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         )}
                       </div>
 
+                      <div style={{ display: 'flex', gap: 6, paddingLeft: 30, marginBottom: 10 }}>
+                        {[{ v: 'opcion_multiple', l: 'Opción múltiple' }, { v: 'abierta', l: 'Respuesta abierta' }].map(o => (
+                          <button
+                            key={o.v}
+                            onClick={() => setTipoQ(pIdx, o.v)}
+                            style={{
+                              padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                              border: (pregunta.tipo || 'opcion_multiple') === o.v ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
+                              background: (pregunta.tipo || 'opcion_multiple') === o.v ? '#0C2D40' : '#fff',
+                              color: (pregunta.tipo || 'opcion_multiple') === o.v ? '#fff' : '#64748b',
+                            }}
+                          >{o.l}</button>
+                        ))}
+                      </div>
+
+                      {pregunta.tipo === 'abierta' ? (
+                        <div style={{ paddingLeft: 30, fontSize: 10.5, color: '#94a3b8', fontStyle: 'italic' }}>
+                          El colaborador responderá con texto libre. Esta pregunta no se califica automáticamente.
+                        </div>
+                      ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 30 }}>
                         {pregunta.opciones.map((opcion, oIdx) => (
                           <div key={opcion.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2504,7 +2856,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                           <Plus size={11} /> Agregar opción
                         </button>
                       </div>
-                      <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 8, paddingLeft: 30 }}>Haz clic en el círculo verde para marcar la respuesta correcta</div>
+                      )}
+                      {pregunta.tipo !== 'abierta' && (
+                        <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 8, paddingLeft: 30 }}>Haz clic en el círculo verde para marcar la respuesta correcta</div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2518,6 +2873,145 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 <button className="pl-btn-cancel" onClick={() => setQuizEditorJB(null)}>Cancelar</button>
                 <button className="pl-btn-save" onClick={guardar}>
                   Guardar prueba ({qe.preguntas.length} pregunta{qe.preguntas.length !== 1 ? 's' : ''})
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* EDITOR DE FORMULARIO */}
+      {formEditorJB && (() => {
+        const fe = formEditorJB
+        const choiceTypes = ['opcion-multiple', 'casillas', 'desplegable']
+
+        function updateCampo(idx, field, value) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => i === idx ? { ...c, [field]: value } : c) }))
+        }
+        function deleteCampo(idx) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.filter((_, i) => i !== idx) }))
+        }
+        function addCampo() {
+          setFormEditorJB(prev => ({ ...prev, campos: [...prev.campos, { id: Date.now(), etiqueta: '', tipo: 'texto-corto', obligatorio: false, opciones: [] }] }))
+        }
+        function setTipoCampo(idx, tipo) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => {
+            if (i !== idx) return c
+            const needsOpciones = choiceTypes.includes(tipo)
+            return { ...c, tipo, opciones: needsOpciones ? (c.opciones?.length ? c.opciones : [{ id: Date.now() + 1, texto: '' }, { id: Date.now() + 2, texto: '' }]) : c.opciones }
+          }) }))
+        }
+        function updateOpcion(cIdx, oIdx, texto) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => i === cIdx ? { ...c, opciones: c.opciones.map((o, j) => j === oIdx ? { ...o, texto } : o) } : c) }))
+        }
+        function addOpcion(cIdx) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => i === cIdx ? { ...c, opciones: [...c.opciones, { id: Date.now(), texto: '' }] } : c) }))
+        }
+        function deleteOpcion(cIdx, oIdx) {
+          setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => i === cIdx ? { ...c, opciones: c.opciones.filter((_, j) => j !== oIdx) } : c) }))
+        }
+        function guardar() {
+          updateForm('formCampos', fe.campos.filter(c => c.etiqueta.trim()))
+          setFormEditorJB(null)
+        }
+
+        return (
+          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setFormEditorJB(null)}>
+            <div className="pl-modal jb-modal" style={{ maxWidth: 580, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ClipboardList size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <h2 style={{ margin: 0 }}>Editor de formulario</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setFormEditorJB(null)}><X size={18} /></button>
+              </div>
+
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 12 }}>
+                  Campos ({fe.campos.length})
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {fe.campos.map((campo, cIdx) => (
+                    <div key={campo.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{cIdx + 1}</span>
+                        <input
+                          type="text"
+                          placeholder="Escribe la etiqueta del campo..."
+                          value={campo.etiqueta}
+                          onChange={e => updateCampo(cIdx, 'etiqueta', e.target.value)}
+                          style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+                        />
+                        <button onClick={() => deleteCampo(cIdx)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 6, paddingLeft: 30, marginBottom: 10, flexWrap: 'wrap' }}>
+                        {formTiposCampo.map(o => (
+                          <button
+                            key={o.v}
+                            onClick={() => setTipoCampo(cIdx, o.v)}
+                            style={{
+                              padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                              border: campo.tipo === o.v ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
+                              background: campo.tipo === o.v ? '#0C2D40' : '#fff',
+                              color: campo.tipo === o.v ? '#fff' : '#64748b',
+                            }}
+                          >{o.l}</button>
+                        ))}
+                      </div>
+
+                      {choiceTypes.includes(campo.tipo) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 30 }}>
+                          {campo.opciones.map((opcion, oIdx) => (
+                            <div key={opcion.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type="text"
+                                placeholder={`Opción ${oIdx + 1}`}
+                                value={opcion.texto}
+                                onChange={e => updateOpcion(cIdx, oIdx, e.target.value)}
+                                style={{ flex: 1, padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 11, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+                              />
+                              {campo.opciones.length > 1 && (
+                                <button onClick={() => deleteOpcion(cIdx, oIdx)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}>
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button onClick={() => addOpcion(cIdx)} style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 600, color: '#94a3b8', fontFamily: 'inherit', padding: '4px 0' }} onMouseEnter={e => e.currentTarget.style.color = '#0C2D40'} onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}>
+                            <Plus size={11} /> Agregar opción
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ paddingLeft: 30, fontSize: 10.5, color: '#94a3b8', fontStyle: 'italic' }}>
+                          {campo.tipo === 'parrafo' ? 'El colaborador responderá con un texto más largo.' : 'El colaborador responderá con una línea de texto corta.'}
+                        </div>
+                      )}
+
+                      <div className="jb-field-toggle" style={{ paddingLeft: 30, marginTop: 10 }} onClick={() => updateCampo(cIdx, 'obligatorio', !campo.obligatorio)}>
+                        <span style={{ fontSize: 10.5, color: '#475569' }}>Campo obligatorio</span>
+                        <div className={`jb-toggle ${campo.obligatorio ? 'on' : ''}`}>
+                          <div className="jb-toggle-dot" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button onClick={addCampo} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12, padding: '10px', border: '1.5px dashed #cbd5e1', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit' }}>
+                  <Plus size={13} /> Agregar campo
+                </button>
+              </div>
+
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setFormEditorJB(null)}>Cancelar</button>
+                <button className="pl-btn-save" onClick={guardar}>
+                  Guardar formulario ({fe.campos.length} campo{fe.campos.length !== 1 ? 's' : ''})
                 </button>
               </div>
             </div>
@@ -2546,6 +3040,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{pIdx + 1}</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#0C2D40', paddingTop: 2 }}>{pregunta.texto}</span>
                   </div>
+                  {pregunta.tipo === 'abierta' ? (
+                    <div style={{ marginLeft: 30, padding: '10px 12px', borderRadius: 8, background: '#fff', border: '1.5px dashed #cbd5e1', fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic' }}>
+                      Respuesta abierta — el colaborador escribirá su respuesta aquí
+                    </div>
+                  ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 30 }}>
                     {pregunta.opciones.map(opcion => (
                       <div
@@ -2568,6 +3067,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                       </div>
                     ))}
                   </div>
+                  )}
                 </div>
               ))}
             </div>

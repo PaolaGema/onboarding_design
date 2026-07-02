@@ -12,6 +12,7 @@ import Conocimiento from './pages/onboarding/Conocimiento'
 import Configuracion from './pages/onboarding/Configuracion'
 import MiOnboarding from './pages/colaborador/MiOnboarding'
 import Colaboradores from './pages/personas/Colaboradores'
+import Organigrama from './pages/personas/Organigrama'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           </Route>
           <Route path="/personas" element={<Layout />}>
             <Route path="colaboradores" element={<Colaboradores />} />
+            <Route path="organigrama" element={<Organigrama />} />
           </Route>
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         </Routes>

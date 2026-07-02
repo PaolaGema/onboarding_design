@@ -22,7 +22,7 @@ export default function Layout() {
   const [mobileTab, setMobileTab] = useState('onboarding')
 
   useEffect(() => {
-    const isPersonas = location.pathname.startsWith('/personas')
+    const isPersonas = location.pathname.startsWith('/personas') && location.pathname !== '/personas/organigrama'
     const isAdminRoute = ['/onboarding', '/onboarding/asignaciones', '/onboarding/plantillas', '/onboarding/conocimiento', '/onboarding/configuracion'].includes(location.pathname)
 
     if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas)) {

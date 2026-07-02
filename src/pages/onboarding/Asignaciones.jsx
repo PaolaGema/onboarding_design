@@ -5,7 +5,8 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, UserPlus, X, AlertTriangle, Eye, Users, Route,
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check,
-  Send, MessageCircle, Bell, Circle
+  Send, MessageCircle, Bell, Circle,
+  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle, UserRound
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import { rutasData } from './JourneyBuilder'
@@ -29,6 +30,19 @@ const statusCls = {
   'atrasado': 'as-st-atrasado',
   'en-riesgo': 'as-st-riesgo',
   'pausado': 'as-st-pausado',
+}
+
+const tareaIconMap = {
+  video: Video, audio: Headphones, documento: FileText, quiz: HelpCircle,
+  'completar-perfil': ClipboardList, subida: Upload, 'tarea-otro': UserCheck,
+  recorrido: MapPin, pulso: Smile,
+}
+
+// Estadísticas de reproducción del video — derivadas de forma estable a partir del id de la tarea
+function videoStats(taskId, done) {
+  const seed = String(taskId).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
+  if (done) return { veces: 1 + (seed % 3), completo: true }
+  return { veces: seed % 3, completo: false }
 }
 
 
@@ -97,7 +111,7 @@ export default function Asignaciones() {
   const totalPendientes = asignaciones.filter(a => a.status === 'pendiente').length
   const totalAtrasados = asignaciones.filter(a => a.status === 'atrasado' || a.status === 'en-riesgo').length
 
-  function handleAsignar(colabs, ruta, fecha) {
+  function handleAsignar(colabs, ruta, fecha, buddy) {
     if (!colabs.length || !ruta) return
     const baseId = Math.max(0, ...allAsignaciones.map(a => a.id))
     const newItems = colabs.map((c, i) => ({
@@ -111,9 +125,10 @@ export default function Asignaciones() {
       status: 'pendiente',
       fechaInicio: fecha || 'Por definir',
       color: c.color || '#3b82f6',
+      buddy: buddy?.name || null,
     }))
     setAsignaciones([...asignaciones, ...newItems])
-    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}`))
+    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}${buddy ? ` con ${buddy.name} como buddy` : ''}`))
     setModal(false)
   }
 
@@ -699,10 +714,15 @@ export default function Asignaciones() {
                 </button>
               </div>
               <div className="pl-modal-body" style={{ overflowY: 'auto', flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                   <span className={`as-status ${statusCls[detalle.status]}`}>{statusLabels[detalle.status]}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>Día {detalle.dia} / {detalle.totalDias}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>· Inicio {detalle.fechaInicio}</span>
+                  {detalle.buddy && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#0C2D40', background: '#f1f5f9', padding: '3px 9px', borderRadius: 20 }}>
+                      <UserRound size={11} /> Buddy: {detalle.buddy}
+                    </span>
+                  )}
                 </div>
                 <div className="pr-progress" style={{ marginBottom: 20 }}>
                   <div className="pr-pct">{detalle.pct}%</div>
@@ -721,14 +741,30 @@ export default function Asignaciones() {
                         <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b' }}>{etapa.doneLocal}/{etapa.tareas.length} completadas</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {etapa.tareas.map(t => (
-                          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {t.done
-                              ? <CheckCircle2 size={14} style={{ color: 'var(--green)', flexShrink: 0 }} />
-                              : <Circle size={14} style={{ color: '#cbd5e1', flexShrink: 0 }} />}
-                            <span style={{ fontSize: 12, color: t.done ? '#0C2D40' : '#94a3b8', textDecoration: t.done ? 'none' : 'none' }}>{t.name}</span>
-                          </div>
-                        ))}
+                        {etapa.tareas.map(t => {
+                          const TIcon = tareaIconMap[t.tipo]
+                          const vs = t.tipo === 'video' ? videoStats(t.id, t.done) : null
+                          return (
+                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {t.done
+                                ? <CheckCircle2 size={14} style={{ color: 'var(--green)', flexShrink: 0 }} />
+                                : <Circle size={14} style={{ color: '#cbd5e1', flexShrink: 0 }} />}
+                              {TIcon && <TIcon size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />}
+                              <span style={{ fontSize: 12, color: t.done ? '#0C2D40' : '#94a3b8', flex: 1 }}>{t.name}</span>
+                              {vs && (
+                                <span style={{
+                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600,
+                                  padding: '2px 7px', borderRadius: 20, flexShrink: 0,
+                                  background: vs.completo ? '#f0fdf4' : vs.veces > 0 ? '#fef3c7' : '#f1f5f9',
+                                  color: vs.completo ? '#16a34a' : vs.veces > 0 ? '#b45309' : '#94a3b8',
+                                }}>
+                                  <PlayCircle size={10} />
+                                  {vs.veces === 0 ? 'No visto' : `Visto ${vs.veces} ${vs.veces === 1 ? 'vez' : 'veces'}${vs.completo ? ' · completo' : ' · incompleto'}`}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   ))}

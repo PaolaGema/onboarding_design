@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { colaboradoresData } from '../../pages/personas/Colaboradores'
 import {
   Search, X, Filter, Check, ChevronLeft, ChevronRight,
-  ChevronDown, Calendar, Rocket
+  ChevronDown, Calendar, Rocket, UserRound
 } from 'lucide-react'
 
 const colaboradoresDisponibles = [
@@ -124,6 +125,9 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   const [rfDropSede, setRfDropSede] = useState(false)
   const [rfDropArea, setRfDropArea] = useState(false)
   const [rfDropCargo, setRfDropCargo] = useState(false)
+  const [buddy, setBuddy] = useState(null)
+  const [buddySearch, setBuddySearch] = useState('')
+  const [buddyOpen, setBuddyOpen] = useState(false)
 
   const hasActiveFilters = colabFilterDepto !== 'Todas' || colabFilterSucursal !== 'Todas' || colabFilterCargo !== 'Todos' || colabFechaDesde || colabFechaHasta
   const filteredColabs = colaboradoresDisponibles.filter(c => {
@@ -153,6 +157,10 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   const isColabSelected = (c) => selectedColabs.some(s => s.name === c.name)
   const selectedRuta = rutasAsignar.find(r => r.id === onbSelected) || null
   const canConfirm = selectedColabs.length > 0 && onbSelected && onbFecha
+  const buddyCandidatos = colaboradoresData.filter(c =>
+    !selectedColabs.some(s => s.name === c.name) &&
+    c.name.toLowerCase().includes(buddySearch.toLowerCase())
+  )
 
   return (
     <div className="pl-overlay" onClick={onClose}>
@@ -172,7 +180,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
         </div>
 
         {/* CONTENIDO: 3 COLUMNAS */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }} onClick={() => setBuddyOpen(false)}>
 
           {/* COL 1: COLABORADORES */}
           <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9' }}>
@@ -417,9 +425,75 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           </div>
 
           {/* COL 3: FECHA */}
-          <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px' }}>
+          <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
             <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
+
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40', marginTop: 10 }}>
+              <span style={{ color: '#94a3b8', fontWeight: 600 }}>4.</span> Buddy <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span>
+            </span>
+            <p style={{ fontSize: 10, color: '#94a3b8', margin: '-4px 0 0', lineHeight: 1.4 }}>
+              Su acompañante guía durante el onboarding.
+            </p>
+
+            {buddy ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: buddy.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{buddy.initials}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{buddy.name}</div>
+                  <div style={{ fontSize: 9, color: '#94a3b8' }}>{buddy.cargo}</div>
+                </div>
+                <button onClick={() => setBuddy(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#94a3b8', display: 'flex', flexShrink: 0 }}>
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div className="pl-search-wrap">
+                  <Search size={11} className="pl-search-ico" />
+                  <input
+                    type="text" className="pl-search" style={{ fontSize: 11 }}
+                    placeholder="Buscar persona..."
+                    value={buddySearch}
+                    onChange={e => { setBuddySearch(e.target.value); setBuddyOpen(true) }}
+                    onFocus={() => setBuddyOpen(true)}
+                  />
+                </div>
+                {buddyOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30,
+                    background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0',
+                    boxShadow: '0 8px 24px rgba(0,0,0,.12)', maxHeight: 180, overflowY: 'auto', padding: 4,
+                  }}>
+                    {buddyCandidatos.length > 0 ? buddyCandidatos.slice(0, 20).map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setBuddy(c); setBuddySearch(''); setBuddyOpen(false) }}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '6px 8px', border: 'none', borderRadius: 7,
+                          background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{c.initials}</span>
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                          <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.cargo}</div>
+                        </div>
+                      </button>
+                    )) : (
+                      <div style={{ padding: 10, textAlign: 'center', fontSize: 10, color: '#94a3b8' }}>Sin resultados</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -516,7 +590,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           <button className="pl-btn-cancel" onClick={onClose}>Cancelar</button>
           <button className="pl-btn-save" disabled={!canConfirm}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...(!canConfirm ? { opacity: 0.5, cursor: 'default' } : {}) }}
-            onClick={() => canConfirm && onConfirm(selectedColabs, selectedRuta, onbFecha)}>
+            onClick={() => canConfirm && onConfirm(selectedColabs, selectedRuta, onbFecha, buddy)}>
             <Rocket size={13} />
             Asignar a {selectedColabs.length || '...'} colaborador{selectedColabs.length !== 1 ? 'es' : ''}
           </button>
