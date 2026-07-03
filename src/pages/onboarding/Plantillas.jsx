@@ -7,9 +7,8 @@ import {
   Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
-import RutaPreviewModal from '../../components/onboarding/RutaPreviewModal'
+import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewModal'
 import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
-import RutaInfoPanel from '../../components/onboarding/RutaInfoPanel'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import rutaImg from '../../assets/imagenes/ruta.webp'
 import PageHero from '../../components/layout/PageHero'
@@ -32,6 +31,7 @@ const cargosPorArea = {
   'Legal': ['Abogado Corporativo', 'Paralegal', 'Director Legal'],
 }
 const areas = Object.keys(cargosPorArea)
+const tiposRuta = ['Onboarding', 'Reboarding']
 
 
 export default function Plantillas() {
@@ -52,19 +52,22 @@ export default function Plantillas() {
   }
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todas')
+  const [filterTipo, setFilterTipo] = useState('todos')
   const [filterArea, setFilterArea] = useState('todas')
   const [filterCargo, setFilterCargo] = useState('todos')
   const [filterOrigen, setFilterOrigen] = useState('todas')
   const [rfDropStatus, setRfDropStatus] = useState(false)
-  const [rfDropArea, setRfDropArea] = useState(false)
-  const [rfDropCargo, setRfDropCargo] = useState(false)
+  const [rfDropTipo, setRfDropTipo] = useState(false)
   const [rfDropOrigen, setRfDropOrigen] = useState(false)
+  const [showMasFiltros, setShowMasFiltros] = useState(false)
+  const [mfDropArea, setMfDropArea] = useState(false)
+  const [mfDropCargo, setMfDropCargo] = useState(false)
   const filterBarRef = useRef(null)
 
   useEffect(() => {
     function closeDrops(e) {
       if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
-        setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false); setRfDropOrigen(false)
+        setRfDropStatus(false); setRfDropTipo(false); setRfDropOrigen(false)
       }
     }
     document.addEventListener('mousedown', closeDrops)
@@ -77,7 +80,6 @@ export default function Plantillas() {
 
   const [activeJourney, setActiveJourney] = useState(null)
   const [previewRuta, setPreviewRuta] = useState(null)
-  const [infoRuta, setInfoRuta] = useState(null)
   const [modal, setModal] = useState(null)
   const [selectedTpl, setSelectedTpl] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -86,9 +88,10 @@ export default function Plantillas() {
   const [etapasModal, setEtapasModal] = useState(null)
   const [tareasModal, setTareasModal] = useState(null)
 
-  const [form, setForm] = useState({ name: '', descripcion: '', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
+  const [form, setForm] = useState({ name: '', descripcion: '', tipo: 'Onboarding', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
   const [rutaBaseConfirm, setRutaBaseConfirm] = useState(null)
   const [globalesExpanded, setGlobalesExpanded] = useState(false)
+  const [dropTipo, setDropTipo] = useState(false)
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
   const [showResponsables, setShowResponsables] = useState(null)
@@ -124,14 +127,14 @@ export default function Plantillas() {
   }
 
   function openRuta(p) {
-    if (p._isSouly || !canEditRuta(p)) { setPreviewRuta(p); return }
-    setActiveJourney(p)
+    setPreviewRuta(p)
   }
 
   const soulyRows = rutaPlantillas.map(tpl => ({
     id: `sh-${tpl.id}`,
     name: tpl.name,
     descripcion: tpl.descripcion,
+    tipo: 'Onboarding',
     area: tpl.area,
     cargo: '',
     etapas: tpl.etapasData.length,
@@ -147,18 +150,19 @@ export default function Plantillas() {
   }))
   function applyTemplate(p) { chooseTpl(p._tpl) }
 
-  const hasRutaFilters = filterStatus !== 'todas' || filterArea !== 'todas' || filterCargo !== 'todos' || filterOrigen !== 'todas'
+  const hasRutaFilters = filterStatus !== 'todas' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos' || filterOrigen !== 'todas'
   const fuenteRutas = filterOrigen === 'soulyhr' ? soulyRows : filterOrigen === 'mias' ? plantillas : [...plantillas, ...soulyRows]
   const cargosDeArea = [...new Set(fuenteRutas.filter(p => filterArea === 'todas' || p.area === filterArea).map(p => p.cargo).filter(Boolean))]
   const filtered = fuenteRutas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.area.toLowerCase().includes(search.toLowerCase())
     const matchStatus = filterStatus === 'todas' || p.status === filterStatus
+    const matchTipo = filterTipo === 'todos' || (p.tipo || 'Onboarding') === filterTipo
     const matchArea = filterArea === 'todas' || p.area === filterArea
     const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
-    return matchSearch && matchStatus && matchArea && matchCargo
+    return matchSearch && matchStatus && matchTipo && matchArea && matchCargo
   })
-  function clearRutaFilters() { setFilterStatus('todas'); setFilterArea('todas'); setFilterCargo('todos'); setFilterOrigen('todas'); setPage(1) }
+  function clearRutaFilters() { setFilterStatus('todas'); setFilterTipo('todos'); setFilterArea('todas'); setFilterCargo('todos'); setFilterOrigen('todas'); setPage(1) }
 
   const [page, setPage] = useState(1)
   const perPage = 8
@@ -183,16 +187,18 @@ export default function Plantillas() {
     setForm({
       name: tpl ? '' : '',
       descripcion: tpl?.descripcion || '',
+      tipo: 'Onboarding',
       area: tpl?.area === 'Todas las áreas' ? 'Todas las áreas' : (tpl?.area || 'Ventas'),
       cargo: '',
     })
+    setDropTipo(false)
     setDropArea(false)
     setDropCargo(false)
     setModal('crear')
   }
 
   function openEdit(p) {
-    setForm({ name: p.name, descripcion: p.descripcion || '', area: p.area, cargo: p.cargo || '', id: p.id })
+    setForm({ name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', area: p.area, cargo: p.cargo || '', id: p.id })
     setModal('editar')
   }
 
@@ -207,6 +213,7 @@ export default function Plantillas() {
         id: newId,
         name: form.name.trim(),
         descripcion: form.descripcion?.trim() || '',
+        tipo: form.tipo,
         area: form.area,
         cargo: form.cargo || '',
         etapas: etapasData?.length || 0,
@@ -219,6 +226,7 @@ export default function Plantillas() {
         esGlobal: false,
         ordenGlobal: null,
         creador: currentUser.name,
+        creadorRole: currentUser.roleLabel,
         creadoEl: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         ...(etapasData ? { etapasData } : {}),
       }
@@ -230,7 +238,7 @@ export default function Plantillas() {
       setPlantillas(plantillas.map(p => {
         if (p.id !== form.id) return p
         return {
-          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', area: form.area, updated: 'Ahora',
+          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, area: form.area, updated: 'Ahora',
           updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         }
       }))
@@ -317,17 +325,13 @@ export default function Plantillas() {
   }
 
   return (
-    <div className="content-scroll" onClick={() => setCardMenu(null)} style={infoRuta ? { flexDirection: 'row', alignItems: 'flex-start', gap: 20 } : undefined}>
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="content-scroll" onClick={() => setCardMenu(null)}>
 
       {/* HERO */}
       <PageHero
         image={imagenRuta}
         title={isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}
         description={isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}
-        actionLabel={!isAreaRole ? 'Nueva ruta' : undefined}
-        actionIcon={Plus}
-        onAction={openCreate}
       />
 
       {/* KPI STRIP */}
@@ -420,8 +424,8 @@ export default function Plantillas() {
 
       {/* SEARCH & FILTERS */}
       <div className="pl-toolbar">
-        <div className="pl-search-wrap" style={{ maxWidth: 640 }}>
-          <Search size={14} className="pl-search-ico" />
+        <div className="pl-search-wrap">
+          <Search size={13} className="pl-search-ico" />
           <input
             type="text"
             className="pl-search"
@@ -433,7 +437,7 @@ export default function Plantillas() {
         <div ref={filterBarRef} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           {/* ORIGEN: SoulyHR / mías */}
           <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropOrigen ? ' open' : ''}${filterOrigen === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropOrigen(!rfDropOrigen); setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false) }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropOrigen ? ' open' : ''}${filterOrigen === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropOrigen(!rfDropOrigen); setRfDropStatus(false) }}>
               <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todas las rutas', soulyhr: 'Rutas de SoulyHR', mias: 'Mis rutas' }[filterOrigen]}</span>
               <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
             </button>
@@ -451,7 +455,7 @@ export default function Plantillas() {
 
           {/* ESTADO */}
           <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropArea(false); setRfDropCargo(false); setRfDropOrigen(false) }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropOrigen(false) }}>
               <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todos los estados', activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}</span>
               <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
             </button>
@@ -467,48 +471,56 @@ export default function Plantillas() {
             )}
           </div>
 
-          {/* ÁREA */}
+          {/* TIPO */}
           <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropArea(!rfDropArea); setRfDropStatus(false); setRfDropCargo(false); setRfDropOrigen(false) }}>
-              <span style={{ whiteSpace: 'nowrap' }}>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
+            <button type="button" className={`pl-dropdown-trigger${rfDropTipo ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropTipo(!rfDropTipo); setRfDropStatus(false); setRfDropOrigen(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{filterTipo === 'todos' ? 'Todos los tipos' : filterTipo}</span>
               <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
             </button>
-            {rfDropArea && (
-              <div className="pl-dropdown-menu" style={{ minWidth: 170, maxHeight: 220, overflowY: 'auto' }}>
-                {['todas', ...new Set(fuenteRutas.map(p => p.area).filter(a => a !== 'Todas las áreas'))].map(a => (
-                  <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setRfDropArea(false); setPage(1) }}>
-                    <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
-                    {filterArea === a && <Check size={13} />}
+            {rfDropTipo && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+                {['todos', ...tiposRuta].map(t => (
+                  <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setRfDropTipo(false); setPage(1) }}>
+                    <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
+                    {filterTipo === t && <Check size={13} />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* CARGO */}
-          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropCargo(!rfDropCargo); setRfDropStatus(false); setRfDropArea(false); setRfDropOrigen(false) }}>
-              <span style={{ whiteSpace: 'nowrap' }}>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
-              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-            </button>
-            {rfDropCargo && (
-              <div className="pl-dropdown-menu" style={{ minWidth: 170, maxHeight: 180, overflowY: 'auto' }}>
-                {['todos', ...cargosDeArea].map(c => (
-                  <button key={c} type="button" className={`pl-dropdown-item${filterCargo === c ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterCargo(c); setRfDropCargo(false); setPage(1) }}>
-                    <span>{c === 'todos' ? 'Todos los cargos' : c}</span>
-                    {filterCargo === c && <Check size={13} />}
-                  </button>
-                ))}
-              </div>
+          {/* MÁS FILTROS: Área + Cargo */}
+          <button
+            type="button"
+            onClick={() => setShowMasFiltros(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, height: 34, padding: '0 12px',
+              borderRadius: 9, border: '1px solid var(--border)', background: (filterArea !== 'todas' || filterCargo !== 'todos') ? 'var(--green-tint)' : '#fff',
+              fontSize: 11, fontWeight: 600, color: (filterArea !== 'todas' || filterCargo !== 'todos') ? 'var(--navy)' : 'var(--text-muted)',
+              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}
+          >
+            Más filtros
+            {(filterArea !== 'todas' || filterCargo !== 'todos') && (
+              <span style={{
+                width: 16, height: 16, borderRadius: '50%', background: 'var(--navy)', color: '#fff',
+                fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {[filterArea !== 'todas', filterCargo !== 'todos'].filter(Boolean).length}
+              </span>
             )}
-          </div>
+          </button>
 
           {hasRutaFilters && (
             <button onClick={clearRutaFilters} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Limpiar</button>
           )}
         </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3 }}>
+        {!isAreaRole && (
+          <button className="pl-btn-new" onClick={openCreate} style={{ padding: '0 14px', height: 34, fontSize: 11.5, marginLeft: 'auto' }}>
+            <Plus size={14} /> Nueva ruta
+          </button>
+        )}
+        <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3, marginLeft: isAreaRole ? 'auto' : 0 }}>
           {[{ key: 'list', icon: List }, { key: 'grid', icon: LayoutGrid }].map(v => {
             const VIcon = v.icon
             return (
@@ -529,6 +541,65 @@ export default function Plantillas() {
           })}
         </div>
       </div>
+
+      {/* MODAL MÁS FILTROS */}
+      {showMasFiltros && (
+        <div className="pl-overlay" onClick={() => { setShowMasFiltros(false); setMfDropArea(false); setMfDropCargo(false) }}>
+          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <h2>Más filtros</h2>
+              <button className="pl-modal-close" onClick={() => { setShowMasFiltros(false); setMfDropArea(false); setMfDropCargo(false) }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="pl-modal-body">
+              <div className="pl-label">
+                Área
+                <div className="pl-dropdown-wrap">
+                  <button type="button" className={`pl-dropdown-trigger${mfDropArea ? ' open' : ''}`} onClick={() => { setMfDropArea(!mfDropArea); setMfDropCargo(false) }}>
+                    <span>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
+                    <ChevronDown size={14} className="pl-dropdown-chevron" />
+                  </button>
+                  {mfDropArea && (
+                    <div className="pl-dropdown-menu" style={{ maxHeight: 220, overflowY: 'auto' }}>
+                      {['todas', ...new Set(fuenteRutas.map(p => p.area).filter(a => a !== 'Todas las áreas'))].map(a => (
+                        <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setMfDropArea(false); setPage(1) }}>
+                          <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
+                          {filterArea === a && <Check size={14} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pl-label">
+                Cargo
+                <div className="pl-dropdown-wrap">
+                  <button type="button" className={`pl-dropdown-trigger${mfDropCargo ? ' open' : ''}`} onClick={() => { setMfDropCargo(!mfDropCargo); setMfDropArea(false) }}>
+                    <span>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
+                    <ChevronDown size={14} className="pl-dropdown-chevron" />
+                  </button>
+                  {mfDropCargo && (
+                    <div className="pl-dropdown-menu" style={{ maxHeight: 180, overflowY: 'auto' }}>
+                      {['todos', ...cargosDeArea].map(c => (
+                        <button key={c} type="button" className={`pl-dropdown-item${filterCargo === c ? ' selected' : ''}`} onClick={() => { setFilterCargo(c); setMfDropCargo(false); setPage(1) }}>
+                          <span>{c === 'todos' ? 'Todos los cargos' : c}</span>
+                          {filterCargo === c && <Check size={14} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="pl-modal-footer">
+              <button className="pl-btn-cancel" onClick={() => { setFilterArea('todas'); setFilterCargo('todos'); setMfDropArea(false); setMfDropCargo(false); setPage(1) }}>Limpiar</button>
+              <button className="pl-btn-save" onClick={() => { setShowMasFiltros(false); setMfDropArea(false); setMfDropCargo(false) }}>Aplicar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* VISTA GRID */}
       {viewMode === 'grid' && (
@@ -585,7 +656,6 @@ export default function Plantillas() {
                         ] : [
                           ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                           { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                          { icon: Info, label: 'Información', color: 'var(--text-muted)', fn: () => { setInfoRuta(p); setCardMenu(null) } },
                           ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                           ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
@@ -772,10 +842,11 @@ export default function Plantillas() {
           <table className="as-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: '24%' }}>Nombre de la ruta</th>
-                <th style={{ width: '30%' }}>Descripción</th>
-                <th style={{ width: '10%' }}>Etapas</th>
-                <th style={{ width: '13%' }}>Colaboradores</th>
+                <th style={{ width: '22%' }}>Nombre de la ruta</th>
+                <th style={{ width: '22%' }}>Descripción</th>
+                <th style={{ width: '12%' }}>Tipo</th>
+                <th style={{ width: '9%' }}>Etapas</th>
+                <th style={{ width: '12%' }}>Colaboradores</th>
                 <th style={{ width: '15%' }}>Estado</th>
                 <th style={{ width: '8%' }}>Acciones</th>
               </tr>
@@ -792,6 +863,11 @@ export default function Plantillas() {
                   <td>
                     <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                       {p.descripcion || '—'}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {p.tipo || 'Onboarding'}
                     </span>
                   </td>
                   <td><span className="as-dia">{p.etapas}</span></td>
@@ -821,7 +897,7 @@ export default function Plantillas() {
                         onClick={(e) => {
                           if (cardMenu === p.id) { setCardMenu(null); return }
                           const rect = e.currentTarget.getBoundingClientRect()
-                          const itemCount = p._isSouly ? 2 : (5 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0))
+                          const itemCount = p._isSouly ? 2 : (4 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0))
                           const menuH = itemCount * 34 + 8
                           const margin = 10
                           const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
@@ -853,7 +929,6 @@ export default function Plantillas() {
                           ] : [
                             ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                             { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                            { icon: Info, label: 'Información', color: 'var(--text-muted)', fn: () => { setInfoRuta(p); setCardMenu(null) } },
                             ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                             ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
@@ -1024,19 +1099,6 @@ export default function Plantillas() {
       )}
 
       <div style={{ height: '8px' }} />
-    </div>
-
-    {infoRuta && (
-      <RutaInfoPanel
-        plantilla={infoRuta}
-        responsables={responsables[infoRuta.id] || []}
-        equipo={equipoMarketing}
-        canManage={isAdmin || isManager}
-        onAddPersona={(persona) => addResponsable(infoRuta.id, persona)}
-        onRemovePersona={(name) => removeResponsable(infoRuta.id, name)}
-        onClose={() => setInfoRuta(null)}
-      />
-    )}
 
       {/* MODAL CREAR / EDITAR */}
       {(modal === 'crear' || modal === 'editar') && (
@@ -1086,32 +1148,63 @@ export default function Plantillas() {
                 />
               </label>
 
-              <div className="pl-label">
-                Área
-                <div className="pl-dropdown-wrap">
-                  <button
-                    type="button"
-                    className={`pl-dropdown-trigger${dropArea ? ' open' : ''}`}
-                    onClick={() => { setDropArea(!dropArea); setDropCargo(false) }}
-                  >
-                    <span>{form.area}</span>
-                    <ChevronDown size={14} className="pl-dropdown-chevron" />
-                  </button>
-                  {dropArea && (
-                    <div className="pl-dropdown-menu">
-                      {['Todas las áreas', ...areas].map(a => (
-                        <button
-                          key={a}
-                          type="button"
-                          className={`pl-dropdown-item${form.area === a ? ' selected' : ''}`}
-                          onClick={() => { setForm({ ...form, area: a, cargo: '' }); setDropArea(false) }}
-                        >
-                          <span>{a}</span>
-                          {form.area === a && <Check size={14} />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="pl-label">
+                  Tipo
+                  <div className="pl-dropdown-wrap">
+                    <button
+                      type="button"
+                      className={`pl-dropdown-trigger${dropTipo ? ' open' : ''}`}
+                      onClick={() => { setDropTipo(!dropTipo); setDropArea(false); setDropCargo(false) }}
+                    >
+                      <span>{form.tipo}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {dropTipo && (
+                      <div className="pl-dropdown-menu">
+                        {tiposRuta.map(t => (
+                          <button
+                            key={t}
+                            type="button"
+                            className={`pl-dropdown-item${form.tipo === t ? ' selected' : ''}`}
+                            onClick={() => { setForm({ ...form, tipo: t }); setDropTipo(false) }}
+                          >
+                            <span>{t}</span>
+                            {form.tipo === t && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pl-label">
+                  Área
+                  <div className="pl-dropdown-wrap">
+                    <button
+                      type="button"
+                      className={`pl-dropdown-trigger${dropArea ? ' open' : ''}`}
+                      onClick={() => { setDropArea(!dropArea); setDropTipo(false); setDropCargo(false) }}
+                    >
+                      <span>{form.area}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {dropArea && (
+                      <div className="pl-dropdown-menu">
+                        {['Todas las áreas', ...areas].map(a => (
+                          <button
+                            key={a}
+                            type="button"
+                            className={`pl-dropdown-item${form.area === a ? ' selected' : ''}`}
+                            onClick={() => { setForm({ ...form, area: a, cargo: '' }); setDropArea(false) }}
+                          >
+                            <span>{a}</span>
+                            {form.area === a && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1122,7 +1215,7 @@ export default function Plantillas() {
                     type="button"
                     disabled={form.area === 'Todas las áreas'}
                     className={`pl-dropdown-trigger${dropCargo ? ' open' : ''}${!form.cargo ? ' placeholder' : ''}`}
-                    onClick={() => { setDropCargo(!dropCargo); setDropArea(false) }}
+                    onClick={() => { setDropCargo(!dropCargo); setDropArea(false); setDropTipo(false) }}
                     style={form.area === 'Todas las áreas' ? { opacity: 0.5, cursor: 'default' } : undefined}
                   >
                     <span>{form.area === 'Todas las áreas' ? 'Todos los cargos' : (form.cargo || 'Seleccionar cargo')}</span>
@@ -1153,7 +1246,7 @@ export default function Plantillas() {
                 }}>
                   <Info size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
                   <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta base</strong> desde el menú de acciones si querés que se aplique a todas las demás rutas.
+                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta base</strong> desde el menú de acciones si quieres que se aplique a todas las demás rutas.
                   </span>
                 </div>
               )}
@@ -1181,10 +1274,15 @@ export default function Plantillas() {
           onUseTemplate={() => { setPreviewRuta(null); applyTemplate(previewRuta) }}
         />
       ) : (
-        <RutaPreviewModal
-          name={previewRuta.name}
-          etapas={previewRuta.etapasData || []}
+        <RutaFullPreviewModal
+          plantilla={previewRuta}
+          responsables={responsables[previewRuta.id] || []}
+          canManage={isAdmin || isManager}
+          onAddPersona={(persona) => addResponsable(previewRuta.id, persona)}
+          onRemovePersona={(name) => removeResponsable(previewRuta.id, name)}
           onClose={() => setPreviewRuta(null)}
+          canEdit={canEditRuta(previewRuta)}
+          onEdit={() => { setActiveJourney(previewRuta); setPreviewRuta(null) }}
         />
       ))}
 
@@ -1415,7 +1513,7 @@ export default function Plantillas() {
 
               <div style={{ padding: '12px 24px 0' }}>
                 <div className="pl-search-wrap" style={{ flex: 'none' }}>
-                  <Search size={14} className="pl-search-ico" />
+                  <Search size={13} className="pl-search-ico" />
                   <input type="text" className="pl-search" placeholder="Buscar colaborador..." value={asignadosSearch} onChange={e => setAsignadosSearch(e.target.value)} />
                 </div>
               </div>

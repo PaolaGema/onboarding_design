@@ -31,6 +31,8 @@ const statusCls = {
   'pausado': 'as-st-pausado',
 }
 
+const tiposRuta = ['Onboarding', 'Reboarding']
+
 const tareaIconMap = {
   video: Video, audio: Headphones, documento: FileText, quiz: HelpCircle,
   'completar-perfil': ClipboardList, subida: Upload, 'tarea-otro': UserCheck,
@@ -65,18 +67,17 @@ export default function Asignaciones() {
     setAllAsignaciones([...others, ...next])
   }
   const plantillasDisponibles = allPlantillas.filter(p => p.status === 'activa').map(p => p.name)
+  function tipoDeRuta(rutaName) { return allPlantillas.find(p => p.name === rutaName)?.tipo || 'Onboarding' }
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
-  const [filterArea, setFilterArea] = useState('todas')
-  const [filterRuta, setFilterRuta] = useState('todas')
-  const [showAsigFilters, setShowAsigFilters] = useState(false)
+  const [filterTipo, setFilterTipo] = useState('todos')
   const [afDropStatus, setAfDropStatus] = useState(false)
-  const [afDropArea, setAfDropArea] = useState(false)
-  const [afDropRuta, setAfDropRuta] = useState(false)
+  const [afDropTipo, setAfDropTipo] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 8
   const [modal, setModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [pausarTarget, setPausarTarget] = useState(null)
   const [menuOpen, setMenuOpen] = useState(null)
   const [showEstadoHelp, setShowEstadoHelp] = useState(false)
   const [recordatorio, setRecordatorio] = useState(null)
@@ -86,9 +87,8 @@ export default function Asignaciones() {
   const [menuPos, setMenuPos] = useState(null)
   const [detalle, setDetalle] = useState(null)
 
-  const hasAsigFilters = filterStatus !== 'todos' || filterArea !== 'todas' || filterRuta !== 'todas'
-  const rutasDeArea = [...new Set(asignaciones.filter(a => filterArea === 'todas' || a.area === filterArea).map(a => a.ruta))]
-  function clearAsigFilters() { setFilterStatus('todos'); setFilterArea('todas'); setFilterRuta('todas') }
+  const hasAsigFilters = filterStatus !== 'todos' || filterTipo !== 'todos'
+  function clearAsigFilters() { setFilterStatus('todos'); setFilterTipo('todos') }
 
   const filtered = asignaciones.filter(a => {
     const q = search.toLowerCase()
@@ -96,9 +96,8 @@ export default function Asignaciones() {
       a.ruta.toLowerCase().includes(q) ||
       a.area.toLowerCase().includes(q)
     const matchStatus = filterStatus === 'todos' || a.status === filterStatus
-    const matchArea = filterArea === 'todas' || a.area === filterArea
-    const matchRuta = filterRuta === 'todas' || a.ruta === filterRuta
-    return matchSearch && matchStatus && matchArea && matchRuta
+    const matchTipo = filterTipo === 'todos' || tipoDeRuta(a.ruta) === filterTipo
+    return matchSearch && matchStatus && matchTipo
   })
 
   const totalPages = Math.ceil(filtered.length / perPage)
@@ -168,11 +167,16 @@ export default function Asignaciones() {
     })
   }
 
-  function handlePausar(id) {
-    setAsignaciones(asignaciones.map(a =>
-      a.id === id ? { ...a, status: a.status === 'pausado' ? 'en-curso' : 'pausado' } : a
-    ))
+  function confirmPausar(a) {
+    setPausarTarget(a)
     setMenuOpen(null)
+  }
+
+  function handlePausar() {
+    setAsignaciones(asignaciones.map(a =>
+      a.id === pausarTarget.id ? { ...a, status: a.status === 'pausado' ? 'en-curso' : 'pausado' } : a
+    ))
+    setPausarTarget(null)
   }
 
   function confirmDelete(a) {
@@ -193,9 +197,6 @@ export default function Asignaciones() {
         image={imagenSeguimiento}
         title={isAreaRole ? `Seguimiento — ${managerArea}` : 'Seguimiento'}
         description={isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}
-        actionLabel={!isAreaRole ? 'Asignar ruta' : undefined}
-        actionIcon={UserPlus}
-        onAction={() => setModal(true)}
       />
 
       {/* KPI STRIP */}
@@ -225,7 +226,7 @@ export default function Asignaciones() {
       {/* TOOLBAR */}
       <div className="pl-toolbar">
         <div className="pl-search-wrap">
-          <Search size={14} className="pl-search-ico" />
+          <Search size={13} className="pl-search-ico" />
           <input
             type="text"
             className="pl-search"
@@ -234,133 +235,51 @@ export default function Asignaciones() {
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
-        <button onClick={() => setShowAsigFilters(true)} style={{
-          height: 38, padding: '0 14px', borderRadius: 8,
-          border: hasAsigFilters ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
-          background: hasAsigFilters ? '#f0f9ff' : '#fff',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-          fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
-          color: hasAsigFilters ? '#0C2D40' : '#64748b',
-        }}>
-          <Filter size={13} />
-          Filtros
-          {hasAsigFilters && (
-            <span style={{
-              width: 16, height: 16, borderRadius: '50%', background: '#0C2D40',
-              color: '#fff', fontSize: 9, fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {[filterStatus !== 'todos', filterArea !== 'todas', filterRuta !== 'todas'].filter(Boolean).length}
-            </span>
-          )}
-        </button>
 
-        {/* CHIPS FILTROS */}
+        {/* TIPO */}
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+          <button type="button" className={`pl-dropdown-trigger${afDropTipo ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={() => { setAfDropTipo(!afDropTipo); setAfDropStatus(false) }}>
+            <span style={{ whiteSpace: 'nowrap' }}>{filterTipo === 'todos' ? 'Todos los tipos' : filterTipo}</span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+          </button>
+          {afDropTipo && (
+            <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+              {['todos', ...tiposRuta].map(t => (
+                <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setAfDropTipo(false); setPage(1) }}>
+                  <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
+                  {filterTipo === t && <Check size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ESTADO */}
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+          <button type="button" className={`pl-dropdown-trigger${afDropStatus ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={() => { setAfDropStatus(!afDropStatus); setAfDropTipo(false) }}>
+            <span style={{ whiteSpace: 'nowrap' }}>{filterStatus === 'todos' ? 'Todos los estados' : statusLabels[filterStatus]}</span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+          </button>
+          {afDropStatus && (
+            <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+              {[{ key: 'todos', label: 'Todos los estados' }, { key: 'en-curso', label: 'En curso' }, { key: 'completado', label: 'Completado' }, { key: 'pendiente', label: 'Programado' }, { key: 'atrasado', label: 'Atrasado' }, { key: 'en-riesgo', label: 'En riesgo' }, { key: 'pausado', label: 'Pausado' }].map(f => (
+                <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setAfDropStatus(false); setPage(1) }}>
+                  <span>{f.label}</span>
+                  {filterStatus === f.key && <Check size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {hasAsigFilters && (
-          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-            {filterStatus !== 'todos' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#f0fdf4', color: '#166534', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {statusLabels[filterStatus]}
-                <button onClick={() => { setFilterStatus('todos'); setPage(1) }} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#166534' }} /></button>
-              </span>
-            )}
-            {filterArea !== 'todas' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {filterArea}
-                <button onClick={() => { setFilterArea('todas'); setFilterRuta('todas') }} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#1e40af' }} /></button>
-              </span>
-            )}
-            {filterRuta !== 'todas' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {filterRuta.length > 20 ? filterRuta.slice(0, 20) + '…' : filterRuta}
-                <button onClick={() => setFilterRuta('todas')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#92400e' }} /></button>
-              </span>
-            )}
-            <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
-          </div>
+          <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Limpiar</button>
         )}
 
-        {/* MODAL FILTROS ASIGNACIONES */}
-        {showAsigFilters && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAsigFilters(false)}>
-            <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Filter size={16} style={{ color: '#0C2D40' }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar asignaciones</span>
-                </div>
-                <button onClick={() => setShowAsigFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={14} style={{ color: '#64748b' }} />
-                </button>
-              </div>
-              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setAfDropStatus(false); setAfDropArea(false); setAfDropRuta(false) }}>
-                {/* ESTADO */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Estado</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${afDropStatus ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropStatus(!afDropStatus); setAfDropArea(false); setAfDropRuta(false) }}>
-                      <span>{filterStatus === 'todos' ? 'Todos los estados' : statusLabels[filterStatus]}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {afDropStatus && (
-                      <div className="pl-dropdown-menu">
-                        {[{ key: 'todos', label: 'Todos los estados' }, { key: 'en-curso', label: 'En curso' }, { key: 'completado', label: 'Completado' }, { key: 'pendiente', label: 'Programado' }, { key: 'atrasado', label: 'Atrasado' }, { key: 'en-riesgo', label: 'En riesgo' }, { key: 'pausado', label: 'Pausado' }].map(f => (
-                          <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} onClick={() => { setFilterStatus(f.key); setAfDropStatus(false); setPage(1) }}>
-                            <span>{f.label}</span>
-                            {filterStatus === f.key && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* ÁREA */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Área</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${afDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropArea(!afDropArea); setAfDropStatus(false); setAfDropRuta(false) }}>
-                      <span>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {afDropArea && (
-                      <div className="pl-dropdown-menu">
-                        {['todas', ...new Set(asignaciones.map(a => a.area))].map(a => (
-                          <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} onClick={() => { setFilterArea(a); setFilterRuta('todas'); setAfDropArea(false); setPage(1) }}>
-                            <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
-                            {filterArea === a && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* RUTA */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Ruta</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${afDropRuta ? ' open' : ''}${filterRuta === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setAfDropRuta(!afDropRuta); setAfDropStatus(false); setAfDropArea(false) }}>
-                      <span>{filterRuta === 'todas' ? 'Todas las rutas' : filterRuta}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {afDropRuta && (
-                      <div className="pl-dropdown-menu" style={{ maxHeight: 180, overflowY: 'auto' }}>
-                        {['todas', ...rutasDeArea].map(r => (
-                          <button key={r} type="button" className={`pl-dropdown-item${filterRuta === r ? ' selected' : ''}`} onClick={() => { setFilterRuta(r); setAfDropRuta(false); setPage(1) }}>
-                            <span>{r === 'todas' ? 'Todas las rutas' : r}</span>
-                            {filterRuta === r && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid #f1f5f9' }}>
-                <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
-                <button onClick={() => setShowAsigFilters(false)} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
-              </div>
-            </div>
-          </div>
+        {!isAreaRole && (
+          <button className="pl-btn-new" onClick={() => setModal(true)} style={{ padding: '0 14px', height: 34, fontSize: 11.5, marginLeft: 'auto' }}>
+            <UserPlus size={14} /> Asignar ruta
+          </button>
         )}
       </div>
 
@@ -371,6 +290,7 @@ export default function Asignaciones() {
             <tr>
               <th>Colaborador</th>
               <th>Ruta asignada</th>
+              <th>Tipo</th>
               <th>Progreso</th>
               <th>Día</th>
               <th style={{ position: 'relative' }}>
@@ -439,6 +359,7 @@ export default function Asignaciones() {
                   </div>
                 </td>
                 <td><span className="as-ruta">{a.ruta}</span></td>
+                <td><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tipoDeRuta(a.ruta)}</span></td>
                 <td>
                   <div className="pr-progress">
                     <div className="pr-pct">{a.pct}%</div>
@@ -456,9 +377,6 @@ export default function Asignaciones() {
                 <td><span className="as-fecha">{a.fechaInicio}</span></td>
                 <td>
                   <div className="as-actions-cell">
-                    <button className="as-btn-eye" title="Ver detalle" onClick={() => setDetalle(a)}>
-                      <Eye size={14} />
-                    </button>
                     <div className="as-menu-wrap">
                       <button
                         className="as-btn-more"
@@ -474,13 +392,17 @@ export default function Asignaciones() {
                       </button>
                       {menuOpen === a.id && menuPos && (
                         <div className="as-menu" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }} onClick={e => e.stopPropagation()}>
+                          <button className="as-menu-item" onClick={() => { setDetalle(a); setMenuOpen(null) }}>
+                            <Eye size={13} />
+                            Ver detalles
+                          </button>
                           {(a.status === 'atrasado' || a.status === 'en-riesgo') && (
                             <button className="as-menu-item" onClick={() => openRecordatorio(a)}>
                               <Send size={13} />
                               Enviar recordatorio
                             </button>
                           )}
-                          <button className="as-menu-item" onClick={() => handlePausar(a.id)}>
+                          <button className="as-menu-item" onClick={() => confirmPausar(a)}>
                             {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
                             {a.status === 'pausado' ? 'Reanudar' : 'Pausar'}
                           </button>
@@ -583,6 +505,30 @@ export default function Asignaciones() {
       )}
 
       {/* MODAL DESASIGNAR */}
+      {pausarTarget && (
+        <div className="pl-overlay" onClick={() => setPausarTarget(null)}>
+          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
+              <div className="pl-del-icon" style={{ background: 'rgba(59,130,246,.1)', color: 'var(--blue)' }}>
+                {pausarTarget.status === 'pausado' ? <Play size={26} /> : <Pause size={26} />}
+              </div>
+              <h2 className="pl-del-title">{pausarTarget.status === 'pausado' ? 'Reanudar onboarding' : 'Pausar onboarding'}</h2>
+              <p className="pl-del-desc">
+                {pausarTarget.status === 'pausado'
+                  ? <>¿Reanudar el onboarding de <strong>{pausarTarget.nombre}</strong>? Continuará desde donde lo dejó.</>
+                  : <>¿Pausar el onboarding de <strong>{pausarTarget.nombre}</strong>? Podrás reanudarlo cuando quieras.</>}
+              </p>
+            </div>
+            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
+              <button className="pl-btn-cancel" onClick={() => setPausarTarget(null)}>Cancelar</button>
+              <button className="pl-btn-save" onClick={handlePausar}>
+                {pausarTarget.status === 'pausado' ? 'Reanudar' : 'Pausar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <div className="pl-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>

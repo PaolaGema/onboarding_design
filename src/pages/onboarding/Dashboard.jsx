@@ -2,31 +2,13 @@
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
-import JourneyBuilder from './JourneyBuilder'
-import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
   CheckCircle2,
-  UserPlus,
-  Plus, ClipboardList,
+  ClipboardList,
   Star, CalendarHeart, Trophy, Medal,
-  X, ChevronDown, Check,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
-
-const cargosPorArea = {
-  'Ventas': ['Pasante Comercial', 'SDR Junior', 'Ejecutiva Comercial', 'Ejecutivo Senior', 'Account Manager', 'Gerente de Ventas'],
-  'Comercial': ['Ejecutivo Comercial', 'Key Account Manager', 'Coordinador Comercial', 'Director Comercial'],
-  'Dirección': ['Director General', 'Director de Área', 'Gerente General', 'Asistente de Dirección'],
-  'Operaciones': ['Asistente Operativo', 'Analista de Procesos', 'Coordinador Logístico', 'Gerente de Operaciones'],
-  'Tecnología': ['Desarrollador Backend', 'Frontend Developer', 'QA Engineer', 'DevOps Engineer', 'Data Analyst', 'Tech Lead'],
-  'Finanzas': ['Analista Financiera', 'Contador General', 'Tesorero', 'Auditor Interno'],
-  'Diseño': ['Diseñadora UX/UI', 'Diseñadora Gráfica', 'Director Creativo', 'Motion Designer'],
-  'Recursos Humanos': ['Reclutadora', 'Especialista RRHH', 'Analista de Nóminas', 'Generalista RRHH'],
-  'Marketing': ['Community Manager', 'Analista de Marketing', 'Content Creator', 'Growth Manager'],
-  'Legal': ['Abogado Corporativo', 'Paralegal', 'Director Legal'],
-}
-const areas = Object.keys(cargosPorArea)
 
 /* ── DATA ────────────────────────────────────── */
 
@@ -100,13 +82,7 @@ const managerTareasPendientes = [
 export default function Dashboard() {
   const { currentUser } = useUser()
   const navigate = useNavigate()
-  const [modalCrear, setModalCrear] = useState(false)
-  const [modalAsignar, setModalAsignar] = useState(false)
-  const [formRuta, setFormRuta] = useState({ name: '', area: 'Ventas', cargo: '', esGlobal: false })
-  const [dropArea, setDropArea] = useState(false)
-  const [dropCargo, setDropCargo] = useState(false)
-  const [activeJourney, setActiveJourney] = useState(null)
-  const { isDemoFresh, asignaciones: ctxAsignaciones, plantillas, setPlantillas, addFeedEntry, recursos } = useOnboardingData()
+  const { isDemoFresh, asignaciones: ctxAsignaciones, plantillas, recursos } = useOnboardingData()
   const [showCelebration, setShowCelebration] = useState(false)
 
   const step2Done = recursos.some(c => c.docs.length > 0)
@@ -138,47 +114,6 @@ export default function Dashboard() {
   const managerArea = 'Marketing'
 
   const firstName = currentUser.name.split(' ')[0]
-
-  const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
-
-  function handleCrearRuta() {
-    if (!formRuta.name.trim()) return
-    const newId = Date.now()
-    const color = colores[newId % colores.length]
-    const nextOrdenGlobal = () => {
-      const globales = plantillas.filter(p => p.esGlobal)
-      return globales.length ? Math.max(...globales.map(p => p.ordenGlobal ?? 0)) + 1 : 0
-    }
-    const newPlantilla = {
-      id: newId,
-      name: formRuta.name.trim(),
-      area: formRuta.area,
-      cargo: formRuta.cargo || '',
-      etapas: 0,
-      tareas: 0,
-      asignados: 0,
-      status: 'borrador',
-      updated: 'Ahora',
-      color,
-      esGlobal: formRuta.esGlobal,
-      ordenGlobal: formRuta.esGlobal ? nextOrdenGlobal() : null,
-    }
-    setPlantillas([...plantillas, newPlantilla])
-    addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
-    setModalCrear(false)
-    setActiveJourney({ ...newPlantilla, isNew: true })
-  }
-
-  if (activeJourney) {
-    return (
-      <JourneyBuilder
-        plantilla={activeJourney}
-        onBack={() => setActiveJourney(null)}
-        empty={activeJourney.isNew}
-        backLabel="Dashboard"
-      />
-    )
-  }
 
   if (isManager) {
     return (
@@ -381,16 +316,6 @@ export default function Dashboard() {
             }
           </div>
         </div>
-        </div>
-        <div className="welcome-actions">
-          <button className="btn-accent-light" onClick={() => { setFormRuta({ name: '', area: 'Ventas', cargo: '', esGlobal: false }); setDropArea(false); setDropCargo(false); setModalCrear(true) }}>
-            <Plus size={13} color="#00E091" />
-            Nueva ruta
-          </button>
-          <button className="btn-outline-light" onClick={() => setModalAsignar(true)}>
-            <UserPlus size={13} />
-            Asignar ruta
-          </button>
         </div>
       </div>
 
@@ -787,98 +712,6 @@ export default function Dashboard() {
       </>)} {/* fin ctxAsignaciones.length > 0 */}
 
       <div style={{ height: '8px' }} />
-
-      {/* MODAL CREAR RUTA */}
-      {modalCrear && (
-        <div className="pl-overlay" onClick={() => setModalCrear(false)}>
-          <div className="pl-modal" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <h2>Nueva ruta</h2>
-              <button className="pl-modal-close" onClick={() => setModalCrear(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              <label className="pl-label">
-                Nombre de la ruta
-                <input
-                  type="text"
-                  className="pl-input"
-                  placeholder="Ej: Onboarding Ventas — Pasante"
-                  value={formRuta.name}
-                  onChange={e => setFormRuta({ ...formRuta, name: e.target.value })}
-                  autoFocus
-                />
-              </label>
-              <div className="pl-label">
-                Área
-                <div className="pl-dropdown-wrap">
-                  <button type="button" className={`pl-dropdown-trigger${dropArea ? ' open' : ''}`} onClick={() => { setDropArea(!dropArea); setDropCargo(false) }}>
-                    <span>{formRuta.area}</span>
-                    <ChevronDown size={14} className="pl-dropdown-chevron" />
-                  </button>
-                  {dropArea && (
-                    <div className="pl-dropdown-menu up">
-                      {areas.map(a => (
-                        <button key={a} type="button" className={`pl-dropdown-item${formRuta.area === a ? ' selected' : ''}`} onClick={() => { setFormRuta({ ...formRuta, area: a, cargo: '' }); setDropArea(false) }}>
-                          <span>{a}</span>
-                          {formRuta.area === a && <Check size={14} />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="pl-label">
-                Cargo
-                <div className="pl-dropdown-wrap">
-                  <button type="button" className={`pl-dropdown-trigger${dropCargo ? ' open' : ''}${!formRuta.cargo ? ' placeholder' : ''}`} onClick={() => { setDropCargo(!dropCargo); setDropArea(false) }}>
-                    <span>{formRuta.cargo || 'Seleccionar cargo'}</span>
-                    <ChevronDown size={14} className="pl-dropdown-chevron" />
-                  </button>
-                  {dropCargo && (
-                    <div className="pl-dropdown-menu up">
-                      {(cargosPorArea[formRuta.area] || []).map(c => (
-                        <button key={c} type="button" className={`pl-dropdown-item${formRuta.cargo === c ? ' selected' : ''}`} onClick={() => { setFormRuta({ ...formRuta, cargo: c }); setDropCargo(false) }}>
-                          <span>{c}</span>
-                          {formRuta.cargo === c && <Check size={14} />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={formRuta.esGlobal}
-                  onChange={e => setFormRuta({ ...formRuta, esGlobal: e.target.checked })}
-                  style={{ marginTop: 2, width: 15, height: 15, accentColor: '#0C2D40', cursor: 'pointer' }}
-                />
-                <span>
-                  <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>Aplicar a todas las rutas</span>
-                  <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginTop: 1 }}>Sus etapas se insertarán, protegidas, al inicio de todas las demás rutas.</span>
-                </span>
-              </label>
-            </div>
-            <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setModalCrear(false)}>Cancelar</button>
-              <button className="pl-btn-save" disabled={!formRuta.name.trim()} onClick={handleCrearRuta}>
-                Crear y diseñar ruta
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL ASIGNAR RUTA */}
-      {modalAsignar && (
-        <AsignarRutaModal
-          onClose={() => setModalAsignar(false)}
-          onConfirm={() => { setModalAsignar(false); navigate('/onboarding/asignaciones') }}
-        />
-      )}
 
       {/* CELEBRACIÓN — confetti + modal al completar los 4 pasos */}
       {showCelebration && (

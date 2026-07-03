@@ -292,7 +292,7 @@ export default function Colaboradores() {
 
       <div className="pl-toolbar">
         <div className="pl-search-wrap">
-          <Search size={14} className="pl-search-ico" />
+          <Search size={13} className="pl-search-ico" />
           <input
             type="text"
             className="pl-search"
@@ -663,7 +663,7 @@ export default function Colaboradores() {
 
                   <div style={{ display: 'flex', gap: 6 }}>
                     <div className="pl-search-wrap" style={{ flex: 1 }}>
-                      <Search size={14} className="pl-search-ico" />
+                      <Search size={13} className="pl-search-ico" />
                       <input
                         type="text"
                         className="pl-search"

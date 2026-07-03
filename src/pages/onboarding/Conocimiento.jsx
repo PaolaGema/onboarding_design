@@ -291,15 +291,12 @@ export default function Conocimiento() {
         image={imagenRecursos}
         title="Recursos corporativos"
         description="Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding"
-        actionLabel={cat ? 'Subir recurso' : 'Nueva carpeta'}
-        actionIcon={cat ? Upload : Plus}
-        onAction={cat ? openFilePicker : () => { setNewCatName(''); setShowNewCat(true) }}
       />
 
       {/* TOOLBAR */}
       <div className="pl-toolbar">
         <div className="pl-search-wrap">
-          <Search size={14} className="pl-search-ico" />
+          <Search size={13} className="pl-search-ico" />
           <input
             type="text"
             className="pl-search"
@@ -438,8 +435,7 @@ export default function Conocimiento() {
             </div>
           </div>
         )}
-        <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', marginLeft: 'auto' }}>
           <button onClick={() => cat ? setShowNewMenu(!showNewMenu) : (setNewCatName(''), setShowNewCat(true))} style={{
             height: 38, padding: '0 16px', borderRadius: 8, border: 'none',
             background: '#0C2D40', color: '#fff', cursor: 'pointer',
