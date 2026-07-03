@@ -5,13 +5,7 @@ import Sidebar from './Sidebar'
 import ModuleNav from './ModuleNav'
 import MiOnboarding from '../../pages/colaborador/MiOnboarding'
 import { useUser } from '../../context/UserContext'
-import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Sun, Gift, ChevronRight } from 'lucide-react'
-
-const landingByRole = {
-  admin: '/onboarding',
-  manager: '/onboarding',
-  colaborador: '/onboarding/mi-onboarding',
-}
+import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Sun, Gift } from 'lucide-react'
 
 export default function Layout() {
   const { currentUser } = useUser()

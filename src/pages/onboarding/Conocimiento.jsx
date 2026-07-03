@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import {
   Upload, FolderOpen, FileText, FileCheck, Loader2, AlertCircle,
   Plus, Trash2, RefreshCw, Search, X, ChevronLeft, ChevronRight, ChevronDown, Check,
-  BookOpen, ShieldCheck, Heart, Cpu, MessageCircle, HelpCircle,
+  HelpCircle,
   MoreVertical, Pencil, Video, Headphones, Link2, ExternalLink,
   LayoutGrid, List, Filter, CheckCircle2, Globe, Eye
 } from 'lucide-react'
@@ -11,8 +11,6 @@ import { useUser } from '../../context/UserContext'
 import PageHero from '../../components/layout/PageHero'
 import EmptyState from '../../components/layout/EmptyState'
 import imagenRecursos from '../../assets/imagenes/imagen_recursos.png'
-
-const iconMap = {}
 
 const estadoConfig = {
   procesado: { label: 'Procesado', color: '#00E091', bg: '#f0fdf4', icon: FileCheck },
@@ -109,12 +107,6 @@ export default function Conocimiento() {
 
   const cat = selCat !== null ? categorias[selCat] : null
   const totalDocs = categorias.reduce((s, c) => s + c.docs.length, 0)
-  const procesados = categorias.reduce((s, c) => s + c.docs.filter(d => d.estado === 'procesado').length, 0)
-  const catsCubiertas = categorias.filter(c => c.docs.length > 0).length
-  const sinCobertura = categorias.filter(c => c.docs.length === 0)
-  const allDocs = categorias.flatMap(c => c.docs)
-  const docsNonQuiz = allDocs.length
-  const docsConQuiz = allDocs.filter(d => d.quiz).length
 
   const hasBibFilters = filterTipo !== 'todos' || filterEstado !== 'todos' || filterGeneral !== 'todos'
   const filteredDocs = !cat ? [] : cat.docs.filter(d => {
@@ -260,8 +252,6 @@ export default function Conocimiento() {
     })))
     setDocMenu(null)
   }
-
-  const totalGenerales = categorias.reduce((s, c) => s + c.docs.filter(d => d.general).length, 0)
 
   function addCategoria() {
     if (!newCatName.trim()) return

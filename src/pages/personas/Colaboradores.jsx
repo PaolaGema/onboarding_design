@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, MoreHorizontal, Building2, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
+import { Search, Plus, MoreHorizontal, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
@@ -230,7 +230,6 @@ export default function Colaboradores() {
   const [onbSearch, setOnbSearch] = useState('')
   const [onbArea, setOnbArea] = useState('Todas')
   const [onbFilterOpen, setOnbFilterOpen] = useState(false)
-  const [onbStep, setOnbStep] = useState(1)
   const perPage = 8
 
   useEffect(() => {
@@ -527,7 +526,7 @@ export default function Colaboradores() {
                         { icon: Eye, label: 'Ver perfil', color: '#475569' },
                         { icon: Pencil, label: 'Editar', color: '#475569' },
                         { icon: Shield, label: 'Roles y permisos', color: '#475569', action: () => setRolModal(c) },
-                        { icon: Rocket, label: 'Asignar onboarding', color: '#0C2D40', action: () => { setOnbModal(c); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas'); setOnbStep(1) } },
+                        { icon: Rocket, label: 'Asignar onboarding', color: '#0C2D40', action: () => { setOnbModal(c); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } },
                         { icon: Send, label: 'Enviar credenciales', color: '#475569' },
                         { icon: RefreshCw, label: 'Cambiar estado', color: '#475569', action: () => setEstadoModal(c) },
                       ].map(action => (
@@ -632,7 +631,6 @@ export default function Colaboradores() {
           { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', etapas: 11, tareas: 30, color: '#ec4899' },
           { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', etapas: 10, tareas: 26, color: '#d946ef' },
         ]
-        const selectedRuta = rutas.find(r => r.id === onbSelected)
         return (
           <div className="pl-overlay" onClick={() => setOnbModal(null)}>
             <div className="pl-modal jb-modal" style={{ width: 860, maxWidth: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>

@@ -3,7 +3,7 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { colaboradoresData } from '../../pages/personas/Colaboradores'
 import {
   Search, X, Filter, Check, ChevronLeft, ChevronRight,
-  ChevronDown, Calendar, Rocket, UserRound
+  ChevronDown, Calendar, Rocket
 } from 'lucide-react'
 
 const colaboradoresDisponibles = [

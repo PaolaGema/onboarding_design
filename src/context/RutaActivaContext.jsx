@@ -129,13 +129,8 @@ export function RutaActivaProvider({ children }) {
     setRutaActiva(prev => prev ? { ...prev, etapas: JSON.parse(JSON.stringify(etapas)) } : prev)
   }
 
-  function resetRuta() {
-    setRutaActiva(rutaColaboradorDefault)
-    setRutaAdmin(null)
-  }
-
   return (
-    <RutaActivaContext.Provider value={{ rutaActiva, rutaGraduado, rutaAdmin, activarRuta, actualizarEtapas, resetRuta }}>
+    <RutaActivaContext.Provider value={{ rutaActiva, rutaGraduado, rutaAdmin, activarRuta, actualizarEtapas }}>
       {children}
     </RutaActivaContext.Provider>
   )

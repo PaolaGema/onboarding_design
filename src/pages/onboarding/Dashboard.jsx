@@ -6,13 +6,13 @@ import JourneyBuilder from './JourneyBuilder'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
-  AlertTriangle, CheckCircle2,
-  UserPlus, Settings2,
+  CheckCircle2,
+  UserPlus,
   Plus, ClipboardList,
   Star, CalendarHeart, Trophy, Medal,
   X, ChevronDown, Check,
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
 
 const cargosPorArea = {
   'Ventas': ['Pasante Comercial', 'SDR Junior', 'Ejecutiva Comercial', 'Ejecutivo Senior', 'Account Manager', 'Gerente de Ventas'],
@@ -106,7 +106,7 @@ export default function Dashboard() {
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
   const [activeJourney, setActiveJourney] = useState(null)
-  const { isDemoFresh, loadSampleData, asignaciones: ctxAsignaciones, plantillas, setPlantillas, addFeedEntry, recursos } = useOnboardingData()
+  const { isDemoFresh, asignaciones: ctxAsignaciones, plantillas, setPlantillas, addFeedEntry, recursos } = useOnboardingData()
   const [showCelebration, setShowCelebration] = useState(false)
 
   const step2Done = recursos.some(c => c.docs.length > 0)

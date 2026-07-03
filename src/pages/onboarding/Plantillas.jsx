@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
-  Search, Plus, LayoutTemplate, Copy, Pencil, Trash2, X, AlertTriangle, Filter, CheckCircle2,
+  Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle, Filter,
   LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Sparkles, ArrowRight, ArrowLeft
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Sparkles, ArrowLeft
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
@@ -34,7 +33,6 @@ const areas = Object.keys(cargosPorArea)
 
 export default function Plantillas() {
   const { currentUser } = useUser()
-  const navigate = useNavigate()
   const isManager = currentUser.role === 'manager'
   const isAuxiliar = currentUser.role === 'auxiliar'
   const isAreaRole = isManager || isAuxiliar

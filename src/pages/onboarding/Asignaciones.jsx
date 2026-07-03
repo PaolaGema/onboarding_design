@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
-  Search, Plus, UserPlus, X, AlertTriangle, Eye, Users, Route,
+  Search, UserPlus, X, AlertTriangle, Eye, Users,
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check,
   Send, MessageCircle, Bell, Circle,
   Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle, UserRound
@@ -54,7 +53,6 @@ function barColor(status, pct) {
 }
 
 export default function Asignaciones() {
-  const navigate = useNavigate()
   const { currentUser } = useUser()
   const isAreaRole = currentUser.role === 'manager' || currentUser.role === 'auxiliar'
   const managerArea = 'Marketing'

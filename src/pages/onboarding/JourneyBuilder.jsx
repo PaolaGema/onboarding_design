@@ -1,14 +1,14 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import {
-  ArrowLeft, Eye, Save, Zap, ChevronRight,
+  ArrowLeft, Eye, Save, ChevronRight,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
-  ClipboardList, FormInput, Upload, MousePointerClick,
-  UserCheck, Calendar, MapPin, ShoppingBag, ExternalLink,
+  ClipboardList, Upload,
+  UserCheck, Calendar, MapPin, ExternalLink,
   ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
@@ -155,10 +155,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
   const [selEtapa, setSelEtapa] = useState(0)
   const [selTarea, setSelTarea] = useState(null)
   const [tareaForm, setTareaForm] = useState(null)
-  const [tab, setTab] = useState('contenido')
   const [dropTarget, setDropTarget] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [editingEtapa, setEditingEtapa] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [deleteInput, setDeleteInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
@@ -339,20 +337,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
       return next
     })
     setActividadMenu(null)
-  }
-
-  function updateEtapaDuration(idx, dias) {
-    setRutaState(prev => {
-      const next = JSON.parse(JSON.stringify(prev))
-      next.etapas[idx].duracion = dias
-      let acum = 1
-      next.etapas.forEach((e, i) => {
-        const d = e.duracion || 7
-        e.days = d === 1 ? `Día ${acum}` : `Día ${acum} — Día ${acum + d - 1}`
-        acum += d
-      })
-      return next
-    })
   }
 
   function reorderEtapa(fromIdx, toIdx) {
@@ -539,9 +523,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
     createTarea(tipoKey, flatIdx)
   }
 
-  const totalTareas = rutaState.etapas.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)
-  const completadas = rutaState.etapas.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.filter(t => t.done).length, 0), 0)
-
   return (
     <div className="jb">
       {/* BARRA SUPERIOR */}
@@ -656,7 +637,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                             draggable={canDrag}
                             onDragStart={ev => { ev.dataTransfer.setData('etapaIdx', String(i)); ev.dataTransfer.effectAllowed = 'move'; setDragEtapa(i) }}
                             onDragEnd={() => { setDragEtapa(null); setDropEtapaTarget(null) }}
-                            onClick={() => { setSelEtapa(i); setSelTarea(null); setTab('contenido') }}
+                            onClick={() => { setSelEtapa(i); setSelTarea(null) }}
                             onContextMenu={ev => { ev.preventDefault(); setEtapaMenu({ idx: i, x: ev.clientX, y: ev.clientY }) }}
                             style={{ cursor: canDrag ? 'grab' : 'pointer' }}
                           >

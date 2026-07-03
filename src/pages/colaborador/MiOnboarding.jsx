@@ -7,10 +7,9 @@ import {
   CheckCircle2, Lock, Star, Trophy, Clock, Calendar,
   Video, Headphones, FileText, HelpCircle, Upload,
   ClipboardList, UserCheck, MapPin, ShieldCheck,
-  ExternalLink, X, Route, Info, Rocket, Sparkles,
-  Play, Pause, Volume2, Download, ChevronRight,
-  Send, Link2, CircleDot, RotateCcw,
-  MessageSquare, Award, PackageOpen, ArrowLeft, Bot, Smile, Users
+  ExternalLink, X, Route, Info, Rocket,
+  Play, Download, ChevronRight,
+  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Users
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
@@ -1874,7 +1873,6 @@ export default function MiOnboarding({ forcePhone = false }) {
         }
 
         case 'recorrido': {
-          const recorridoTipo = 'libre'
           const stops = [
             { name: 'Recepción y entrada principal', guia: 'Carlos Méndez', rol: 'Seguridad' },
             { name: 'Tu área de trabajo', guia: 'Nicolás Zapata', rol: 'Líder de área' },

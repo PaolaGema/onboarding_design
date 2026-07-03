@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
-  Trophy, Bot, Megaphone, Bell, ClipboardCheck,
-  Calendar, BookOpen, AlertTriangle, Info,
+  Trophy, Bot, Megaphone, AlertTriangle, Info,
   ChevronDown, ChevronRight, Route, Zap,
-  Video, Upload, Pencil, MessageSquare,
-  Clock, AlertCircle, X, Settings2
+  Pencil,
+  Clock, AlertCircle, X
 } from 'lucide-react'
 import PageHero from '../../components/layout/PageHero'
 import imagenConfiguracion from '../../assets/imagenes/imagen_configuracion.png'
@@ -97,19 +96,12 @@ const modoAsignacion = [
   { key: 'auto', label: 'Automática', desc: 'El sistema asigna la ruta automáticamente en la fecha de ingreso, según el área y cargo.', icon: Zap },
 ]
 
-const modoActivacion = [
-  { key: 'fecha', label: 'En fecha de ingreso', desc: 'El onboarding se activa automáticamente el día que el colaborador ingresa.' },
-  { key: 'inmediata', label: 'Inmediata', desc: 'Se activa en el momento en que se asigna la ruta, sin esperar fecha de ingreso.' },
-  { key: 'manual', label: 'Manual', desc: 'Queda pendiente hasta que el admin la active manualmente.' },
-]
-
 export default function Configuracion() {
   const { configToggles, setConfigToggles } = useOnboardingData()
   const [config, setConfig] = useState(() =>
     initialConfig.map(c => ({ ...c, enabled: configToggles[c.key] ?? c.enabled }))
   )
   const [asignacion, setAsignacion] = useState(configToggles.asignacion || 'manual')
-  const [activacion, setActivacion] = useState(configToggles.activacion || 'manual')
   const [horaAsignacion, setHoraAsignacion] = useState(configToggles.horaAsignacion || '08:00')
   const [expandedCard, setExpandedCard] = useState(null)
   const [asignacionExpanded, setAsignacionExpanded] = useState(true)
@@ -143,11 +135,6 @@ export default function Configuracion() {
   function updateAsignacion(val) {
     setAsignacion(val)
     setConfigToggles(ct => ({ ...ct, asignacion: val }))
-  }
-
-  function updateActivacion(val) {
-    setActivacion(val)
-    setConfigToggles(ct => ({ ...ct, activacion: val }))
   }
 
   function updateHora(val) {
@@ -241,7 +228,7 @@ export default function Configuracion() {
               return (
                 <button
                   key={m.key}
-                  onClick={() => { updateAsignacion(m.key); if (m.key === 'auto') updateActivacion('fecha') }}
+                  onClick={() => updateAsignacion(m.key)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '11px 14px', borderRadius: 10,

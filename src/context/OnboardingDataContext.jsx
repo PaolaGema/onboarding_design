@@ -97,7 +97,7 @@ export function OnboardingDataProvider({ children }) {
     horaAsignacion: '08:00',
     riesgoDias: 3,
   })
-  const [tronco, setTronco] = useLocalStorage('tronco', { configured: false, etapas: [] })
+  const [tronco] = useLocalStorage('tronco', { configured: false, etapas: [] })
 
   // Migración de una sola vez: el viejo "tronco" (Inducción general hardcodeada)
   // pasa a ser una plantilla real marcada como global, para no perder lo ya configurado.

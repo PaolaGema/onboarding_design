@@ -1,8 +1,7 @@
-import { Menu, Sun, Moon, Bell, ChevronDown, ArrowRightLeft, Rocket, Check, Shield, BookOpen, FileText, UserPlus, ArrowRight } from 'lucide-react'
+import { Menu, Bell, ChevronDown, Rocket, Check, BookOpen, FileText, UserPlus } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
-import { useTheme } from '../../context/ThemeContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 
 const pageHeaders = {
@@ -14,8 +13,6 @@ const pageHeaders = {
 }
 
 export default function Header({ floating }) {
-  const { theme, toggleTheme } = useTheme()
-  const darkMode = theme === 'dark'
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const { currentUser, setCurrentUser, users } = useUser()
@@ -161,20 +158,6 @@ export default function Header({ floating }) {
       </div>
 
       <div className="flex items-center gap-4">
-
-        {/* Modo oscuro: en desarrollo, pendiente terminar todas las vistas. Botón oculto hasta que esté completo.
-        <button
-          onClick={toggleTheme}
-          className="cursor-pointer inline-flex items-center justify-center size-9 rounded-md text-[#7C93A6] hover:text-[#0C2D40] hover:bg-slate-50 dark:text-[#7C8EA3] dark:hover:text-white dark:hover:bg-[#163041] transition-all"
-          aria-label="Cambiar tema"
-        >
-          <span className="relative w-4 h-4">
-            <Sun className={`absolute inset-0 h-4 w-4 transition-all ${darkMode ? '-rotate-90 scale-0' : 'rotate-0 scale-100'}`} aria-hidden="true" />
-            <Moon className={`absolute inset-0 h-4 w-4 transition-all ${darkMode ? 'rotate-0 scale-100' : 'rotate-90 scale-0'}`} aria-hidden="true" />
-          </span>
-        </button>
-        */}
-
 
         <button
           className="p-2 text-[#7C93A6] hover:text-[#0C2D40] hover:bg-slate-50 dark:text-[#7C8EA3] dark:hover:text-white dark:hover:bg-[#163041] rounded-lg transition-all duration-200"
