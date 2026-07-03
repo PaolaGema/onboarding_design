@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, MoreHorizontal, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Rocket, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
+import { Search, Plus, MoreHorizontal, Calendar, ChevronLeft, ChevronRight, ChevronDown, Check, Eye, Pencil, Rocket, Repeat, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
@@ -261,10 +261,6 @@ export default function Colaboradores() {
           <h1 className="pl-title">Colaboradores</h1>
           <p className="pl-subtitle">Directorio de colaboradores de la organización</p>
         </div>
-        <button className="pl-btn-new">
-          <Plus size={15} color="#00E091" />
-          Nuevo colaborador
-        </button>
       </div>
 
       <div className="kpi-strip">
@@ -301,78 +297,47 @@ export default function Colaboradores() {
             onChange={e => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
-          {filterStatus !== 'todos' && (
-            <div style={{
-              height: 32, padding: '0 8px 0 10px', borderRadius: 8,
-              background: '#f1f5f9', display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 11, fontWeight: 600, color: '#475569',
-            }}>
-              {{ activo: 'Activos', vacaciones: 'Vacaciones', licencia: 'Licencia', suspendido: 'Suspendido', desvinculado: 'Desvinculado' }[filterStatus]}
-              <button
-                onClick={() => { setFilterStatus('todos'); setPage(1) }}
-                style={{
-                  width: 18, height: 18, borderRadius: 4, border: 'none',
-                  background: 'transparent', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#94a3b8',
-                }}
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
           <button
+            type="button"
+            className={`pl-dropdown-trigger${showStatusFilter ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`}
+            style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }}
             onClick={() => setShowStatusFilter(!showStatusFilter)}
-            style={{
-              height: 38, padding: '0 12px', borderRadius: 8,
-              border: '1px solid #e2e8f0', background: '#fff',
-              cursor: 'pointer', display: 'flex', alignItems: 'center',
-              color: '#64748b',
-            }}
           >
-            <Filter size={14} />
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {{ todos: 'Todos los estados', activo: 'Activos', vacaciones: 'Vacaciones', licencia: 'Licencia', suspendido: 'Suspendido', desvinculado: 'Desvinculado' }[filterStatus]}
+            </span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
           </button>
           {showStatusFilter && (
-            <div style={{
-              position: 'absolute', right: 0, top: '100%', marginTop: 4,
-              background: '#fff', borderRadius: 10, padding: 4,
-              boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-              zIndex: 30, minWidth: 180, animation: 'plSlideUp .12s',
-            }}>
+            <div className="pl-dropdown-menu" style={{ minWidth: 180 }}>
               {[
-                { key: 'todos', label: 'Todos', color: '#0C2D40' },
-                { key: 'activo', label: 'Activos', color: '#16a34a' },
-                { key: 'vacaciones', label: 'Vacaciones', color: '#f59e0b' },
-                { key: 'licencia', label: 'Licencia médica', color: '#3b82f6' },
-                { key: 'suspendido', label: 'Suspendido', color: '#ef4444' },
-                { key: 'desvinculado', label: 'Desvinculado', color: '#94a3b8' },
+                { key: 'todos', label: 'Todos los estados' },
+                { key: 'activo', label: 'Activos' },
+                { key: 'vacaciones', label: 'Vacaciones' },
+                { key: 'licencia', label: 'Licencia médica' },
+                { key: 'suspendido', label: 'Suspendido' },
+                { key: 'desvinculado', label: 'Desvinculado' },
               ].map(f => (
                 <button
                   key={f.key}
+                  type="button"
+                  className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`}
+                  style={{ fontSize: 11.5, padding: '6px 9px' }}
                   onClick={() => { setFilterStatus(f.key); setPage(1); setShowStatusFilter(false) }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 10px', border: 'none', borderRadius: 7,
-                    background: filterStatus === f.key ? '#f8fafc' : 'transparent',
-                    cursor: 'pointer', fontSize: 12, fontWeight: filterStatus === f.key ? 600 : 400,
-                    color: filterStatus === f.key ? '#0C2D40' : '#475569',
-                    fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'background .1s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                  onMouseLeave={e => { if (filterStatus !== f.key) e.currentTarget.style.background = 'transparent' }}
                 >
-                  {f.key !== 'todos' && (
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: f.color, flexShrink: 0 }} />
-                  )}
-                  <span style={{ flex: 1 }}>{f.label}</span>
-                  {filterStatus === f.key && <CheckCircle2 size={13} style={{ color: '#00E091' }} />}
+                  <span>{f.label}</span>
+                  {filterStatus === f.key && <Check size={13} />}
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        <button className="pl-btn-new" style={{ padding: '0 14px', height: 34, fontSize: 11.5, marginLeft: 'auto' }}>
+          <Plus size={14} color="#00E091" />
+          Nuevo colaborador
+        </button>
       </div>
 
       <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 2px' }}>
@@ -526,7 +491,9 @@ export default function Colaboradores() {
                         { icon: Eye, label: 'Ver perfil', color: '#475569' },
                         { icon: Pencil, label: 'Editar', color: '#475569' },
                         { icon: Shield, label: 'Roles y permisos', color: '#475569', action: () => setRolModal(c) },
-                        { icon: Rocket, label: 'Asignar onboarding', color: '#0C2D40', action: () => { setOnbModal(c); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } },
+                        ...(c.onb === 'graduado'
+                          ? [{ icon: Repeat, label: 'Asignar reboarding', color: '#8b5cf6', action: () => { setOnbModal({ ...c, _tipo: 'Reboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]
+                          : [{ icon: Rocket, label: 'Asignar onboarding', color: '#0C2D40', action: () => { setOnbModal({ ...c, _tipo: 'Onboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]),
                         { icon: Send, label: 'Enviar credenciales', color: '#475569' },
                         { icon: RefreshCw, label: 'Cambiar estado', color: '#475569', action: () => setEstadoModal(c) },
                       ].map(action => (
@@ -622,15 +589,7 @@ export default function Colaboradores() {
 
       {/* MODAL ASIGNAR ONBOARDING */}
       {onbModal && (() => {
-        const rutas = [
-          { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', etapas: 12, tareas: 34, color: '#3b82f6' },
-          { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', etapas: 10, tareas: 28, color: '#10b981' },
-          { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', etapas: 8, tareas: 22, color: '#8b5cf6' },
-          { id: 4, name: 'Onboarding Operaciones', area: 'Operaciones', etapas: 9, tareas: 25, color: '#f59e0b' },
-          { id: 5, name: 'Onboarding Tech — Backend', area: 'Tecnología', etapas: 14, tareas: 40, color: '#06b6d4' },
-          { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', etapas: 11, tareas: 30, color: '#ec4899' },
-          { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', etapas: 10, tareas: 26, color: '#d946ef' },
-        ]
+        const rutas = plantillas.filter(p => p.status === 'activa' && (p.tipo || 'Onboarding') === onbModal._tipo)
         return (
           <div className="pl-overlay" onClick={() => setOnbModal(null)}>
             <div className="pl-modal jb-modal" style={{ width: 860, maxWidth: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -644,7 +603,7 @@ export default function Colaboradores() {
                     <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{onbModal.initials}</span>
                   </div>
                   <div>
-                    <h2 style={{ margin: 0, fontSize: 15 }}>Asignar onboarding</h2>
+                    <h2 style={{ margin: 0, fontSize: 15 }}>{onbModal._tipo === 'Reboarding' ? 'Asignar reboarding' : 'Asignar onboarding'}</h2>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{onbModal.name} · {onbModal.depto}</span>
                   </div>
                 </div>

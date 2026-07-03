@@ -3,7 +3,7 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, Filter, CheckCircle2, Check,
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, CheckCircle2, Check,
   Send, MessageCircle, Bell, Circle,
   Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle, UserRound
 } from 'lucide-react'

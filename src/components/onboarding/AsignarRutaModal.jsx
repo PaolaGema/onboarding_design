@@ -164,7 +164,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
 
   return (
     <div className="pl-overlay" onClick={onClose}>
-      <div className="pl-modal jb-modal" style={{ width: 980, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      <div className="pl-modal jb-modal" style={{ width: 1180, maxWidth: '96vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
 
         {/* HEADER */}
         <div className="pl-modal-header" style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -179,7 +179,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           </button>
         </div>
 
-        {/* CONTENIDO: 3 COLUMNAS */}
+        {/* CONTENIDO: 4 COLUMNAS */}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }} onClick={() => setBuddyOpen(false)}>
 
           {/* COL 1: COLABORADORES */}
@@ -425,11 +425,14 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           </div>
 
           {/* COL 3: FECHA */}
-          <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
+          <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto', borderRight: '1px solid #f1f5f9' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
             <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
+          </div>
 
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40', marginTop: 10 }}>
+          {/* COL 4: BUDDY */}
+          <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>
               <span style={{ color: '#94a3b8', fontWeight: 600 }}>4.</span> Buddy <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span>
             </span>
             <p style={{ fontSize: 10, color: '#94a3b8', margin: '-4px 0 0', lineHeight: 1.4 }}>
