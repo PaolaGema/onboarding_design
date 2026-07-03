@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Info } from 'lucide-react'
+import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Info, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 
@@ -69,6 +70,7 @@ const moduleConfig = {
 }
 
 export default function ModuleNav() {
+  const [expanded, setExpanded] = useState(true)
   const { currentUser } = useUser()
   const { theme } = useTheme()
   const location = useLocation()
@@ -85,14 +87,29 @@ export default function ModuleNav() {
 
   return (
     <div
-      className="w-60 overflow-y-auto bg-[#FCFCFD] dark:bg-[#0C1B29] border-r border-gray-200 dark:border-white/[0.06] flex flex-col shrink-0"
+      className={`overflow-y-auto bg-[#FCFCFD] dark:bg-[#0C1B29] border-r border-gray-200 dark:border-white/[0.06] flex flex-col shrink-0
+        transition-all duration-300 ease-in-out
+        ${expanded ? 'w-60' : 'w-16 items-center'}`}
       style={{ height: '100%' }}
     >
-      <header style={{ padding: '1.5rem 1.5rem 0.75rem 1.75rem' }}>
-        <h2 className="text-sm font-bold text-[#0C2D40] dark:text-white">{config.title}</h2>
+      <header
+        className={`flex items-center shrink-0 ${expanded ? 'justify-between' : 'justify-center w-full'}`}
+        style={{ padding: expanded ? '1.5rem 0.75rem 0.75rem 1.75rem' : '1.5rem 0 0.75rem' }}
+      >
+        {expanded && <h2 className="text-sm font-bold text-[#0C2D40] dark:text-white truncate">{config.title}</h2>}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          aria-label={expanded ? 'Minimizar menú' : 'Expandir menú'}
+          title={expanded ? 'Minimizar menú' : 'Expandir menú'}
+          className="p-1.5 shrink-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100
+            dark:text-slate-500 dark:hover:text-white dark:hover:bg-[#163041]
+            rounded-lg transition-all duration-150 cursor-pointer"
+        >
+          {expanded ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />}
+        </button>
       </header>
 
-      {theme === 'dark' && (
+      {expanded && theme === 'dark' && (
         <div style={{ margin: '0 1.5rem 1rem 1.75rem' }}>
           <div style={{
             background: 'linear-gradient(135deg, #0C2D40 0%, #051B26 100%)',
@@ -115,49 +132,54 @@ export default function ModuleNav() {
         </div>
       )}
 
-      <div className="border-b border-gray-200 dark:border-white/[0.06]" style={{ marginLeft: '1.75rem', marginRight: '1.5rem', marginBottom: '0.75rem' }} />
+      {expanded && (
+        <div className="border-b border-gray-200 dark:border-white/[0.06]" style={{ marginLeft: '1.75rem', marginRight: '1.5rem', marginBottom: '0.75rem' }} />
+      )}
 
-      <nav className="flex flex-col" style={{ paddingLeft: '1.25rem', paddingRight: '1rem' }}>
+      <nav className="flex flex-col" style={expanded ? { paddingLeft: '1.25rem', paddingRight: '1rem' } : { width: '100%', alignItems: 'center' }}>
         {sections.map((group, gi) => (
-          <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0, paddingTop: gi > 0 ? '0.75rem' : 0, borderTop: gi > 0 ? '1px solid var(--border-soft)' : 'none' }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
-              textTransform: 'uppercase', letterSpacing: '0.05em',
-              padding: '0 0.85rem', marginBottom: '0.4rem',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}>
-              {group.section}
-              {sectionInfo[group.section] && (
-                <div style={{ display: 'inline-flex' }}
-                  onMouseEnter={e => {
-                    const tip = e.currentTarget.querySelector('[data-tip]')
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    tip.style.left = (rect.right + 8) + 'px'
-                    tip.style.top = rect.top + 'px'
-                    tip.style.opacity = '1'
-                  }}
-                  onMouseLeave={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '0'}
-                >
-                  <Info size={10} style={{ color: 'var(--border-dark)', cursor: 'help' }} />
-                  <div data-tip style={{
-                    position: 'fixed',
-                    background: '#0C2D40', color: '#fff', borderRadius: 8, padding: '8px 12px',
-                    fontSize: 10, lineHeight: 1.5, width: 200, zIndex: 9999, textTransform: 'none', letterSpacing: 'normal',
-                    boxShadow: '0 4px 16px rgba(0,0,0,.15)', opacity: 0,
-                    transition: 'opacity .15s', pointerEvents: 'none',
-                  }}>
-                    <strong style={{ color: '#00E091', display: 'block', marginBottom: 3 }}>{sectionInfoTitle[group.section]}</strong>
-                    {sectionInfo[group.section]}
+          <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0, paddingTop: gi > 0 ? '0.75rem' : 0, borderTop: gi > 0 && expanded ? '1px solid var(--border-soft)' : 'none', width: expanded ? undefined : '100%', display: expanded ? undefined : 'flex', flexDirection: expanded ? undefined : 'column', alignItems: expanded ? undefined : 'center' }}>
+            {expanded && (
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+                padding: '0 0.85rem', marginBottom: '0.4rem',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                {group.section}
+                {sectionInfo[group.section] && (
+                  <div style={{ display: 'inline-flex' }}
+                    onMouseEnter={e => {
+                      const tip = e.currentTarget.querySelector('[data-tip]')
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      tip.style.left = (rect.right + 8) + 'px'
+                      tip.style.top = rect.top + 'px'
+                      tip.style.opacity = '1'
+                    }}
+                    onMouseLeave={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '0'}
+                  >
+                    <Info size={10} style={{ color: 'var(--border-dark)', cursor: 'help' }} />
+                    <div data-tip style={{
+                      position: 'fixed',
+                      background: '#0C2D40', color: '#fff', borderRadius: 8, padding: '8px 12px',
+                      fontSize: 10, lineHeight: 1.5, width: 200, zIndex: 9999, textTransform: 'none', letterSpacing: 'normal',
+                      boxShadow: '0 4px 16px rgba(0,0,0,.15)', opacity: 0,
+                      transition: 'opacity .15s', pointerEvents: 'none',
+                    }}>
+                      <strong style={{ color: '#00E091', display: 'block', marginBottom: 3 }}>{sectionInfoTitle[group.section]}</strong>
+                      {sectionInfo[group.section]}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col" style={{ gap: '0.3rem' }}>
+                )}
+              </div>
+            )}
+            <div className="flex flex-col" style={{ gap: '0.3rem', alignItems: expanded ? undefined : 'center' }}>
               {group.items.map(({ label, path, icon: Icon, end }) => (
                 <NavLink
                   key={path}
                   to={path}
                   end={end}
+                  title={!expanded ? label : undefined}
                   className={({ isActive }) =>
                     `font-medium rounded-md flex items-center cursor-pointer transition-all duration-150 text-xs
                     ${isActive
@@ -165,12 +187,12 @@ export default function ModuleNav() {
                       : 'text-[#7C93A6] hover:bg-[#0C2D40]/10 hover:text-[#0C2D40] dark:text-[#7C8EA3] dark:hover:bg-[#163041] dark:hover:text-white'
                     }`
                   }
-                  style={{ padding: '0.6rem 0.85rem' }}
+                  style={expanded ? { padding: '0.6rem 0.85rem' } : { width: 36, height: 36, padding: 0, justifyContent: 'center' }}
                 >
                   {({ isActive }) => (
                     <>
-                      <Icon className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} color={isActive ? '#00E091' : undefined} style={{ marginRight: '0.65rem' }} />
-                      <span className="truncate">{label}</span>
+                      <Icon className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2} color={isActive ? '#00E091' : undefined} style={{ marginRight: expanded ? '0.65rem' : 0 }} />
+                      {expanded && <span className="truncate">{label}</span>}
                     </>
                   )}
                 </NavLink>

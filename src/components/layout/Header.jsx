@@ -365,6 +365,7 @@ export default function Header({ floating }) {
                 {[
                   { label: 'Administrador', filter: u => u.role === 'admin' },
                   { label: 'Jefe de área', filter: u => u.role === 'manager' },
+                  { label: 'Auxiliar', filter: u => u.role === 'auxiliar' },
                   { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
                 ].map((group, gi) => {
                   const groupUsers = users.filter(group.filter)

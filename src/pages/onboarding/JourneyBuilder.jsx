@@ -3,28 +3,18 @@ import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
+import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
+import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import {
-  ArrowLeft, Eye, Save, ChevronRight,
+  ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
-  ClipboardList, Upload,
-  UserCheck, Calendar, MapPin, ExternalLink,
+  ClipboardList,
+  UserCheck, Calendar, ExternalLink,
   ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
-
-const tiposTarea = [
-  { key: 'video', label: 'Video', icon: Video, color: '#3b82f6', resp: 'Colaborador' },
-  { key: 'audio', label: 'Audio / Podcast', icon: Headphones, color: '#06b6d4', resp: 'Colaborador' },
-  { key: 'documento', label: 'Documento / PDF', icon: FileText, color: '#f97316', resp: 'Colaborador' },
-  { key: 'quiz', label: 'Prueba', icon: HelpCircle, color: '#f59e0b', resp: 'Colaborador' },
-  { key: 'completar-perfil', label: 'Formulario', icon: ClipboardList, color: '#10b981', resp: 'Colaborador' },
-  { key: 'subida', label: 'Subida de archivo', icon: Upload, color: '#ec4899', resp: 'Colaborador' },
-  { key: 'tarea-otro', label: 'Otra tarea', icon: UserCheck, color: '#ef4444', resp: 'Otro usuario' },
-  { key: 'recorrido', label: 'Recorrido por área', icon: MapPin, color: '#d946ef', resp: 'Colab + responsable' },
-  { key: 'pulso', label: 'Cómo se siente', icon: Smile, color: '#f472b6', resp: 'Colaborador' },
-]
 
 const pulsoPreguntasSugeridas = [
   '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
@@ -43,27 +33,6 @@ const formTiposCampo = [
   { v: 'desplegable', l: 'Desplegable' },
 ]
 
-const tipoMap = Object.fromEntries(tiposTarea.map(t => [t.key, t]))
-
-function toEmbedUrl(url) {
-  if (!url) return url
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
-      return `https://www.youtube.com/embed/${u.searchParams.get('v')}`
-    }
-    if (u.hostname === 'youtu.be') {
-      return `https://www.youtube.com/embed/${u.pathname.slice(1)}`
-    }
-    if (u.hostname.includes('vimeo.com') && !u.hostname.includes('player.')) {
-      const id = u.pathname.split('/').filter(Boolean).pop()
-      return `https://player.vimeo.com/video/${id}`
-    }
-  } catch {
-    return url
-  }
-  return url
-}
 
 export const rutasData = {
   1: {
@@ -165,6 +134,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
   const [quizPreview, setQuizPreview] = useState(null)
   const [addPickerTarget, setAddPickerTarget] = useState(null)
   const [quizDropOpen, setQuizDropOpen] = useState(false)
+  const [formTipoDropOpen, setFormTipoDropOpen] = useState(null)
   const [quizSearch, setQuizSearch] = useState('')
   const [contextMenu, setContextMenu] = useState(null)
   const [respMenuPos, setRespMenuPos] = useState(null)
@@ -191,6 +161,23 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
   const canvasRef = useRef(null)
   const scrollInterval = useRef(null)
   const isFirstRutaRender = useRef(true)
+  const [floatLeftOffset, setFloatLeftOffset] = useState(320)
+
+  // El panel "Etapas" es position:fixed (para quedar visible al scrollear el canvas),
+  // así que su offset izquierdo debe seguir el borde real del canvas cuando el
+  // sidebar o el navbar del módulo se contraen o expanden.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    function updateOffset() {
+      setFloatLeftOffset(el.getBoundingClientRect().left + 20)
+    }
+    updateOffset()
+    const ro = new ResizeObserver(updateOffset)
+    ro.observe(el)
+    window.addEventListener('resize', updateOffset)
+    return () => { ro.disconnect(); window.removeEventListener('resize', updateOffset) }
+  }, [])
 
   function saveDraft() {
     const etapasPropias = rutaState.etapas.filter(e => !e.locked)
@@ -380,6 +367,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
       setSelTarea(tarea)
       setTareaForm({ ...tarea })
     }
+  }
+
+  function closePreview() {
+    setShowPreview(false)
   }
 
   function saveTareaForm() {
@@ -587,7 +578,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
             >
 
               {/* CARD ETAPAS — izquierda */}
-              <div className="jb-float-card jb-float-left">
+              <div className="jb-float-card jb-float-left" style={{ left: floatLeftOffset }}>
                 <div className="jb-sb-title">Etapas <span className="jb-sb-count">{rutaState.etapas.length}</span></div>
                 <p className="jb-sb-hint">Selecciona una etapa para ver sus tareas</p>
                 <div className="jb-sb-list">
@@ -992,18 +983,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 {/* SECCIÓN: INFORMACIÓN BÁSICA */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Nombre de la tarea
+                    Nombre de la tarea <span style={{ color: '#ef4444' }}>*</span>
                     <input type="text" className="pl-input" value={tareaForm.name} onChange={e => updateForm('name', e.target.value)} />
                   </label>
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Descripción
-                    <textarea className="pl-input" style={{ resize: 'vertical', minHeight: '52px' }} value={tareaForm.desc} rows={2} onChange={e => updateForm('desc', e.target.value)} />
+                    Descripción <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: '2px 0 5px' }}>
+                      El colaborador la verá al abrir la tarea. Explicale qué debe hacer.
+                    </div>
+                    <textarea
+                      className="pl-input" style={{ resize: 'vertical', minHeight: '52px', marginTop: 0 }}
+                      value={tareaForm.desc} rows={2}
+                      placeholder="Ej: Mira el video de bienvenida y conoce nuestra cultura."
+                      onChange={e => updateForm('desc', e.target.value)}
+                    />
                   </label>
                 </div>
 
                 {/* SECCIÓN: RESPONSABLE */}
                 <div className="pl-label" style={{ position: 'relative' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza?</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza? <span style={{ color: '#ef4444' }}>*</span></span>
                   <div
                     onClick={e => {
                       if (!tareaForm._respOpen) {
@@ -1119,8 +1118,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
 
                       {kbItem ? (
                         <div style={{
-                          marginTop: 4, borderRadius: 10,
-                          border: '1.5px solid #0C2D40', background: '#f8fafc',
+                          marginTop: 4, borderRadius: 12,
+                          border: '1px solid #e2e8f0', background: '#fff',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
                             <div style={{
@@ -1143,7 +1142,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                             </button>
                           </div>
                           {kbItem.url && (
-                            <div style={{ padding: '10px 12px', borderTop: '1px solid #e2e8f0' }}>
+                            <div style={{ padding: '0 12px 12px' }}>
                               {kbItem.tipo === 'video' ? (
                                 <div style={{ borderRadius: 8, overflow: 'hidden', background: '#000', aspectRatio: '16 / 9' }}>
                                   <iframe
@@ -1174,37 +1173,53 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         </div>
                       ) : (
                         <>
-                          <div style={{ position: 'relative', marginTop: 4 }}>
-                            <button
-                              type="button"
-                              onClick={() => { setRpFolder(null); setRpSearch(''); setResourcePickerOpen(true) }}
-                              style={{
-                                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '10px 12px', borderRadius: 10,
-                                border: '1.5px solid #e2e8f0',
-                                background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0C2D40',
-                                fontFamily: 'inherit', transition: 'border-color .15s',
-                              }}
-                            >
-                              <BookOpen size={15} style={{ color: '#00E091' }} />
-                              Elegir desde Recursos corporativos
-                              <ChevronRight size={13} style={{ marginLeft: 'auto', color: '#94a3b8' }} />
-                            </button>
-                          </div>
+                          {!tareaForm.enlace && (
+                            <>
+                              <div style={{ position: 'relative', marginTop: 4 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => { setRpFolder(null); setRpSearch(''); setResourcePickerOpen(true) }}
+                                  style={{
+                                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '10px 12px', borderRadius: 10,
+                                    border: '1.5px solid #e2e8f0',
+                                    background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0C2D40',
+                                    fontFamily: 'inherit', transition: 'border-color .15s',
+                                  }}
+                                >
+                                  <BookOpen size={15} style={{ color: '#00E091' }} />
+                                  Elegir desde Recursos corporativos
+                                  <ChevronRight size={13} style={{ marginLeft: 'auto', color: '#94a3b8' }} />
+                                </button>
+                              </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0' }}>
-                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                            <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>o pegá un enlace externo</span>
-                            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0' }}>
+                                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>o pegá un enlace externo</span>
+                                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+                              </div>
+                            </>
+                          )}
+                          <div style={{ position: 'relative', marginTop: tareaForm.enlace ? 4 : 0 }}>
+                            <input
+                              type="url"
+                              className="pl-input"
+                              style={{ margin: 0, paddingRight: tareaForm.enlace ? 32 : undefined }}
+                              placeholder="https://..."
+                              value={tareaForm.enlace || ''}
+                              onChange={e => { updateForm('enlace', e.target.value); setSaveLinkOpen(false); setSaveLinkDone(null) }}
+                            />
+                            {tareaForm.enlace && (
+                              <button
+                                type="button"
+                                onClick={() => { updateForm('enlace', ''); setSaveLinkOpen(false); setSaveLinkDone(null) }}
+                                style={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}
+                                title="Quitar enlace"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
                           </div>
-                          <input
-                            type="url"
-                            className="pl-input"
-                            style={{ margin: 0 }}
-                            placeholder="https://..."
-                            value={tareaForm.enlace || ''}
-                            onChange={e => { updateForm('enlace', e.target.value); setSaveLinkOpen(false); setSaveLinkDone(null) }}
-                          />
 
                           {tareaForm.enlace && (tareaForm.tipo === 'video' || tareaForm.tipo === 'audio') && (
                             <div style={{ marginTop: 8 }}>
@@ -1480,10 +1495,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
-                            {campos.length === 0 ? 'Sin campos aún' : `${campos.length} campo${campos.length !== 1 ? 's' : ''}`}
+                            {campos.length === 0 ? 'Sin preguntas aún' : `${campos.length} pregunta${campos.length !== 1 ? 's' : ''}`}
                           </div>
                           <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
-                            {campos.length === 0 ? 'Crea los campos de este formulario' : campos.map(c => c.etiqueta || '(sin nombre)').join(', ')}
+                            {campos.length === 0 ? 'Crea las preguntas de este formulario' : campos.map(c => c.etiqueta || '(sin nombre)').join(', ')}
                           </div>
                         </div>
                       </div>
@@ -1492,7 +1507,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#0C2D40', color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
                       >
                         <Pencil size={11} />
-                        {campos.length === 0 ? 'Crear campos' : 'Editar campos'}
+                        {campos.length === 0 ? 'Crear preguntas' : 'Editar preguntas'}
                       </button>
                     </div>
                   )
@@ -1755,8 +1770,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
               </div>
 
               <div className="pl-modal-footer">
+                <button
+                  className="pl-btn-cancel"
+                  onClick={() => setPreviewTask(tareaForm)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', whiteSpace: 'nowrap' }}
+                >
+                  <Eye size={13} /> Vista previa
+                </button>
                 <button className="pl-btn-cancel" onClick={closeModal}>Cancelar</button>
-                <button className="pl-btn-save" onClick={saveTareaForm}>Guardar cambios</button>
+                <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || respValues.length === 0} onClick={saveTareaForm}>Guardar cambios</button>
               </div>
             </div>
           </div>
@@ -2149,403 +2171,23 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
       })()}
 
       {/* PREVISUALIZAR TAREA */}
-      {previewTask && (() => {
-        const tipo = tipoMap[previewTask.tipo] || tiposTarea[0]
-        const TpIcon = tipo.icon
-        const hasQuiz = previewTask.verificarQuiz !== false
-
-        function renderContenido() {
-          switch (previewTask.tipo) {
-            case 'video': {
-              const videoId = previewTask.videoUrl ? (toEmbedUrl(previewTask.videoUrl).match(/embed\/([a-zA-Z0-9_-]+)/)?.[1]) : null
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
-                    <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
-                      {videoId ? (
-                        <iframe src={`https://www.youtube.com/embed/${videoId}`} title={previewTask.name} frameBorder="0" allowFullScreen style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
-                      ) : (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'rgba(255,255,255,.5)' }}>
-                          <Video size={28} />
-                          <span style={{ fontSize: 11 }}>Sin video vinculado aún</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {hasQuiz && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
-                      <HelpCircle size={15} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 11.5, color: '#92400e', fontWeight: 600 }}>Incluye una prueba de verificación al finalizar</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #dbeafe' }}>
-                    <Info size={14} style={{ color: '#3b82f6' }} />
-                    <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>Se completa automáticamente al terminar el video{hasQuiz ? ' y la evaluación' : ''}</span>
-                  </div>
-                </div>
-              )
-            }
-            case 'audio':
-              return (
-                <div style={{ padding: 20, borderRadius: 12, background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)', display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Headphones size={22} style={{ color: '#fff' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{previewTask.name}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Audio / Podcast</div>
-                  </div>
-                </div>
-              )
-            case 'documento':
-              return (
-                <div style={{ border: '1px solid #fed7aa', borderRadius: 12, overflow: 'hidden', background: '#fffbf5' }}>
-                  <div style={{ padding: '12px 16px', background: '#fff7ed', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <FileText size={16} style={{ color: '#ea580c' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#9a3412' }}>{previewTask.name}.pdf</span>
-                  </div>
-                  {hasQuiz && (
-                    <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid #fed7aa' }}>
-                      <HelpCircle size={14} style={{ color: '#d97706' }} />
-                      <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Incluye una prueba de verificación</span>
-                    </div>
-                  )}
-                </div>
-              )
-            case 'quiz': {
-              const preguntas = previewTask.quizPreguntas || []
-              if (preguntas.length === 0) {
-                return <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8', background: '#f8fafc', borderRadius: 10 }}>Esta prueba aún no tiene preguntas configuradas</div>
-              }
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {preguntas.map((p, i) => (
-                    <div key={p.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', marginBottom: 8 }}>{i + 1}. {p.texto}</div>
-                      {p.tipo === 'abierta' ? (
-                        <div style={{ padding: '8px 10px', borderRadius: 7, background: '#fff', border: '1.5px dashed #cbd5e1', fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
-                          Respuesta abierta
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          {p.opciones.map(o => (
-                            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: '#fff', border: `1.5px solid ${o.correcta ? '#00E091' : '#e2e8f0'}` }}>
-                              <div style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${o.correcta ? '#00E091' : '#cbd5e1'}`, background: o.correcta ? '#00E091' : '#fff' }} />
-                              <span style={{ fontSize: 11, color: '#334155' }}>{o.texto}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-            case 'completar-perfil': {
-              const campos = previewTask.formCampos || []
-              if (campos.length === 0) {
-                return <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8', background: '#f8fafc', borderRadius: 10 }}>Este formulario aún no tiene campos configurados</div>
-              }
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {campos.map(c => (
-                    <div key={c.id}>
-                      <label style={{ fontSize: 11.5, fontWeight: 600, color: '#334155', marginBottom: 5, display: 'block' }}>
-                        {c.etiqueta}{c.obligatorio && <span style={{ color: '#ef4444' }}> *</span>}
-                      </label>
-                      {c.tipo === 'parrafo' && <div style={{ height: 56, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }} />}
-                      {c.tipo === 'texto-corto' && <div style={{ height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }} />}
-                      {c.tipo === 'desplegable' && <div style={{ height: 34, borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11, color: '#94a3b8' }}>Selecciona...</div>}
-                      {(c.tipo === 'opcion-multiple' || c.tipo === 'casillas') && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {c.opciones.map(o => (
-                            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                              <div style={{ width: 13, height: 13, borderRadius: c.tipo === 'casillas' ? 4 : '50%', flexShrink: 0, border: '1.5px solid #cbd5e1' }} />
-                              <span style={{ fontSize: 11, color: '#334155' }}>{o.texto}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-            case 'pulso': {
-              const preguntas = previewTask.pulsoPreguntas?.length ? previewTask.pulsoPreguntas : ['¿Cómo te sientes con tu proceso de onboarding hasta ahora?']
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {preguntas.map((p, i) => (
-                    <div key={i} style={{ border: '1px solid #fbcfe8', borderRadius: 12, padding: '12px 16px', background: '#fdf2f8' }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#831843', margin: '0 0 8px' }}>{p}</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {['😞', '😕', '😐', '🙂', '😄'].map((e, ei) => (
-                          <div key={ei} style={{ width: 30, height: 30, borderRadius: '50%', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #f5d0e0', background: '#fff' }}>{e}</div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            }
-            case 'recorrido':
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 5, background: '#eff6ff', color: '#2563eb', alignSelf: 'flex-start' }}>Recorrido libre</div>
-                  {['Recepción y entrada principal', 'Tu área de trabajo', 'Sala de reuniones', 'Comedor y áreas comunes'].map((s, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                      <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: '1.5px solid #d1d5db' }} />
-                      <span style={{ fontSize: 12, color: '#334155' }}>{s}</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            case 'subida':
-              return (
-                <div style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 28, textAlign: 'center', background: '#fdf2f8' }}>
-                  <Upload size={28} style={{ color: '#ec4899', marginBottom: 8 }} />
-                  <p style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', margin: '0 0 3px' }}>Arrastra tus archivos aquí</p>
-                  <p style={{ fontSize: 10.5, color: '#be185d', margin: 0 }}>o haz clic para seleccionar{previewTask.formatos ? ` — ${previewTask.formatos}` : ''}</p>
-                </div>
-              )
-            case 'tarea-otro':
-              return (
-                <div style={{ border: '1px solid #fecaca', borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ padding: '12px 16px', background: '#fef2f2', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <UserCheck size={15} style={{ color: '#dc2626' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Tarea supervisada</span>
-                  </div>
-                  <div style={{ padding: 16, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-                    {previewTask.desc || 'Requiere validación del responsable asignado.'}
-                  </div>
-                </div>
-              )
-            default:
-              return null
-          }
-        }
-
-        return (
-          <div className="pl-overlay" onClick={() => setPreviewTask(null)}>
-            <div className="pl-modal" style={{ width: 560, maxWidth: '94vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header" style={{ flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'rgba(255,255,255,0.12)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Eye size={16} style={{ color: '#fff' }} />
-                  </div>
-                  <h2>Así la ve el colaborador</h2>
-                </div>
-                <button className="pl-modal-close" onClick={() => setPreviewTask(null)}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 9, background: `${tipo.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <TpIcon size={16} style={{ color: tipo.color }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>{previewTask.name}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: tipo.color }}>{tipo.label}</span>
-                      {gamificacion && previewTask.puntos > 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#00E091' }}>+{previewTask.puntos} Pts</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {previewTask.desc && (
-                  <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6, margin: '10px 0 16px' }}>{previewTask.desc}</p>
-                )}
-                {!previewTask.desc && <div style={{ height: 12 }} />}
-
-                {renderContenido()}
-              </div>
-
-              <div className="pl-modal-footer" style={{ justifyContent: 'center', flexShrink: 0 }}>
-                <button className="pl-btn-cancel" onClick={() => setPreviewTask(null)}>Cerrar</button>
-                <button className="pl-btn-save" onClick={() => { selectTarea(previewTask); setPreviewTask(null) }}>
-                  <Pencil size={13} />
-                  Editar tarea
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+      {previewTask && (
+        <TaskPreviewModal
+          task={previewTask}
+          onClose={() => setPreviewTask(null)}
+          onEdit={() => { selectTarea(previewTask); setPreviewTask(null) }}
+        />
+      )}
 
       {/* MODAL VISTA PREVIA */}
-      {showPreview && (() => {
-        const allTareas = rutaState.etapas.flatMap(e => e.actividades.flatMap(a => a.tareas))
-        const totalPuntos = allTareas.reduce((s, t) => s + (t.puntos || 0), 0)
-        return (
-          <div className="pl-overlay" onClick={() => setShowPreview(false)}>
-            <div className="pl-modal" style={{ maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header" style={{ flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'rgba(255,255,255,0.12)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Eye size={16} style={{ color: '#fff' }} />
-                  </div>
-                  <div>
-                    <h2>{plantilla.name}</h2>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.65)', marginTop: 2 }}>Vista previa</div>
-                  </div>
-                </div>
-                <button className="pl-modal-close" onClick={() => setShowPreview(false)}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div style={{
-                overflowY: 'auto', flex: 1,
-                background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)',
-                padding: '24px 0',
-              }}>
-                {rutaState.etapas.map((et, ei) => {
-                  const etTareas = et.actividades.flatMap(a => a.tareas)
-                  return (
-                    <div key={ei}>
-                      {/* Etapa header pill */}
-                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                        <div style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 8,
-                          padding: '6px 16px', borderRadius: 20,
-                          background: '#fff', border: '1px solid #e2e8f0',
-                          boxShadow: '0 1px 4px rgba(0,0,0,.06)',
-                        }}>
-                          <div style={{
-                            width: 22, height: 22, borderRadius: '50%',
-                            background: '#0C2D40', color: '#fff',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 10, fontWeight: 800,
-                          }}>
-                            {ei + 1}
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{et.name}</span>
-                          <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{et.duracion || 7}d</span>
-                        </div>
-                      </div>
-
-                      {/* Nodos del camino */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                        {etTareas.map((tarea, ti) => {
-                          const tp = tipoMap[tarea.tipo] || tiposTarea[0]
-                          const TpIcon = tp.icon
-                          const offsets = [0, 40, 60, 40, 0, -40, -60, -40]
-                          const xOff = offsets[ti % offsets.length]
-                          return (
-                            <div key={tarea.id}>
-                              {/* Línea conectora */}
-                              {ti > 0 && (
-                                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                  <div style={{ width: 2, height: 16, background: '#cbd5e1', borderRadius: 1 }} />
-                                </div>
-                              )}
-                              <div style={{
-                                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                transform: `translateX(${xOff}px)`,
-                                transition: 'transform .2s',
-                              }}>
-                                <div style={{ position: 'relative' }}>
-                                  <div style={{
-                                    width: 48, height: 48, borderRadius: '50%',
-                                    background: '#0C2D40',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                                  }}>
-                                    <TpIcon size={18} style={{ color: '#fff' }} />
-                                  </div>
-                                  {gamificacion && tarea.puntos > 0 && (
-                                    <div style={{
-                                      position: 'absolute', top: -4, right: -8,
-                                      background: '#00E091', color: '#fff',
-                                      fontSize: 8, fontWeight: 800, padding: '1px 5px',
-                                      borderRadius: 8, lineHeight: 1.4,
-                                    }}>
-                                      +{tarea.puntos}
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{
-                                  fontSize: 10, fontWeight: 600, color: '#0C2D40',
-                                  marginTop: 4, textAlign: 'center', maxWidth: 100,
-                                  lineHeight: 1.2, overflow: 'hidden',
-                                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                                }}>
-                                  {tarea.name}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                        {etTareas.length === 0 && (
-                          <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>Sin tareas</div>
-                        )}
-                      </div>
-
-                      {/* Separador entre etapas */}
-                      {ei < rutaState.etapas.length - 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
-                          <div style={{
-                            width: 2, height: 24, background: '#cbd5e1',
-                            borderRadius: 1, position: 'relative',
-                          }}>
-                            <div style={{
-                              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                              width: 8, height: 8, borderRadius: '50%', background: '#cbd5e1',
-                            }} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div style={{
-                padding: '12px 24px', borderTop: '1px solid #e2e8f0', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#fff',
-              }}>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, color: '#475569',
-                    background: '#f1f5f9', padding: '3px 8px', borderRadius: 6,
-                  }}>
-                    {rutaState.etapas.length} etapas
-                  </span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, color: '#475569',
-                    background: '#f1f5f9', padding: '3px 8px', borderRadius: 6,
-                  }}>
-                    {allTareas.length} tareas
-                  </span>
-                  {gamificacion && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, color: '#92400e',
-                      background: '#fef3c7', padding: '3px 8px', borderRadius: 6,
-                    }}>
-                      {totalPuntos} Pts
-                    </span>
-                  )}
-                </div>
-                <button className="pl-btn-save" style={{ padding: '8px 20px', fontSize: 12 }} onClick={() => setShowPreview(false)}>
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+      {showPreview && (
+        <RutaPreviewModal
+          name={plantilla.name}
+          etapas={rutaState.etapas}
+          onClose={closePreview}
+          onEditTask={(t) => { selectTarea(t); setShowPreview(false) }}
+        />
+      )}
 
       {/* MODAL EDITAR ETAPA */}
       {editEtapaModal && (
@@ -2851,8 +2493,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
               </div>
 
               <div className="pl-modal-footer">
+                <button
+                  className="pl-btn-cancel"
+                  onClick={() => setPreviewTask({ ...(tareaForm || {}), tipo: 'quiz', quizPreguntas: qe.preguntas })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', whiteSpace: 'nowrap' }}
+                >
+                  <Eye size={13} /> Vista previa
+                </button>
                 <button className="pl-btn-cancel" onClick={() => setQuizEditorJB(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={guardar}>
+                <button className="pl-btn-save" disabled={qe.preguntas.length === 0} onClick={guardar}>
                   Guardar prueba ({qe.preguntas.length} pregunta{qe.preguntas.length !== 1 ? 's' : ''})
                 </button>
               </div>
@@ -2873,7 +2522,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
           setFormEditorJB(prev => ({ ...prev, campos: prev.campos.filter((_, i) => i !== idx) }))
         }
         function addCampo() {
-          setFormEditorJB(prev => ({ ...prev, campos: [...prev.campos, { id: Date.now(), etiqueta: '', tipo: 'texto-corto', obligatorio: false, opciones: [] }] }))
+          setFormEditorJB(prev => ({ ...prev, campos: [...prev.campos, { id: Date.now(), etiqueta: '', tipo: 'texto-corto', obligatorio: true, opciones: [] }] }))
         }
         function setTipoCampo(idx, tipo) {
           setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => {
@@ -2891,13 +2540,17 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
         function deleteOpcion(cIdx, oIdx) {
           setFormEditorJB(prev => ({ ...prev, campos: prev.campos.map((c, i) => i === cIdx ? { ...c, opciones: c.opciones.filter((_, j) => j !== oIdx) } : c) }))
         }
+        function closeFormEditor() {
+          setFormEditorJB(null)
+          setFormTipoDropOpen(null)
+        }
         function guardar() {
           updateForm('formCampos', fe.campos.filter(c => c.etiqueta.trim()))
-          setFormEditorJB(null)
+          closeFormEditor()
         }
 
         return (
-          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setFormEditorJB(null)}>
+          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={closeFormEditor}>
             <div className="pl-modal jb-modal" style={{ maxWidth: 580, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -2906,12 +2559,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                   </div>
                   <h2 style={{ margin: 0 }}>Editor de formulario</h2>
                 </div>
-                <button className="pl-modal-close" onClick={() => setFormEditorJB(null)}><X size={18} /></button>
+                <button className="pl-modal-close" onClick={closeFormEditor}><X size={18} /></button>
               </div>
 
-              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }} onClick={() => setFormTipoDropOpen(null)}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 12 }}>
-                  Campos ({fe.campos.length})
+                  Preguntas ({fe.campos.length})
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -2921,7 +2574,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{cIdx + 1}</span>
                         <input
                           type="text"
-                          placeholder="Escribe la etiqueta del campo..."
+                          placeholder="Escribe la pregunta..."
                           value={campo.etiqueta}
                           onChange={e => updateCampo(cIdx, 'etiqueta', e.target.value)}
                           style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
@@ -2931,19 +2584,34 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         </button>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 6, paddingLeft: 30, marginBottom: 10, flexWrap: 'wrap' }}>
-                        {formTiposCampo.map(o => (
+                      <div style={{ paddingLeft: 30, marginBottom: 10 }} onClick={e => e.stopPropagation()}>
+                        <div className="pl-dropdown-wrap" style={{ width: 200 }}>
                           <button
-                            key={o.v}
-                            onClick={() => setTipoCampo(cIdx, o.v)}
-                            style={{
-                              padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
-                              border: campo.tipo === o.v ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
-                              background: campo.tipo === o.v ? '#0C2D40' : '#fff',
-                              color: campo.tipo === o.v ? '#fff' : '#64748b',
-                            }}
-                          >{o.l}</button>
-                        ))}
+                            type="button"
+                            className={`pl-dropdown-trigger${formTipoDropOpen === cIdx ? ' open' : ''}`}
+                            onClick={() => setFormTipoDropOpen(formTipoDropOpen === cIdx ? null : cIdx)}
+                            style={{ padding: '6px 10px', paddingRight: 32, fontSize: 11.5, fontWeight: 600, borderRadius: 8 }}
+                          >
+                            <span>{formTiposCampo.find(o => o.v === campo.tipo)?.l}</span>
+                            <ChevronDown size={13} className="pl-dropdown-chevron" />
+                          </button>
+                          {formTipoDropOpen === cIdx && (
+                            <div className="pl-dropdown-menu" style={{ padding: 4 }}>
+                              {formTiposCampo.map(o => (
+                                <button
+                                  key={o.v}
+                                  type="button"
+                                  className={`pl-dropdown-item${campo.tipo === o.v ? ' selected' : ''}`}
+                                  onClick={() => { setTipoCampo(cIdx, o.v); setFormTipoDropOpen(null) }}
+                                  style={{ padding: '7px 10px', fontSize: 11.5 }}
+                                >
+                                  <span>{o.l}</span>
+                                  {campo.tipo === o.v && <Check size={13} />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {choiceTypes.includes(campo.tipo) ? (
@@ -2975,7 +2643,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                       )}
 
                       <div className="jb-field-toggle" style={{ paddingLeft: 30, marginTop: 10 }} onClick={() => updateCampo(cIdx, 'obligatorio', !campo.obligatorio)}>
-                        <span style={{ fontSize: 10.5, color: '#475569' }}>Campo obligatorio</span>
+                        <span style={{ fontSize: 10.5, color: '#475569' }}>Pregunta obligatoria</span>
                         <div className={`jb-toggle ${campo.obligatorio ? 'on' : ''}`}>
                           <div className="jb-toggle-dot" />
                         </div>
@@ -2985,14 +2653,21 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 </div>
 
                 <button onClick={addCampo} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12, padding: '10px', border: '1.5px dashed #cbd5e1', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit' }}>
-                  <Plus size={13} /> Agregar campo
+                  <Plus size={13} /> Agregar pregunta
                 </button>
               </div>
 
               <div className="pl-modal-footer">
-                <button className="pl-btn-cancel" onClick={() => setFormEditorJB(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={guardar}>
-                  Guardar formulario ({fe.campos.length} campo{fe.campos.length !== 1 ? 's' : ''})
+                <button
+                  className="pl-btn-cancel"
+                  onClick={() => setPreviewTask({ ...(tareaForm || {}), tipo: 'completar-perfil', formCampos: fe.campos })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', whiteSpace: 'nowrap' }}
+                >
+                  <Eye size={13} /> Vista previa
+                </button>
+                <button className="pl-btn-cancel" onClick={closeFormEditor}>Cancelar</button>
+                <button className="pl-btn-save" disabled={fe.campos.length === 0} onClick={guardar}>
+                  Guardar formulario ({fe.campos.length} pregunta{fe.campos.length !== 1 ? 's' : ''})
                 </button>
               </div>
             </div>

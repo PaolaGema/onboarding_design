@@ -927,6 +927,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes plSlideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .pl-modal-header {
   display: flex;
   align-items: center;
@@ -1087,11 +1092,11 @@ select.pl-input:focus {
 }
 .pl-dropdown-item:hover { background: var(--surface-hover); color: var(--text-heading); }
 .pl-dropdown-item.selected {
-  background: #f0f7ff;
-  color: var(--blue);
+  background: var(--green-tint);
+  color: var(--navy);
   font-weight: 600;
 }
-.pl-dropdown-item.selected svg { color: var(--blue); }
+.pl-dropdown-item.selected svg { color: var(--green); }
 
 .pl-modal-footer {
   display: flex;
@@ -2415,6 +2420,11 @@ select.pl-input:focus {
 }
 .jb-duo-label.done { color: var(--text-heading); }
 .jb-duo-label.locked { color: var(--text-muted); }
+
+.jb-preview-node-circle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(12,45,64,.35);
+}
 
 /* MODAL PROPIEDADES */
 

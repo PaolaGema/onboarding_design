@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
-  Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle, Filter,
+  Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle,
   LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Sparkles, ArrowLeft
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
+import RutaPreviewModal from '../../components/onboarding/RutaPreviewModal'
+import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
+import RutaInfoPanel from '../../components/onboarding/RutaInfoPanel'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import rutaImg from '../../assets/imagenes/ruta.webp'
 import PageHero from '../../components/layout/PageHero'
@@ -51,16 +54,30 @@ export default function Plantillas() {
   const [filterStatus, setFilterStatus] = useState('todas')
   const [filterArea, setFilterArea] = useState('todas')
   const [filterCargo, setFilterCargo] = useState('todos')
-  const [showRutaFilters, setShowRutaFilters] = useState(false)
+  const [filterOrigen, setFilterOrigen] = useState('todas')
   const [rfDropStatus, setRfDropStatus] = useState(false)
   const [rfDropArea, setRfDropArea] = useState(false)
   const [rfDropCargo, setRfDropCargo] = useState(false)
+  const [rfDropOrigen, setRfDropOrigen] = useState(false)
+  const filterBarRef = useRef(null)
+
+  useEffect(() => {
+    function closeDrops(e) {
+      if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
+        setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false); setRfDropOrigen(false)
+      }
+    }
+    document.addEventListener('mousedown', closeDrops)
+    return () => document.removeEventListener('mousedown', closeDrops)
+  }, [])
   const [viewMode, setViewMode] = useState('list')
   const [cardMenu, setCardMenu] = useState(null)
   const [rowMenuPos, setRowMenuPos] = useState(null)
   const [asignarModal, setAsignarModal] = useState(null)
 
   const [activeJourney, setActiveJourney] = useState(null)
+  const [previewRuta, setPreviewRuta] = useState(null)
+  const [infoRuta, setInfoRuta] = useState(null)
   const [modal, setModal] = useState(null)
   const [selectedTpl, setSelectedTpl] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -100,9 +117,40 @@ export default function Plantillas() {
     }))
   }
 
-  const hasRutaFilters = filterStatus !== 'todas' || filterArea !== 'todas' || filterCargo !== 'todos'
-  const cargosDeArea = [...new Set(plantillas.filter(p => filterArea === 'todas' || p.area === filterArea).map(p => p.cargo).filter(Boolean))]
-  const filtered = plantillas.filter(p => {
+  function canEditRuta(p) {
+    if (isAdmin || isManager) return true
+    if (isAuxiliar) return (responsables[p.id] || []).some(r => r.name === currentUser.name)
+    return false
+  }
+
+  function openRuta(p) {
+    if (p._isSouly || !canEditRuta(p)) { setPreviewRuta(p); return }
+    setActiveJourney(p)
+  }
+
+  const soulyRows = rutaPlantillas.map(tpl => ({
+    id: `sh-${tpl.id}`,
+    name: tpl.name,
+    descripcion: tpl.descripcion,
+    area: tpl.area,
+    cargo: '',
+    etapas: tpl.etapasData.length,
+    tareas: tpl.etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0),
+    asignados: 0,
+    status: null,
+    updated: '',
+    color: tpl.color,
+    esGlobal: false,
+    etapasData: tpl.etapasData,
+    _isSouly: true,
+    _tpl: tpl,
+  }))
+  function applyTemplate(p) { chooseTpl(p._tpl) }
+
+  const hasRutaFilters = filterStatus !== 'todas' || filterArea !== 'todas' || filterCargo !== 'todos' || filterOrigen !== 'todas'
+  const fuenteRutas = filterOrigen === 'soulyhr' ? soulyRows : filterOrigen === 'mias' ? plantillas : [...plantillas, ...soulyRows]
+  const cargosDeArea = [...new Set(fuenteRutas.filter(p => filterArea === 'todas' || p.area === filterArea).map(p => p.cargo).filter(Boolean))]
+  const filtered = fuenteRutas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.area.toLowerCase().includes(search.toLowerCase())
     const matchStatus = filterStatus === 'todas' || p.status === filterStatus
@@ -110,7 +158,7 @@ export default function Plantillas() {
     const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
     return matchSearch && matchStatus && matchArea && matchCargo
   })
-  function clearRutaFilters() { setFilterStatus('todas'); setFilterArea('todas'); setFilterCargo('todos'); setPage(1) }
+  function clearRutaFilters() { setFilterStatus('todas'); setFilterArea('todas'); setFilterCargo('todos'); setFilterOrigen('todas'); setPage(1) }
 
   const [page, setPage] = useState(1)
   const perPage = 8
@@ -127,8 +175,7 @@ export default function Plantillas() {
   }
 
   function openCreate() {
-    setSelectedTpl(null)
-    setModal('plantilla')
+    chooseTpl(null)
   }
 
   function chooseTpl(tpl) {
@@ -167,9 +214,12 @@ export default function Plantillas() {
         asignados: 0,
         status: 'borrador',
         updated: 'Ahora',
+        updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         color,
         esGlobal: false,
         ordenGlobal: null,
+        creador: currentUser.name,
+        creadoEl: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         ...(etapasData ? { etapasData } : {}),
       }
       setPlantillas([...plantillas, newPlantilla])
@@ -181,6 +231,7 @@ export default function Plantillas() {
         if (p.id !== form.id) return p
         return {
           ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', area: form.area, updated: 'Ahora',
+          updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         }
       }))
       setModal(null)
@@ -210,6 +261,7 @@ export default function Plantillas() {
 
   function handleDuplicate(p) {
     const newId = Math.max(...plantillas.map(x => x.id)) + 1
+    const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
     setPlantillas([...plantillas, {
       ...p,
       id: newId,
@@ -217,6 +269,9 @@ export default function Plantillas() {
       asignados: 0,
       status: 'borrador',
       updated: 'Ahora',
+      updatedFecha: hoy,
+      creador: currentUser.name,
+      creadoEl: hoy,
     }])
   }
 
@@ -262,7 +317,8 @@ export default function Plantillas() {
   }
 
   return (
-    <div className="content-scroll" onClick={() => setCardMenu(null)}>
+    <div className="content-scroll" onClick={() => setCardMenu(null)} style={infoRuta ? { flexDirection: 'row', alignItems: 'flex-start', gap: 20 } : undefined}>
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* HERO */}
       <PageHero
@@ -364,7 +420,7 @@ export default function Plantillas() {
 
       {/* SEARCH & FILTERS */}
       <div className="pl-toolbar">
-        <div className="pl-search-wrap">
+        <div className="pl-search-wrap" style={{ maxWidth: 640 }}>
           <Search size={14} className="pl-search-ico" />
           <input
             type="text"
@@ -374,134 +430,83 @@ export default function Plantillas() {
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
         </div>
-        <button onClick={() => setShowRutaFilters(true)} style={{
-          height: 38, padding: '0 14px', borderRadius: 8,
-          border: hasRutaFilters ? '1.5px solid #0C2D40' : '1px solid #e2e8f0',
-          background: hasRutaFilters ? '#f0f9ff' : '#fff',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-          fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
-          color: hasRutaFilters ? '#0C2D40' : '#64748b',
-        }}>
-          <Filter size={13} />
-          Filtros
+        <div ref={filterBarRef} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {/* ORIGEN: SoulyHR / mías */}
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropOrigen ? ' open' : ''}${filterOrigen === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropOrigen(!rfDropOrigen); setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todas las rutas', soulyhr: 'Rutas de SoulyHR', mias: 'Mis rutas' }[filterOrigen]}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {rfDropOrigen && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+                {[{ key: 'todas', label: 'Todas las rutas' }, { key: 'soulyhr', label: 'Rutas de SoulyHR' }, { key: 'mias', label: 'Mis rutas' }].map(f => (
+                  <button key={f.key} type="button" className={`pl-dropdown-item${filterOrigen === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterOrigen(f.key); setRfDropOrigen(false); setPage(1) }}>
+                    <span>{f.label}</span>
+                    {filterOrigen === f.key && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ESTADO */}
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropArea(false); setRfDropCargo(false); setRfDropOrigen(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todos los estados', activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {rfDropStatus && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+                {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activas' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivadas' }].map(f => (
+                  <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false); setPage(1) }}>
+                    <span>{f.label}</span>
+                    {filterStatus === f.key && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ÁREA */}
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropArea(!rfDropArea); setRfDropStatus(false); setRfDropCargo(false); setRfDropOrigen(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {rfDropArea && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 170, maxHeight: 220, overflowY: 'auto' }}>
+                {['todas', ...new Set(fuenteRutas.map(p => p.area).filter(a => a !== 'Todas las áreas'))].map(a => (
+                  <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setRfDropArea(false); setPage(1) }}>
+                    <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
+                    {filterArea === a && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* CARGO */}
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+            <button type="button" className={`pl-dropdown-trigger${rfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropCargo(!rfDropCargo); setRfDropStatus(false); setRfDropArea(false); setRfDropOrigen(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {rfDropCargo && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 170, maxHeight: 180, overflowY: 'auto' }}>
+                {['todos', ...cargosDeArea].map(c => (
+                  <button key={c} type="button" className={`pl-dropdown-item${filterCargo === c ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterCargo(c); setRfDropCargo(false); setPage(1) }}>
+                    <span>{c === 'todos' ? 'Todos los cargos' : c}</span>
+                    {filterCargo === c && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {hasRutaFilters && (
-            <span style={{
-              width: 16, height: 16, borderRadius: '50%', background: '#0C2D40',
-              color: '#fff', fontSize: 9, fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              {[filterStatus !== 'todas', filterArea !== 'todas', filterCargo !== 'todos'].filter(Boolean).length}
-            </span>
+            <button onClick={clearRutaFilters} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Limpiar</button>
           )}
-        </button>
-
-        {/* CHIPS FILTROS */}
-        {hasRutaFilters && (
-          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-            {filterStatus !== 'todas' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: filterStatus === 'activa' ? '#f0fdf4' : filterStatus === 'borrador' ? '#fef3c7' : 'var(--surface-hover)', color: filterStatus === 'activa' ? '#166534' : filterStatus === 'borrador' ? '#92400e' : '#475569', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {{ activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}
-                <button onClick={() => setFilterStatus('todas')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: filterStatus === 'activa' ? '#bbf7d0' : filterStatus === 'borrador' ? '#fde68a' : '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: filterStatus === 'activa' ? '#166534' : filterStatus === 'borrador' ? '#92400e' : '#475569' }} /></button>
-              </span>
-            )}
-            {filterArea !== 'todas' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {filterArea}
-                <button onClick={() => { setFilterArea('todas'); setFilterCargo('todos') }} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#1e40af' }} /></button>
-              </span>
-            )}
-            {filterCargo !== 'todos' && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 6px 3px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
-                {filterCargo}
-                <button onClick={() => setFilterCargo('todos')} style={{ width: 14, height: 14, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={8} style={{ color: '#92400e' }} /></button>
-              </span>
-            )}
-            <button onClick={clearRutaFilters} style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
-          </div>
-        )}
-
-        {/* MODAL FILTROS RUTAS */}
-        {showRutaFilters && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowRutaFilters(false)}>
-            <div style={{ background: '#fff', borderRadius: 16, width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.15)', animation: 'plSlideUp .15s' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--surface-hover)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Filter size={16} style={{ color: '#0C2D40' }} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: '#0C2D40' }}>Filtrar rutas</span>
-                </div>
-                <button onClick={() => setShowRutaFilters(false)} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--surface-hover)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={14} style={{ color: 'var(--text-muted)' }} />
-                </button>
-              </div>
-              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }} onClick={() => { setRfDropStatus(false); setRfDropArea(false); setRfDropCargo(false) }}>
-                {/* ESTADO */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Estado</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropArea(false); setRfDropCargo(false) }}>
-                      <span>{{ todas: 'Todos los estados', activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {rfDropStatus && (
-                      <div className="pl-dropdown-menu">
-                        {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activas' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivadas' }].map(f => (
-                          <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false) }}>
-                            <span>{f.label}</span>
-                            {filterStatus === f.key && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* ÁREA */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Área</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${rfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropArea(!rfDropArea); setRfDropStatus(false); setRfDropCargo(false) }}>
-                      <span>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {rfDropArea && (
-                      <div className="pl-dropdown-menu">
-                        {['todas', ...new Set(plantillas.map(p => p.area).filter(a => a !== 'Todas las áreas'))].map(a => (
-                          <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setRfDropArea(false) }}>
-                            <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
-                            {filterArea === a && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* CARGO */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>Cargo</span>
-                  <div className="pl-dropdown-wrap">
-                    <button type="button" className={`pl-dropdown-trigger${rfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} onClick={e => { e.stopPropagation(); setRfDropCargo(!rfDropCargo); setRfDropStatus(false); setRfDropArea(false) }}>
-                      <span>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {rfDropCargo && (
-                      <div className="pl-dropdown-menu" style={{ maxHeight: 180, overflowY: 'auto' }}>
-                        {['todos', ...cargosDeArea].map(c => (
-                          <button key={c} type="button" className={`pl-dropdown-item${filterCargo === c ? ' selected' : ''}`} onClick={() => { setFilterCargo(c); setRfDropCargo(false) }}>
-                            <span>{c === 'todos' ? 'Todos los cargos' : c}</span>
-                            {filterCargo === c && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 24px', borderTop: '1px solid var(--surface-hover)' }}>
-                <button onClick={clearRutaFilters} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#ef4444' }}>Limpiar filtros</button>
-                <button onClick={() => { setShowRutaFilters(false); setPage(1) }} style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700 }}>Aplicar filtros</button>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3 }}>
           {[{ key: 'list', icon: List }, { key: 'grid', icon: LayoutGrid }].map(v => {
@@ -546,9 +551,15 @@ export default function Plantillas() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
-                    {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
-                  </span>
+                  {p._isSouly ? (
+                    <span className="pl-status" style={{ background: '#f5f3ff', color: '#6d28d9', display: 'inline-flex', alignItems: 'center' }}>
+                      SoulyHR
+                    </span>
+                  ) : (
+                    <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
+                      {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                    </span>
+                  )}
                   <div style={{ position: 'relative' }}>
                     <button
                       onClick={e => { e.stopPropagation(); setCardMenu(cardMenu === p.id ? null : p.id) }}
@@ -568,14 +579,19 @@ export default function Plantillas() {
                         boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid #e2e8f0',
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
-                        {[
+                        {(p._isSouly ? [
+                          { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                          { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
+                        ] : [
                           ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                          { icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } },
+                          { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                          { icon: Info, label: 'Información', color: 'var(--text-muted)', fn: () => { setInfoRuta(p); setCardMenu(null) } },
+                          ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                           ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
                           { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
                           { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
-                        ].map(a => {
+                        ]).map(a => {
                           const AIcon = a.icon
                           return (
                             <button
@@ -731,7 +747,7 @@ export default function Plantillas() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid var(--surface-hover)' }}>
               <span style={{ fontSize: 10, color: '#b0b8c4' }}>{p.updated}</span>
-              <button onClick={() => setActiveJourney(p)} style={{
+              <button onClick={() => openRuta(p)} style={{
                 padding: '5px 12px', borderRadius: 7, border: '1px solid #e2e8f0',
                 background: '#fff', cursor: 'pointer', fontFamily: 'inherit',
                 fontSize: 10, fontWeight: 600, color: '#0C2D40',
@@ -741,7 +757,7 @@ export default function Plantillas() {
                 onMouseEnter={e => { e.currentTarget.style.background = '#0C2D40'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#0C2D40' }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0C2D40'; e.currentTarget.style.borderColor = '#e2e8f0' }}
               >
-                Ver ruta
+                {p._isSouly ? 'Vista previa' : 'Ver ruta'}
                 <ChevronDown size={10} style={{ transform: 'rotate(-90deg)' }} />
               </button>
             </div>
@@ -753,20 +769,20 @@ export default function Plantillas() {
       {/* VISTA LISTA */}
       {viewMode === 'list' && (
         <div className="as-table-wrap">
-          <table className="as-table">
+          <table className="as-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th>Nombre de la ruta</th>
-                <th>Descripción</th>
-                <th>Etapas</th>
-                <th>Colaboradores</th>
-                <th>Estado</th>
-                <th>Acciones</th>
+                <th style={{ width: '24%' }}>Nombre de la ruta</th>
+                <th style={{ width: '30%' }}>Descripción</th>
+                <th style={{ width: '10%' }}>Etapas</th>
+                <th style={{ width: '13%' }}>Colaboradores</th>
+                <th style={{ width: '15%' }}>Estado</th>
+                <th style={{ width: '8%' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {paginated.map(p => (
-                <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setActiveJourney(p)}>
+                <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => openRuta(p)}>
                   <td>
                     <div className="as-name" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       {p.name}
@@ -779,15 +795,25 @@ export default function Plantillas() {
                     </span>
                   </td>
                   <td><span className="as-dia">{p.etapas}</span></td>
-                  <td><span className="as-dia">{p.asignados}</span></td>
+                  <td><span className="as-dia">{p._isSouly ? '—' : p.asignados}</span></td>
                   <td>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                      background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
-                      color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
-                    }}>
-                      {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
-                    </span>
+                    {p._isSouly ? (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: '#f5f3ff', color: '#6d28d9', whiteSpace: 'nowrap',
+                        display: 'inline-flex', alignItems: 'center',
+                      }}>
+                        Plantilla SoulyHR
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
+                        color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
+                      }}>
+                        {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                      </span>
+                    )}
                   </td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ position: 'relative' }}>
@@ -795,7 +821,7 @@ export default function Plantillas() {
                         onClick={(e) => {
                           if (cardMenu === p.id) { setCardMenu(null); return }
                           const rect = e.currentTarget.getBoundingClientRect()
-                          const itemCount = 4 + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0)
+                          const itemCount = p._isSouly ? 2 : (5 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0))
                           const menuH = itemCount * 34 + 8
                           const margin = 10
                           const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
@@ -821,14 +847,19 @@ export default function Plantillas() {
                           zIndex: 20, minWidth: 180, maxHeight: 'calc(100vh - 20px)', overflowY: 'auto',
                           animation: 'plSlideUp .12s',
                         }}>
-                          {[
+                          {(p._isSouly ? [
+                            { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                            { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
+                          ] : [
                             ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                            { icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } },
+                            { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                            { icon: Info, label: 'Información', color: 'var(--text-muted)', fn: () => { setInfoRuta(p); setCardMenu(null) } },
+                            ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                             ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
                             { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
                             { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
-                          ].map(a => {
+                          ]).map(a => {
                             const AIcon = a.icon
                             return (
                               <button
@@ -993,76 +1024,19 @@ export default function Plantillas() {
       )}
 
       <div style={{ height: '8px' }} />
+    </div>
 
-      {/* MODAL ELEGIR PLANTILLA */}
-      {modal === 'plantilla' && (
-        <div className="pl-overlay" onClick={() => setModal(null)}>
-          <div className="pl-modal" style={{ width: 720, maxWidth: '94vw' }} onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <div>
-                <h2>Nueva ruta</h2>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>¿Cómo querés empezar?</span>
-              </div>
-              <button className="pl-modal-close" onClick={() => setModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <button
-                  onClick={() => chooseTpl(null)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-                    padding: '16px 18px', borderRadius: 14, border: '1.5px dashed var(--border-dark)',
-                    background: 'var(--bg-secondary)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'all .12s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = 'var(--surface-hover)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-dark)'; e.currentTarget.style.background = 'var(--bg-secondary)' }}
-                >
-                  <div style={{ width: 34, height: 34, borderRadius: 9, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Plus size={17} style={{ color: '#475569' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Empezar en blanco</div>
-                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>Diseña tu ruta desde cero, sin etapas ni tareas precargadas.</div>
-                  </div>
-                </button>
-
-                {rutaPlantillas.map(tpl => {
-                  const TplIcon = tpl.icon
-                  const tplTareas = tpl.etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
-                  return (
-                    <button
-                      key={tpl.id}
-                      onClick={() => chooseTpl(tpl)}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-                        padding: '16px 18px', borderRadius: 14, border: '1.5px solid var(--border-soft)',
-                        background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                        transition: 'all .12s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = tpl.color; e.currentTarget.style.boxShadow = `0 4px 14px ${tpl.color}22` }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.boxShadow = 'none' }}
-                    >
-                      <div style={{ width: 34, height: 34, borderRadius: 9, background: `${tpl.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <TplIcon size={17} style={{ color: tpl.color }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>{tpl.name}</div>
-                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{tpl.descripcion}</div>
-                      </div>
-                      <div style={{ fontSize: 9.5, fontWeight: 600, color: tpl.color, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Sparkles size={11} /> {tpl.etapasData.length} etapas · {tplTareas} tareas incluidas
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    {infoRuta && (
+      <RutaInfoPanel
+        plantilla={infoRuta}
+        responsables={responsables[infoRuta.id] || []}
+        equipo={equipoMarketing}
+        canManage={isAdmin || isManager}
+        onAddPersona={(persona) => addResponsable(infoRuta.id, persona)}
+        onRemovePersona={(name) => removeResponsable(infoRuta.id, name)}
+        onClose={() => setInfoRuta(null)}
+      />
+    )}
 
       {/* MODAL CREAR / EDITAR */}
       {(modal === 'crear' || modal === 'editar') && (
@@ -1070,15 +1044,6 @@ export default function Plantillas() {
           <div className="pl-modal" onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {modal === 'crear' && (
-                  <button
-                    onClick={() => setModal('plantilla')}
-                    title="Volver a elegir plantilla"
-                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-                  >
-                    <ArrowLeft size={13} color="#fff" />
-                  </button>
-                )}
                 <h2>{modal === 'crear' ? 'Nueva ruta' : 'Editar ruta'}</h2>
               </div>
               <button className="pl-modal-close" onClick={() => setModal(null)}>
@@ -1207,6 +1172,21 @@ export default function Plantillas() {
           </div>
         </div>
       )}
+
+      {/* MODAL VISTA PREVIA DE RUTA */}
+      {previewRuta && (previewRuta._isSouly ? (
+        <PlantillaPreviewModal
+          plantilla={previewRuta}
+          onClose={() => setPreviewRuta(null)}
+          onUseTemplate={() => { setPreviewRuta(null); applyTemplate(previewRuta) }}
+        />
+      ) : (
+        <RutaPreviewModal
+          name={previewRuta.name}
+          etapas={previewRuta.etapasData || []}
+          onClose={() => setPreviewRuta(null)}
+        />
+      ))}
 
       {/* MODAL ASIGNAR RUTA */}
       {asignarModal && (

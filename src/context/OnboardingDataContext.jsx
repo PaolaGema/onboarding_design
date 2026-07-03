@@ -28,16 +28,16 @@ const sampleRecursos = [
 ]
 
 const samplePlantillas = [
-  { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', cargo: 'Pasante Comercial', etapas: 12, tareas: 34, asignados: 8, status: 'activa', updated: 'Hace 2 días', color: '#3b82f6' },
-  { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', cargo: 'Ejecutivo Comercial', etapas: 10, tareas: 28, asignados: 5, status: 'activa', updated: 'Hace 5 días', color: '#10b981' },
-  { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', cargo: 'Director de Área', etapas: 8, tareas: 22, asignados: 2, status: 'activa', updated: 'Hace 1 semana', color: '#8b5cf6' },
-  { id: 4, name: 'Onboarding Operaciones', area: 'Operaciones', cargo: 'Analista de Procesos', etapas: 9, tareas: 25, asignados: 3, status: 'activa', updated: 'Hace 1 semana', color: '#f59e0b' },
-  { id: 5, name: 'Onboarding Tech — Backend', area: 'Tecnología', cargo: 'Desarrollador Backend', etapas: 14, tareas: 40, asignados: 4, status: 'activa', updated: 'Hace 3 días', color: '#06b6d4' },
-  { id: 6, name: 'Onboarding Finanzas', area: 'Finanzas', cargo: 'Analista Financiera', etapas: 7, tareas: 18, asignados: 0, status: 'borrador', updated: 'Ayer', color: '#f97316' },
-  { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', cargo: 'Diseñadora UX/UI', etapas: 11, tareas: 30, asignados: 2, status: 'activa', updated: 'Hace 4 días', color: '#ec4899' },
-  { id: 8, name: 'Onboarding RRHH — Generalista', area: 'Recursos Humanos', cargo: 'Generalista RRHH', etapas: 6, tareas: 15, asignados: 0, status: 'borrador', updated: 'Hace 2 semanas', color: '#0d9488' },
-  { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', cargo: 'Content Creator', etapas: 10, tareas: 26, asignados: 1, status: 'activa', updated: 'Hace 6 días', color: '#d946ef' },
-  { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', etapas: 5, tareas: 12, asignados: 0, status: 'archivada', updated: 'Hace 3 meses', color: '#64748b' },
+  { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', cargo: 'Pasante Comercial', etapas: 12, tareas: 34, asignados: 8, status: 'activa', updated: 'Hace 2 días', updatedFecha: '29/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '02/03/2026', color: '#3b82f6' },
+  { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', cargo: 'Ejecutivo Comercial', etapas: 10, tareas: 28, asignados: 5, status: 'activa', updated: 'Hace 5 días', updatedFecha: '26/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '15/02/2026', color: '#10b981' },
+  { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', cargo: 'Director de Área', etapas: 8, tareas: 22, asignados: 2, status: 'activa', updated: 'Hace 1 semana', updatedFecha: '24/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '10/01/2026', color: '#8b5cf6' },
+  { id: 4, name: 'Onboarding Operaciones', area: 'Operaciones', cargo: 'Analista de Procesos', etapas: 9, tareas: 25, asignados: 3, status: 'activa', updated: 'Hace 1 semana', updatedFecha: '24/06/2026', creador: 'Ana Martínez Ruiz', creadoEl: '20/01/2026', color: '#f59e0b' },
+  { id: 5, name: 'Onboarding Tech — Backend', area: 'Tecnología', cargo: 'Desarrollador Backend', etapas: 14, tareas: 40, asignados: 4, status: 'activa', updated: 'Hace 3 días', updatedFecha: '28/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '05/12/2025', color: '#06b6d4' },
+  { id: 6, name: 'Onboarding Finanzas', area: 'Finanzas', cargo: 'Analista Financiera', etapas: 7, tareas: 18, asignados: 0, status: 'borrador', updated: 'Ayer', updatedFecha: '30/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '15/06/2026', color: '#f97316' },
+  { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', cargo: 'Diseñadora UX/UI', etapas: 11, tareas: 30, asignados: 2, status: 'activa', updated: 'Hace 4 días', updatedFecha: '27/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '08/03/2026', color: '#ec4899' },
+  { id: 8, name: 'Onboarding RRHH — Generalista', area: 'Recursos Humanos', cargo: 'Generalista RRHH', etapas: 6, tareas: 15, asignados: 0, status: 'borrador', updated: 'Hace 2 semanas', updatedFecha: '17/06/2026', creador: 'Juan Pérez Gómez', creadoEl: '01/06/2026', color: '#0d9488' },
+  { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', cargo: 'Content Creator', etapas: 10, tareas: 26, asignados: 1, status: 'activa', updated: 'Hace 6 días', updatedFecha: '25/06/2026', creador: 'Ana Martínez Ruiz', creadoEl: '20/04/2026', color: '#d946ef' },
+  { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', etapas: 5, tareas: 12, asignados: 0, status: 'archivada', updated: 'Hace 3 meses', updatedFecha: '01/04/2026', creador: 'Juan Pérez Gómez', creadoEl: '15/11/2025', color: '#64748b' },
 ]
 
 const sampleAsignaciones = [
