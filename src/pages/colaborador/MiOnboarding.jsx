@@ -9,7 +9,7 @@ import {
   ClipboardList, UserCheck, MapPin, ShieldCheck,
   ExternalLink, X, Route, Info, Rocket,
   Play, Download, ChevronRight,
-  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Users
+  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
@@ -343,7 +343,21 @@ export default function MiOnboarding({ forcePhone = false }) {
   if (!started && totalDone === 0) {
     if (isMobile) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 8px', textAlign: 'center', minHeight: '100%' }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 8px', textAlign: 'center', minHeight: '100%' }}>
+          <button
+            onClick={() => navigate('/personas/organigrama')}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
+              borderRadius: 14, padding: '5px 9px 5px 8px',
+              fontSize: 7.5, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 2px 6px rgba(12,45,64,.08)',
+            }}
+          >
+            <Network size={9} />
+            Ver organigrama
+          </button>
           <img src={viaBebe} alt="Mascota" style={{ width: 60, marginBottom: 10 }} />
           <h1 style={{ fontSize: 14, fontWeight: 800, color: '#0C2D40', margin: '0 0 4px' }}>¡Hola, {firstName}!</h1>
           <p style={{ fontSize: 8, color: '#64748b', margin: '0 0 12px', lineHeight: 1.4 }}>
@@ -378,19 +392,6 @@ export default function MiOnboarding({ forcePhone = false }) {
               <Rocket size={10} />
               Empezar mi onboarding
             </button>
-            <button
-              onClick={() => navigate('/personas/organigrama')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
-                borderRadius: 8, padding: '8px 12px',
-                fontSize: 9, fontWeight: 700, cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              <Users size={10} />
-              Mi equipo
-            </button>
           </div>
         </div>
       )
@@ -400,7 +401,23 @@ export default function MiOnboarding({ forcePhone = false }) {
         <div className="jb-panels">
           <div className="jb-canvas">
             <div className="jb-canvas-body jb-pizarra" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
-              <div className="jb-welcome-screen">
+              <div className="jb-welcome-screen" style={{ position: 'relative' }}>
+                <button
+                  onClick={() => navigate('/personas/organigrama')}
+                  style={{
+                    position: 'absolute', top: -6, right: 0,
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                    background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
+                    borderRadius: 20, padding: '7px 14px 7px 12px',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: '0 2px 8px rgba(12,45,64,.08)', transition: 'all .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0' }}
+                >
+                  <Network size={14} />
+                  Ver organigrama
+                </button>
                 <div className="jb-welcome-hero">
                   <div className="jb-welcome-text">
                     <h1 className="jb-welcome-title">¡Hola, {firstName}!</h1>
@@ -422,24 +439,10 @@ export default function MiOnboarding({ forcePhone = false }) {
                         <span className="jb-welcome-pill-label">Pts</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button className="jb-welcome-btn" onClick={() => setStarted(true)}>
-                        <Rocket size={16} />
-                        Empezar mi onboarding
-                      </button>
-                      <button
-                        onClick={() => navigate('/personas/organigrama')}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                          background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
-                          borderRadius: 10, padding: '0 18px', height: 44,
-                          fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                        }}
-                      >
-                        <Users size={15} />
-                        Mi equipo
-                      </button>
-                    </div>
+                    <button className="jb-welcome-btn" onClick={() => setStarted(true)}>
+                      <Rocket size={16} />
+                      Empezar mi onboarding
+                    </button>
                   </div>
                   <img src={viaBebe} alt="Mascota" className="jb-welcome-mascot" />
                 </div>
@@ -2119,8 +2122,8 @@ export default function MiOnboarding({ forcePhone = false }) {
           <span style={{ fontSize: 10, fontWeight: 700, color: '#0C2D40' }}>Mi Onboarding</span>
           <div style={{ display: 'flex', gap: 4 }}>
             <button onClick={() => navigate('/personas/organigrama')} style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff', border: '1px solid #e2e8f0', padding: '3px 6px', borderRadius: 5, cursor: 'pointer' }}>
-              <Users size={8} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#0C2D40' }}>Mi equipo</span>
+              <Network size={8} style={{ color: '#0C2D40' }} />
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#0C2D40' }}>Ver organigrama</span>
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fef3c7', padding: '3px 6px', borderRadius: 5 }}>
               <Star size={8} style={{ color: '#d97706' }} />
@@ -2152,8 +2155,8 @@ export default function MiOnboarding({ forcePhone = false }) {
                 cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
-              <Users size={13} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>Mi equipo</span>
+              <Network size={13} style={{ color: '#0C2D40' }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>Ver organigrama</span>
             </button>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,

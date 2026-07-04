@@ -843,12 +843,13 @@ body {
   height: 34px;
   box-sizing: border-box;
   padding: 0 14px 0 36px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-dark);
   border-radius: 9px;
   font-size: 12px;
   font-family: 'Poppins', sans-serif;
   color: var(--text-heading);
-  background: var(--input-bg);
+  background: var(--surface-card);
+  box-shadow: 0 1px 3px rgba(12,45,64,.06);
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
@@ -1023,9 +1024,10 @@ select.pl-input:focus {
   width: 100%;
   padding: 11px 15px;
   padding-right: 36px;
-  border: 1.5px solid var(--border-soft);
+  border: 1.5px solid var(--border-dark);
   border-radius: 12px;
-  background: var(--input-bg);
+  background: var(--surface-card);
+  box-shadow: 0 1px 3px rgba(12,45,64,.06);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -1037,7 +1039,7 @@ select.pl-input:focus {
   text-align: left;
   transition: all .15s;
 }
-.pl-dropdown-trigger:hover { border-color: #cbd5e1; }
+.pl-dropdown-trigger:hover { border-color: #94a3b8; }
 .pl-dropdown-trigger.open {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px rgba(12,45,64,.08);

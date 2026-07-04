@@ -11,9 +11,7 @@ import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewMod
 import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import rutaImg from '../../assets/imagenes/ruta.webp'
-import PageHero from '../../components/layout/PageHero'
 import EmptyState from '../../components/layout/EmptyState'
-import imagenRuta from '../../assets/imagenes/imagen_ruta.png'
 import { rutaPlantillas } from '../../data/rutaPlantillas'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
@@ -59,6 +57,8 @@ export default function Plantillas() {
   const [rfDropStatus, setRfDropStatus] = useState(false)
   const [rfDropTipo, setRfDropTipo] = useState(false)
   const [rfDropOrigen, setRfDropOrigen] = useState(false)
+  const [statusHeaderPos, setStatusHeaderPos] = useState(null)
+  const [tipoHeaderPos, setTipoHeaderPos] = useState(null)
   const [showMasFiltros, setShowMasFiltros] = useState(false)
   const [mfDropArea, setMfDropArea] = useState(false)
   const [mfDropCargo, setMfDropCargo] = useState(false)
@@ -67,7 +67,10 @@ export default function Plantillas() {
   useEffect(() => {
     function closeDrops(e) {
       if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
-        setRfDropStatus(false); setRfDropTipo(false); setRfDropOrigen(false)
+        setRfDropOrigen(false)
+      }
+      if (!e.target.closest('[data-th-filter]')) {
+        setRfDropStatus(false); setRfDropTipo(false)
       }
     }
     document.addEventListener('mousedown', closeDrops)
@@ -327,12 +330,12 @@ export default function Plantillas() {
   return (
     <div className="content-scroll" onClick={() => setCardMenu(null)}>
 
-      {/* HERO */}
-      <PageHero
-        image={imagenRuta}
-        title={isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}
-        description={isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}
-      />
+      <div className="pl-header">
+        <div>
+          <h1 className="pl-title">{isAreaRole ? `Rutas — ${managerArea}` : 'Rutas de Onboarding'}</h1>
+          <p className="pl-subtitle">{isAreaRole ? 'Rutas de onboarding de tu área' : 'Administra y organiza tus rutas de onboarding'}</p>
+        </div>
+      </div>
 
       {/* KPI STRIP */}
       <div className="kpi-strip">
@@ -453,40 +456,6 @@ export default function Plantillas() {
             )}
           </div>
 
-          {/* ESTADO */}
-          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropStatus ? ' open' : ''}${filterStatus === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropStatus(!rfDropStatus); setRfDropOrigen(false) }}>
-              <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todos los estados', activa: 'Activas', borrador: 'Borrador', archivada: 'Archivadas' }[filterStatus]}</span>
-              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-            </button>
-            {rfDropStatus && (
-              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
-                {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activas' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivadas' }].map(f => (
-                  <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false); setPage(1) }}>
-                    <span>{f.label}</span>
-                    {filterStatus === f.key && <Check size={13} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* TIPO */}
-          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropTipo ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropTipo(!rfDropTipo); setRfDropStatus(false); setRfDropOrigen(false) }}>
-              <span style={{ whiteSpace: 'nowrap' }}>{filterTipo === 'todos' ? 'Todos los tipos' : filterTipo}</span>
-              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-            </button>
-            {rfDropTipo && (
-              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
-                {['todos', ...tiposRuta].map(t => (
-                  <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setRfDropTipo(false); setPage(1) }}>
-                    <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
-                    {filterTipo === t && <Check size={13} />}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* MÁS FILTROS: Área + Cargo */}
@@ -844,10 +813,72 @@ export default function Plantillas() {
               <tr>
                 <th style={{ width: '22%' }}>Nombre de la ruta</th>
                 <th style={{ width: '22%' }}>Descripción</th>
-                <th style={{ width: '12%' }}>Tipo</th>
+                <th style={{ width: '12%' }}>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (rfDropTipo) { setRfDropTipo(false); return }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setTipoHeaderPos({ top: rect.bottom + 6, left: rect.left })
+                      setRfDropStatus(false)
+                      setRfDropTipo(true)
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 3, border: 'none', background: 'none',
+                      padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em',
+                      color: filterTipo !== 'todos' ? 'var(--navy)' : 'var(--text-muted)',
+                    }}
+                  >
+                    Tipo
+                    <ChevronDown size={11} style={{ transform: rfDropTipo ? 'rotate(180deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
+                  </button>
+                  {rfDropTipo && tipoHeaderPos && (
+                    <div className="pl-dropdown-menu" style={{ position: 'fixed', top: tipoHeaderPos.top, left: tipoHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
+                      {['todos', ...tiposRuta].map(t => (
+                        <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setRfDropTipo(false); setPage(1) }}>
+                          <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
+                          {filterTipo === t && <Check size={13} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </th>
                 <th style={{ width: '9%' }}>Etapas</th>
                 <th style={{ width: '12%' }}>Colaboradores</th>
-                <th style={{ width: '15%' }}>Estado</th>
+                <th style={{ width: '15%' }}>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (rfDropStatus) { setRfDropStatus(false); return }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setStatusHeaderPos({ top: rect.bottom + 6, left: rect.left })
+                      setRfDropTipo(false)
+                      setRfDropStatus(true)
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 3, border: 'none', background: 'none',
+                      padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em',
+                      color: filterStatus !== 'todas' ? 'var(--navy)' : 'var(--text-muted)',
+                    }}
+                  >
+                    Estado
+                    <ChevronDown size={11} style={{ transform: rfDropStatus ? 'rotate(180deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
+                  </button>
+                  {rfDropStatus && statusHeaderPos && (
+                    <div className="pl-dropdown-menu" style={{ position: 'fixed', top: statusHeaderPos.top, left: statusHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
+                      {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activas' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivadas' }].map(f => (
+                        <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false); setPage(1) }}>
+                          <span>{f.label}</span>
+                          {filterStatus === f.key && <Check size={13} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </th>
                 <th style={{ width: '8%' }}>Acciones</th>
               </tr>
             </thead>

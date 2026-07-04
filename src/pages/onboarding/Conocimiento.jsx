@@ -8,9 +8,7 @@ import {
 } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
-import PageHero from '../../components/layout/PageHero'
 import EmptyState from '../../components/layout/EmptyState'
-import imagenRecursos from '../../assets/imagenes/imagen_recursos.png'
 
 const estadoConfig = {
   procesado: { label: 'Procesado', color: '#00E091', bg: '#f0fdf4', icon: FileCheck },
@@ -286,12 +284,12 @@ export default function Conocimiento() {
         onChange={e => { if (e.target.files.length) handleFiles(e.target.files); e.target.value = '' }}
       />
 
-      {/* HERO */}
-      <PageHero
-        image={imagenRecursos}
-        title="Recursos corporativos"
-        description="Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding"
-      />
+      <div className="pl-header">
+        <div>
+          <h1 className="pl-title">Recursos corporativos</h1>
+          <p className="pl-subtitle">Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding</p>
+        </div>
+      </div>
 
       {/* TOOLBAR */}
       <div className="pl-toolbar">

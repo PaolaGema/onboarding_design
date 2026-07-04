@@ -141,7 +141,7 @@ export default function ModuleNav() {
           <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0, paddingTop: gi > 0 ? '0.75rem' : 0, borderTop: gi > 0 && expanded ? '1px solid var(--border-soft)' : 'none', width: expanded ? undefined : '100%', display: expanded ? undefined : 'flex', flexDirection: expanded ? undefined : 'column', alignItems: expanded ? undefined : 'center' }}>
             {expanded && (
               <div style={{
-                fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
+                fontSize: 10, fontWeight: 700, color: '#64748b',
                 textTransform: 'uppercase', letterSpacing: '0.05em',
                 padding: '0 0.85rem', marginBottom: '0.4rem',
                 display: 'flex', alignItems: 'center', gap: 4,
@@ -158,7 +158,7 @@ export default function ModuleNav() {
                     }}
                     onMouseLeave={e => e.currentTarget.querySelector('[data-tip]').style.opacity = '0'}
                   >
-                    <Info size={10} style={{ color: 'var(--border-dark)', cursor: 'help' }} />
+                    <Info size={10} style={{ color: '#94a3b8', cursor: 'help' }} />
                     <div data-tip style={{
                       position: 'fixed',
                       background: '#0C2D40', color: '#fff', borderRadius: 8, padding: '8px 12px',

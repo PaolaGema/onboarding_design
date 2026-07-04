@@ -1,11 +1,10 @@
-﻿import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+﻿import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
-  CheckCircle2,
-  ClipboardList,
+  CheckCircle2, Check,
+  ClipboardList, Route, UserPlus,
   Star, CalendarHeart, Trophy, Medal,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
@@ -82,34 +81,12 @@ const managerTareasPendientes = [
 export default function Dashboard() {
   const { currentUser } = useUser()
   const navigate = useNavigate()
-  const { isDemoFresh, asignaciones: ctxAsignaciones, plantillas, recursos } = useOnboardingData()
-  const [showCelebration, setShowCelebration] = useState(false)
+  const { isDemoFresh, asignaciones: ctxAsignaciones, plantillas } = useOnboardingData()
 
-  const step2Done = recursos.some(c => c.docs.length > 0)
   const step3Done = plantillas.length > 0
   const step4Done = ctxAsignaciones.length > 0
-  const allStepsDone = step2Done && step3Done && step4Done
+  const allStepsDone = step3Done && step4Done
 
-  useEffect(() => {
-    if (allStepsDone && !localStorage.getItem('onb_celebration_seen')) {
-      localStorage.setItem('onb_celebration_seen', '1')
-      setShowCelebration(true)
-    }
-  }, [allStepsDone])
-
-  const confettiPieces = useMemo(() => {
-    const colors = ['#0C2D40', '#f8b400', '#93c5fd', '#e2e8f0', '#fcd34d']
-    return Array.from({ length: 65 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      color: colors[i % colors.length],
-      size: 5 + Math.random() * 7,
-      duration: 2.8 + Math.random() * 2,
-      delay: Math.random() * 1.8,
-      rotate: Math.random() * 360,
-      isCircle: Math.random() > 0.5,
-    }))
-  }, [])
   const isManager = currentUser.role === 'manager'
   const managerArea = 'Marketing'
 
@@ -322,72 +299,77 @@ export default function Dashboard() {
       {/* ── BANNER PRIMEROS PASOS ──────────────────────── */}
       {(() => {
         const steps = [
-          { label: 'Subir recursos', sub: 'Documentos y materiales', done: step2Done, path: '/onboarding/conocimiento' },
-          { label: 'Crear una ruta', sub: 'Diseña el recorrido', done: step3Done, path: '/onboarding/plantillas' },
-          { label: 'Asignar la ruta', sub: 'Activa un onboarding', done: step4Done, path: '/onboarding/asignaciones' },
+          { label: 'Crear una ruta', sub: 'Diseña el recorrido que seguirán tus colaboradores', done: step3Done, path: '/onboarding/plantillas', icon: Route },
+          { label: 'Asignar la ruta', sub: 'Activa el onboarding de un colaborador', done: step4Done, path: '/onboarding/asignaciones', icon: UserPlus },
         ]
         if (allStepsDone) return null
-        const doneCount = [step2Done, step3Done, step4Done].filter(Boolean).length
+        const doneCount = [step3Done, step4Done].filter(Boolean).length
         const nextStep = steps.find(s => !s.done)
         const firstName = currentUser?.name?.split(' ')[0] || 'Admin'
         return (
           <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(12,45,64,.12)' }}>
             {/* header navy */}
-            <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>
+            <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+              <div style={{ maxWidth: 480 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 5 }}>
                   {doneCount === 0
-                    ? `¡Hola, ${firstName}! Preparemos el onboarding de tu equipo`
-                    : doneCount < 2
-                    ? `¡Vas bien, ${firstName}! Te faltan ${3 - doneCount} pasos más`
-                    : `¡Casi listo, ${firstName}! Un paso más y todo está listo`}
+                    ? `Bienvenido al módulo de Onboarding, ${firstName}`
+                    : `¡Ya casi, ${firstName}! Un paso más y todo está listo`}
                 </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>Completa estos pasos para empezar a recibir nuevos colaboradores</div>
+                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.6)', lineHeight: 1.5 }}>
+                  {doneCount === 0
+                    ? 'Te ayudaremos a crear y asignar tu primer onboarding en solo 2 pasos: primero diseña la ruta que van a seguir tus nuevos colaboradores, y luego asígnala a quien la necesite.'
+                    : 'Ya diseñaste tu ruta de onboarding. Ahora asígnala a un colaborador para activarla.'}
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <div style={{ width: 110, height: 5, borderRadius: 10, background: 'rgba(255,255,255,.15)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(doneCount / 3) * 100}%`, background: '#00E091', borderRadius: 10, transition: 'width .5s ease' }} />
+                  <div style={{ height: '100%', width: `${(doneCount / 2) * 100}%`, background: '#00E091', borderRadius: 10, transition: 'width .5s ease' }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/3</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/2</span>
               </div>
             </div>
-            {/* pasos */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', background: '#fff' }}>
+            {/* camino de nodos */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 0, background: '#fff', padding: '32px 24px 28px' }}>
               {steps.map((s, i) => {
                 const isNext = s === nextStep
+                const StepIcon = s.icon
                 return (
-                  <button key={s.label} onClick={() => navigate(s.path)} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5,
-                    padding: '14px 18px', border: 'none',
-                    borderRight: i < 2 ? '1px solid #f1f5f9' : 'none',
-                    background: s.done ? '#f6fdf8' : isNext ? '#f8faff' : '#fff',
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'background .15s',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.background = s.done ? '#ecfdf5' : '#f0f5ff' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = s.done ? '#f6fdf8' : isNext ? '#f8faff' : '#fff' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10, fontWeight: 800,
-                        background: s.done ? '#00E091' : isNext ? '#0C2D40' : '#e2e8f0',
-                        color: '#fff',
-                      }}>
-                        {s.done ? '✓' : i + 1}
+                  <div key={s.label} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <button onClick={() => navigate(s.path)} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                      width: 180, border: 'none', background: 'none',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{
+                          width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: s.done ? '#00E091' : isNext ? '#0C2D40' : '#e2e8f0',
+                          boxShadow: isNext ? '0 4px 14px rgba(12,45,64,.3)' : 'none',
+                          transition: 'transform .15s',
+                        }}>
+                          {s.done ? <Check size={24} style={{ color: '#fff' }} /> : <StepIcon size={22} style={{ color: isNext ? '#fff' : '#94a3b8' }} />}
+                        </div>
+                        {isNext && (
+                          <div style={{
+                            position: 'absolute', top: -6, right: -6,
+                            background: '#f59e0b', color: '#fff', fontSize: 9, fontWeight: 800,
+                            padding: '2px 6px', borderRadius: 20, whiteSpace: 'nowrap',
+                          }}>
+                            Ir ahora
+                          </div>
+                        )}
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8', textAlign: 'center' }}>
                         {s.label}
                       </span>
-                    </div>
-                    <div style={{ paddingLeft: 30, fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>{s.sub}</div>
-                    {isNext && (
-                      <div style={{ paddingLeft: 30, marginTop: 3 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', background: '#0C2D40', padding: '2px 9px', borderRadius: 20 }}>Ir ahora →</span>
-                      </div>
+                      <span style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4, textAlign: 'center' }}>{s.sub}</span>
+                    </button>
+                    {i < steps.length - 1 && (
+                      <div style={{ width: 60, height: 2, background: steps[i + 1].done || s.done ? '#00E091' : '#e2e8f0', marginTop: 27, borderRadius: 1 }} />
                     )}
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -713,89 +695,6 @@ export default function Dashboard() {
 
       <div style={{ height: '8px' }} />
 
-      {/* CELEBRACIÓN — confetti + modal al completar los 4 pasos */}
-      {showCelebration && (
-        <>
-          <style>{`
-            @keyframes confettiFall {
-              0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-              80%  { opacity: 1; }
-              100% { transform: translateY(105vh) rotate(600deg); opacity: 0; }
-            }
-          `}</style>
-
-          {/* confetti */}
-          <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 80, overflow: 'hidden' }}>
-            {confettiPieces.map(p => (
-              <div key={p.id} style={{
-                position: 'absolute',
-                left: `${p.x}%`,
-                top: -12,
-                width: p.isCircle ? p.size : p.size * 0.6,
-                height: p.isCircle ? p.size : p.size * 1.4,
-                borderRadius: p.isCircle ? '50%' : 2,
-                background: p.color,
-                animation: `confettiFall ${p.duration}s ${p.delay}s ease-in forwards`,
-                transform: `rotate(${p.rotate}deg)`,
-              }} />
-            ))}
-          </div>
-
-          {/* modal */}
-          <div className="pl-overlay" style={{ zIndex: 85 }} onClick={() => setShowCelebration(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,.18)', overflow: 'hidden', animation: 'plSlideUp .3s ease-out' }}>
-
-              {/* header */}
-              <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '36px 32px 28px', textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-                  ¡Lo lograste, {currentUser?.name?.split(' ')[0]}!
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', lineHeight: 1.6 }}>
-                  Tu módulo de onboarding está configurado y listo para funcionar.
-                </div>
-              </div>
-
-              {/* logros */}
-              <div style={{ padding: '22px 28px 8px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 12 }}>Lo que configuraste</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    'Módulo configurado con tus preferencias',
-                    'Recursos subidos a la biblioteca',
-                    'Ruta de onboarding creada',
-                    'Primera asignación realizada',
-                  ].map(item => (
-                    <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ color: '#fff', fontSize: 10, fontWeight: 800 }}>✓</span>
-                      </div>
-                      <span style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* footer */}
-              <div style={{ padding: '20px 28px 28px', display: 'flex', gap: 10 }}>
-                <button
-                  onClick={() => setShowCelebration(false)}
-                  style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', background: '#0C2D40', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }}
-                >
-                  ¡Vamos al dashboard! 🚀
-                </button>
-                <button
-                  onClick={() => { setShowCelebration(false); navigate('/onboarding/asignaciones') }}
-                  style={{ height: 44, padding: '0 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
-                >
-                  Ver asignaciones
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

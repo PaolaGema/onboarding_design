@@ -7,8 +7,6 @@ import {
   Pencil,
   Clock, AlertCircle, X
 } from 'lucide-react'
-import PageHero from '../../components/layout/PageHero'
-import imagenConfiguracion from '../../assets/imagenes/imagen_configuracion.png'
 
 const toggleMessages = {
   gamificacion: {
@@ -154,12 +152,12 @@ export default function Configuracion() {
   return (
     <div className="content-scroll">
 
-      {/* HERO */}
-      <PageHero
-        image={imagenConfiguracion}
-        title="Configuración avanzada"
-        description="Define los valores por defecto para toda la empresa. Las rutas pueden personalizar o heredar cada ajuste."
-      />
+      <div className="pl-header">
+        <div>
+          <h1 className="pl-title">Configuración avanzada</h1>
+          <p className="pl-subtitle">Define los valores por defecto para toda la empresa. Las rutas pueden personalizar o heredar cada ajuste.</p>
+        </div>
+      </div>
 
       {/* INFO BANNER */}
       <div style={{

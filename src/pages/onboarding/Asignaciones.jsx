@@ -9,9 +9,7 @@ import {
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import { rutasData } from './JourneyBuilder'
-import PageHero from '../../components/layout/PageHero'
 import EmptyState from '../../components/layout/EmptyState'
-import imagenSeguimiento from '../../assets/imagenes/imagen_seguimiento.png'
 
 const statusLabels = {
   'en-curso': 'En curso',
@@ -193,11 +191,12 @@ export default function Asignaciones() {
     <div className="content-scroll" onClick={() => setMenuOpen(null)}>
 
       {/* HERO */}
-      <PageHero
-        image={imagenSeguimiento}
-        title={isAreaRole ? `Seguimiento — ${managerArea}` : 'Seguimiento'}
-        description={isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}
-      />
+      <div className="pl-header">
+        <div>
+          <h1 className="pl-title">{isAreaRole ? `Seguimiento — ${managerArea}` : 'Seguimiento'}</h1>
+          <p className="pl-subtitle">{isAreaRole ? 'Onboardings de tu equipo' : 'Gestiona los onboardings asignados a colaboradores'}</p>
+        </div>
+      </div>
 
       {/* KPI STRIP */}
       <div className="kpi-strip">
