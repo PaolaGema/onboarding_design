@@ -27,7 +27,9 @@ const pulsoPreguntasSugeridas = [
 
 const CONTENT_UPLOAD_LABEL = { video: 'Subir video', audio: 'Subir audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
 const CONTENT_RESOURCE_DESC = { video: 'Elegí un video ya subido por tu equipo', audio: 'Elegí un audio ya subido por tu equipo', lectura: 'Elegí un documento ya subido por tu equipo', documento: 'Elegí un documento ya subido por tu equipo', enlace: 'Elegí un recurso ya guardado por tu equipo' }
-const CONTENT_LINK_DESC = { video: 'Pegá el enlace de un video de YouTube, Vimeo, Google Drive, etc.', audio: 'Pegá el enlace de un audio o podcast', lectura: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pegá cualquier enlace externo' }
+const CONTENT_LINK_DESC = { video: 'Pegá el enlace de un video de YouTube, Vimeo, Google Drive, etc. Todavía no se pueden subir archivos de video directamente.', audio: 'Pegá el enlace de un audio o podcast. Todavía no se pueden subir archivos de audio directamente.', lectura: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pegá cualquier enlace externo' }
+const CONTENT_LINK_PLACEHOLDER = { video: 'Pegá aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pegá aquí el link de tu audio o podcast', lectura: 'Pegá aquí el link de tu documento (Drive, PDF...)', documento: 'Pegá aquí el link de tu documento (Drive, PDF...)', enlace: 'Pegá aquí tu enlace' }
+const CONTENT_ITEM_LABEL = { video: 'este video', audio: 'este audio', lectura: 'este documento', documento: 'este documento', enlace: 'este enlace' }
 
 const formTiposCampo = [
   { v: 'texto-corto', l: 'Texto corto' },
@@ -146,6 +148,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [rpFolder, setRpFolder] = useState(null)
   const [rpSearch, setRpSearch] = useState('')
   const [saveLinkOpen, setSaveLinkOpen] = useState(false)
+  const [saveLinkConfirm, setSaveLinkConfirm] = useState(null)
   const [saveLinkDone, setSaveLinkDone] = useState(null)
   const [previewTask, setPreviewTask] = useState(null)
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState(null)
@@ -1132,7 +1135,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
                 </div>
                 <div className="jb-modal-col">
-                <div className="jb-modal-col-title">Contenido</div>
+                <div className="jb-modal-col-title">2. Contenido</div>
 
                 {['video', 'audio', 'lectura', 'documento', 'enlace'].includes(tareaForm.tipo) && (() => {
                   const kbItem = tareaForm._kbItem
@@ -1140,6 +1143,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   const itemColorSel = kbItem ? (kbItem.tipo === 'video' ? '#3b82f6' : kbItem.tipo === 'audio' ? '#06b6d4' : '#64748b') : null
                   const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
                   const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pegá un enlace externo'
+                  const linkPlaceholder = CONTENT_LINK_PLACEHOLDER[tareaForm.tipo] || 'Pegá aquí tu enlace'
+                  const itemLabel = CONTENT_ITEM_LABEL[tareaForm.tipo] || 'este recurso'
                   return (
                     <div className="pl-label" style={{ position: 'relative' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Contenido de la tarea</span>
@@ -1221,15 +1226,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                               type="url"
                               className="pl-input"
                               style={{ margin: 0, paddingRight: tareaForm.enlace ? 32 : undefined }}
-                              placeholder="https://..."
+                              placeholder={linkPlaceholder}
                               value={tareaForm.enlace || ''}
-                              onChange={e => { updateForm('enlace', e.target.value); setSaveLinkOpen(false); setSaveLinkDone(null) }}
+                              onChange={e => { updateForm('enlace', e.target.value); setSaveLinkOpen(false); setSaveLinkConfirm(null); setSaveLinkDone(null) }}
                               autoFocus
                             />
                             {tareaForm.enlace && (
                               <button
                                 type="button"
-                                onClick={() => { updateForm('enlace', ''); setSaveLinkOpen(false); setSaveLinkDone(null); setContentPickerOpen(false) }}
+                                onClick={() => { updateForm('enlace', ''); setSaveLinkOpen(false); setSaveLinkConfirm(null); setSaveLinkDone(null); setContentPickerOpen(false) }}
                                 style={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}
                                 title="Quitar enlace"
                               >
@@ -1266,6 +1271,35 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                                   <CheckCircle2 size={13} />
                                   Guardado en "{saveLinkDone}"
                                 </div>
+                              ) : saveLinkConfirm !== null ? (
+                                <div style={{
+                                  background: '#fff', borderRadius: 10, padding: 12,
+                                  boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
+                                  animation: 'plSlideUp .12s',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                                    <FolderOpen size={15} style={{ color: '#64748b', flexShrink: 0, marginTop: 1 }} />
+                                    <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.4 }}>
+                                      Se va a guardar una copia de {itemLabel} en la carpeta <strong style={{ color: '#0C2D40' }}>"{recursos[saveLinkConfirm].name}"</strong> de Recursos corporativos, para que puedas reutilizarlo en otras tareas.
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSaveLinkConfirm(null)}
+                                      style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 600, color: '#64748b' }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => saveLinkToRecursos(saveLinkConfirm)}
+                                      style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#0C2D40', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, color: '#fff' }}
+                                    >
+                                      Sí, guardar aquí
+                                    </button>
+                                  </div>
+                                </div>
                               ) : (
                                 <>
                                   <button
@@ -1276,6 +1310,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                                     <BookOpen size={12} style={{ color: '#00E091' }} />
                                     Guardar en Recursos corporativos
                                   </button>
+                                  {!saveLinkOpen && (
+                                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                                      Guardá una copia de {itemLabel} en tu biblioteca para poder reutilizarlo en otras tareas, sin tener que volver a pegar el link.
+                                    </div>
+                                  )}
                                   {saveLinkOpen && (
                                     <div style={{
                                       marginTop: 6, background: '#fff', borderRadius: 10, padding: 4,
@@ -1283,19 +1322,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                                       animation: 'plSlideUp .12s',
                                     }}>
                                       {recursos.length === 0 ? (
-                                        <div style={{ padding: 10, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>No hay carpetas creadas</div>
-                                      ) : recursos.map((c, i) => (
-                                        <button
-                                          key={i}
-                                          onClick={() => saveLinkToRecursos(i)}
-                                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#0C2D40', transition: 'background .1s' }}
-                                          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                          <FolderOpen size={13} style={{ color: '#64748b' }} />
-                                          {c.name}
-                                        </button>
-                                      ))}
+                                        <div style={{ padding: 10, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>No hay carpetas creadas todavía</div>
+                                      ) : (
+                                        <>
+                                          <div style={{ padding: '6px 10px 4px', fontSize: 9.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.02em' }}>
+                                            ¿En qué carpeta lo guardamos?
+                                          </div>
+                                          {recursos.map((c, i) => (
+                                            <button
+                                              key={i}
+                                              onClick={() => { setSaveLinkConfirm(i); setSaveLinkOpen(false) }}
+                                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#0C2D40', transition: 'background .1s' }}
+                                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                              <FolderOpen size={13} style={{ color: '#64748b' }} />
+                                              {c.name}
+                                            </button>
+                                          ))}
+                                        </>
+                                      )}
                                     </div>
                                   )}
                                 </>
@@ -1483,7 +1529,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
                 </div>
                 <div className="jb-modal-col">
-                <div className="jb-modal-col-title">Configuración</div>
+                <div className="jb-modal-col-title">3. Configuración</div>
 
                 {/* SECCIÓN: PLANIFICACIÓN — card agrupado */}
                 <div style={{
@@ -1538,14 +1584,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 {/* TOGGLES */}
 
                 {['lectura', 'documento'].includes(tareaForm.tipo) && (
-                  <div className="jb-field-toggle" onClick={() => updateForm('confirmacion', !tareaForm.confirmacion)}>
-                    <div>
-                      <span>Confirmación de lectura</span>
-                      <div className="jb-toggle-hint">Requiere que el colaborador confirme que leyó el contenido</div>
-                    </div>
-                    <div className={`jb-toggle ${tareaForm.confirmacion ? 'on' : ''}`}>
-                      <div className="jb-toggle-dot" />
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #dbeafe' }}>
+                    <Info size={14} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>El colaborador deberá confirmar que leyó el documento para completar la tarea</span>
                   </div>
                 )}
 
@@ -1728,7 +1769,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 12px 12px' }}>
                 {!folder ? (
                   folderList.length === 0 ? (
-                    <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No se encontraron carpetas</div>
+                    recursos.length === 0 ? (
+                      <div style={{ padding: '30px 20px', textAlign: 'center' }}>
+                        <FolderOpen size={22} style={{ color: '#cbd5e1', marginBottom: 8 }} />
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>Todavía no subiste ningún recurso</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Andá a "Recursos corporativos" en el menú lateral para crear una carpeta y subir tus primeros archivos.</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No se encontraron carpetas con ese nombre</div>
+                    )
                   ) : folderList.map(c => {
                     const count = c.docs.filter(matchesType).length
                     return (
@@ -1752,8 +1801,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   })
                 ) : (
                   docList.length === 0 ? (
-                    <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
-                      No hay recursos de este tipo en esta carpeta
+                    <div style={{ padding: '30px 20px', textAlign: 'center' }}>
+                      <FileText size={22} style={{ color: '#cbd5e1', marginBottom: 8 }} />
+                      {folder.docs.length === 0 ? (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>La carpeta "{folder.name}" está vacía</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Subí archivos acá desde la sección "Recursos corporativos" en el menú lateral.</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>Sin {wantType === 'video' ? 'videos' : wantType === 'audio' ? 'audios' : 'documentos'} en esta carpeta</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Subí {wantType === 'video' ? 'un video' : wantType === 'audio' ? 'un audio' : 'un documento'} a "{folder.name}" desde "Recursos corporativos", o elegí otra carpeta.</div>
+                        </>
+                      )}
                     </div>
                   ) : docList.map(doc => {
                     const linkedQuiz = doc.quiz || null
