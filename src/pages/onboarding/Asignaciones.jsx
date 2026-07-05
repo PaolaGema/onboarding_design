@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, CheckCircle2, Check,
   Send, MessageCircle, Bell, Circle,
-  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle, UserRound
+  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import { rutasData } from './JourneyBuilder'
@@ -71,6 +71,8 @@ export default function Asignaciones() {
   const [filterTipo, setFilterTipo] = useState('todos')
   const [afDropStatus, setAfDropStatus] = useState(false)
   const [afDropTipo, setAfDropTipo] = useState(false)
+  const [statusHeaderPos, setStatusHeaderPos] = useState(null)
+  const [tipoHeaderPos, setTipoHeaderPos] = useState(null)
   const [page, setPage] = useState(1)
   const perPage = 8
   const [modal, setModal] = useState(false)
@@ -87,6 +89,16 @@ export default function Asignaciones() {
 
   const hasAsigFilters = filterStatus !== 'todos' || filterTipo !== 'todos'
   function clearAsigFilters() { setFilterStatus('todos'); setFilterTipo('todos') }
+
+  useEffect(() => {
+    function closeDrops(e) {
+      if (!e.target.closest('[data-th-filter]')) {
+        setAfDropStatus(false); setAfDropTipo(false)
+      }
+    }
+    document.addEventListener('mousedown', closeDrops)
+    return () => document.removeEventListener('mousedown', closeDrops)
+  }, [])
 
   const filtered = asignaciones.filter(a => {
     const q = search.toLowerCase()
@@ -106,7 +118,7 @@ export default function Asignaciones() {
   const totalPendientes = asignaciones.filter(a => a.status === 'pendiente').length
   const totalAtrasados = asignaciones.filter(a => a.status === 'atrasado' || a.status === 'en-riesgo').length
 
-  function handleAsignar(colabs, ruta, fecha, buddy) {
+  function handleAsignar(colabs, ruta, fecha) {
     if (!colabs.length || !ruta) return
     const baseId = Math.max(0, ...allAsignaciones.map(a => a.id))
     const newItems = colabs.map((c, i) => ({
@@ -120,10 +132,9 @@ export default function Asignaciones() {
       status: 'pendiente',
       fechaInicio: fecha || 'Por definir',
       color: c.color || '#3b82f6',
-      buddy: buddy?.name || null,
     }))
     setAsignaciones([...asignaciones, ...newItems])
-    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}${buddy ? ` con ${buddy.name} como buddy` : ''}`))
+    colabs.forEach(c => addFeedEntry(`${c.name} fue asignado/a a ${ruta.name}`))
     setModal(false)
   }
 
@@ -235,42 +246,6 @@ export default function Asignaciones() {
           />
         </div>
 
-        {/* TIPO */}
-        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-          <button type="button" className={`pl-dropdown-trigger${afDropTipo ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={() => { setAfDropTipo(!afDropTipo); setAfDropStatus(false) }}>
-            <span style={{ whiteSpace: 'nowrap' }}>{filterTipo === 'todos' ? 'Todos los tipos' : filterTipo}</span>
-            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-          </button>
-          {afDropTipo && (
-            <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
-              {['todos', ...tiposRuta].map(t => (
-                <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setAfDropTipo(false); setPage(1) }}>
-                  <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
-                  {filterTipo === t && <Check size={13} />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ESTADO */}
-        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-          <button type="button" className={`pl-dropdown-trigger${afDropStatus ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={() => { setAfDropStatus(!afDropStatus); setAfDropTipo(false) }}>
-            <span style={{ whiteSpace: 'nowrap' }}>{filterStatus === 'todos' ? 'Todos los estados' : statusLabels[filterStatus]}</span>
-            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-          </button>
-          {afDropStatus && (
-            <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
-              {[{ key: 'todos', label: 'Todos los estados' }, { key: 'en-curso', label: 'En curso' }, { key: 'completado', label: 'Completado' }, { key: 'pendiente', label: 'Programado' }, { key: 'atrasado', label: 'Atrasado' }, { key: 'en-riesgo', label: 'En riesgo' }, { key: 'pausado', label: 'Pausado' }].map(f => (
-                <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setAfDropStatus(false); setPage(1) }}>
-                  <span>{f.label}</span>
-                  {filterStatus === f.key && <Check size={13} />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {hasAsigFilters && (
           <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Limpiar</button>
         )}
@@ -289,12 +264,62 @@ export default function Asignaciones() {
             <tr>
               <th>Colaborador</th>
               <th>Ruta asignada</th>
-              <th>Tipo</th>
+              <th style={{ position: 'relative' }} data-th-filter>
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation()
+                    if (afDropTipo) { setAfDropTipo(false); return }
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setTipoHeaderPos({ top: rect.bottom + 6, left: rect.left })
+                    setAfDropStatus(false)
+                    setAfDropTipo(true)
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 3, border: 'none', background: 'none',
+                    padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em',
+                    color: filterTipo !== 'todos' ? 'var(--navy)' : 'var(--text-muted)',
+                  }}
+                >
+                  Tipo
+                  <ChevronDown size={11} style={{ transform: afDropTipo ? 'rotate(180deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
+                </button>
+                {afDropTipo && tipoHeaderPos && (
+                  <div className="pl-dropdown-menu" style={{ position: 'fixed', top: tipoHeaderPos.top, left: tipoHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
+                    {['todos', ...tiposRuta].map(t => (
+                      <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setAfDropTipo(false); setPage(1) }}>
+                        <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
+                        {filterTipo === t && <Check size={13} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </th>
               <th>Progreso</th>
               <th>Día</th>
-              <th style={{ position: 'relative' }}>
+              <th style={{ position: 'relative' }} data-th-filter>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  Estado
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (afDropStatus) { setAfDropStatus(false); return }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setStatusHeaderPos({ top: rect.bottom + 6, left: rect.left })
+                      setAfDropTipo(false)
+                      setAfDropStatus(true)
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 3, border: 'none', background: 'none',
+                      padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+                      fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em',
+                      color: filterStatus !== 'todos' ? 'var(--navy)' : 'var(--text-muted)',
+                    }}
+                  >
+                    Estado
+                    <ChevronDown size={11} style={{ transform: afDropStatus ? 'rotate(180deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
+                  </button>
                   <Info
                     size={12}
                     style={{ color: '#cbd5e1', cursor: 'pointer' }}
@@ -302,6 +327,16 @@ export default function Asignaciones() {
                     onMouseLeave={() => setShowEstadoHelp(false)}
                   />
                 </span>
+                {afDropStatus && statusHeaderPos && (
+                  <div className="pl-dropdown-menu" style={{ position: 'fixed', top: statusHeaderPos.top, left: statusHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
+                    {[{ key: 'todos', label: 'Todos los estados' }, { key: 'en-curso', label: 'En curso' }, { key: 'completado', label: 'Completado' }, { key: 'pendiente', label: 'Programado' }, { key: 'atrasado', label: 'Atrasado' }, { key: 'en-riesgo', label: 'En riesgo' }, { key: 'pausado', label: 'Pausado' }].map(f => (
+                      <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setAfDropStatus(false); setPage(1) }}>
+                        <span>{f.label}</span>
+                        {filterStatus === f.key && <Check size={13} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {showEstadoHelp && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, marginTop: 6,
@@ -661,11 +696,6 @@ export default function Asignaciones() {
                   <span className={`as-status ${statusCls[detalle.status]}`}>{statusLabels[detalle.status]}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>Día {detalle.dia} / {detalle.totalDias}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>· Inicio {detalle.fechaInicio}</span>
-                  {detalle.buddy && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#0C2D40', background: '#f1f5f9', padding: '3px 9px', borderRadius: 20 }}>
-                      <UserRound size={11} /> Buddy: {detalle.buddy}
-                    </span>
-                  )}
                 </div>
                 <div className="pr-progress" style={{ marginBottom: 20 }}>
                   <div className="pr-pct">{detalle.pct}%</div>

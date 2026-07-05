@@ -11,7 +11,7 @@ import {
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info
+  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
@@ -24,6 +24,10 @@ const pulsoPreguntasSugeridas = [
   '¿Hay algo que te esté generando dudas o preocupación?',
   '¿Qué tan a gusto te sientes con el equipo hasta ahora?',
 ]
+
+const CONTENT_UPLOAD_LABEL = { video: 'Subir video', audio: 'Subir audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
+const CONTENT_RESOURCE_DESC = { video: 'Elegí un video ya subido por tu equipo', audio: 'Elegí un audio ya subido por tu equipo', lectura: 'Elegí un documento ya subido por tu equipo', documento: 'Elegí un documento ya subido por tu equipo', enlace: 'Elegí un recurso ya guardado por tu equipo' }
+const CONTENT_LINK_DESC = { video: 'Pegá el enlace de un video de YouTube, Vimeo, Google Drive, etc.', audio: 'Pegá el enlace de un audio o podcast', lectura: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pegá cualquier enlace externo' }
 
 const formTiposCampo = [
   { v: 'texto-corto', l: 'Texto corto' },
@@ -103,7 +107,7 @@ const rutaConfigOpciones = [
 ]
 const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key, true]))
 
-export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) {
+export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, editing }) {
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
   const { plantillas, setPlantillas, addFeedEntry, recursos, setRecursos } = useOnboardingData()
@@ -133,12 +137,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
   const [formEditorJB, setFormEditorJB] = useState(null)
   const [quizPreview, setQuizPreview] = useState(null)
   const [addPickerTarget, setAddPickerTarget] = useState(null)
-  const [quizDropOpen, setQuizDropOpen] = useState(false)
   const [formTipoDropOpen, setFormTipoDropOpen] = useState(null)
-  const [quizSearch, setQuizSearch] = useState('')
   const [contextMenu, setContextMenu] = useState(null)
   const [respMenuPos, setRespMenuPos] = useState(null)
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false)
+  const [contentChooserOpen, setContentChooserOpen] = useState(false)
+  const [contentPickerOpen, setContentPickerOpen] = useState(false)
   const [rpFolder, setRpFolder] = useState(null)
   const [rpSearch, setRpSearch] = useState('')
   const [saveLinkOpen, setSaveLinkOpen] = useState(false)
@@ -366,6 +370,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
     } else {
       setSelTarea(tarea)
       setTareaForm({ ...tarea })
+      setContentPickerOpen(false)
     }
   }
 
@@ -473,6 +478,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
 
     setSelTarea(newTarea)
     setTareaForm({ ...newTarea })
+    setContentPickerOpen(false)
   }
 
   function openAddPicker(rect, insert) {
@@ -534,10 +540,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
             <Eye size={14} />
             Vista previa
           </button>
-          <button className="jb-btn-outline" onClick={saveDraft}>
-            <Save size={14} />
-            Guardar borrador
-          </button>
           {draftSavedAt && (
             <span style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
               <CheckCircle2 size={12} /> Guardado
@@ -557,11 +559,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                   }
                 : p
             ))
-            addFeedEntry(`Ruta "${plantilla.name}" activada`)
+            addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}`)
             onBack()
           }}>
             <Save size={14} />
-            Guardar ruta
+            {editing ? 'Guardar cambios' : 'Guardar ruta'}
           </button>
         </div>
       </div>
@@ -917,13 +919,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     <Layers size={30} strokeWidth={1.5} style={{ color: 'var(--green)' }} />
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Agrega tu primera etapa</div>
-                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 16px', maxWidth: 280 }}>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', maxWidth: 280 }}>
                     Una etapa agrupa las actividades y tareas de un período de la ruta, por ejemplo "Mi primera semana".
                   </p>
-                  <button className="jb-add-actividad-btn" onClick={() => { setNewEtapaName(''); setNewEtapaDays(7); setShowNewEtapa(true) }}>
-                    <Plus size={14} />
-                    Agregar etapa
-                  </button>
                 </div>
               )}
             </div>
@@ -970,15 +968,24 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     </div>
                   </div>
                 </div>
-                <button className="pl-modal-close" onClick={saveTareaForm} title="Guarda y cierra">
-                  <X size={18} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    className="pl-modal-close"
+                    onClick={() => setPreviewTask(tareaForm)}
+                    title="Vista previa"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button className="pl-modal-close" onClick={saveTareaForm} title="Guarda y cierra">
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div className="pl-modal-body" style={{ padding: '20px 24px' }}>
                 <div className="jb-modal-2col">
                 <div className="jb-modal-col">
-                <div className="jb-modal-col-title">Información básica</div>
+                <div className="jb-modal-col-title">1. Información básica</div>
 
                 {/* SECCIÓN: INFORMACIÓN BÁSICA */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1001,6 +1008,24 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                 </div>
 
                 {/* SECCIÓN: RESPONSABLE */}
+                {tareaForm.tipo === 'video' ? (
+                  <div className="pl-label">
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza?</span>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px', borderRadius: 10, marginTop: 4,
+                      border: '1.5px solid #e2e8f0', background: '#f8fafc',
+                    }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        background: '#10b98112',
+                      }}>
+                        <UserCheck size={14} style={{ color: '#10b981' }} />
+                      </div>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0C2D40' }}>Colaborador</span>
+                    </div>
+                  </div>
+                ) : (
                 <div className="pl-label" style={{ position: 'relative' }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza? <span style={{ color: '#ef4444' }}>*</span></span>
                   <div
@@ -1103,6 +1128,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     </div>
                   )}
                 </div>
+                )}
 
                 </div>
                 <div className="jb-modal-col">
@@ -1112,6 +1138,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                   const kbItem = tareaForm._kbItem
                   const ItemIconSel = kbItem ? (kbItem.tipo === 'video' ? Video : kbItem.tipo === 'audio' ? Headphones : FileText) : null
                   const itemColorSel = kbItem ? (kbItem.tipo === 'video' ? '#3b82f6' : kbItem.tipo === 'audio' ? '#06b6d4' : '#64748b') : null
+                  const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
+                  const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pegá un enlace externo'
                   return (
                     <div className="pl-label" style={{ position: 'relative' }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Contenido de la tarea</span>
@@ -1134,7 +1162,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                             </div>
                             <button
                               type="button"
-                              onClick={() => { updateForm('_kbItem', null); updateForm('enlace', ''); updateForm('incluirQuiz', false) }}
+                              onClick={() => { updateForm('_kbItem', null); updateForm('enlace', ''); setContentPickerOpen(false) }}
                               style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex', flexShrink: 0 }}
                               title="Quitar"
                             >
@@ -1171,36 +1199,24 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                             </div>
                           )}
                         </div>
+                      ) : !contentPickerOpen && !tareaForm.enlace ? (
+                        <button
+                          type="button"
+                          onClick={() => setContentChooserOpen(true)}
+                          style={{
+                            width: '100%', marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            padding: '14px 12px', borderRadius: 10,
+                            border: '1.5px dashed #cbd5e1',
+                            background: '#f8fafc', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0C2D40',
+                            fontFamily: 'inherit', transition: 'border-color .15s',
+                          }}
+                        >
+                          <Upload size={15} style={{ color: '#00E091' }} />
+                          {uploadLabel}
+                        </button>
                       ) : (
                         <>
-                          {!tareaForm.enlace && (
-                            <>
-                              <div style={{ position: 'relative', marginTop: 4 }}>
-                                <button
-                                  type="button"
-                                  onClick={() => { setRpFolder(null); setRpSearch(''); setResourcePickerOpen(true) }}
-                                  style={{
-                                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '10px 12px', borderRadius: 10,
-                                    border: '1.5px solid #e2e8f0',
-                                    background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#0C2D40',
-                                    fontFamily: 'inherit', transition: 'border-color .15s',
-                                  }}
-                                >
-                                  <BookOpen size={15} style={{ color: '#00E091' }} />
-                                  Elegir desde Recursos corporativos
-                                  <ChevronRight size={13} style={{ marginLeft: 'auto', color: '#94a3b8' }} />
-                                </button>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0' }}>
-                                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>o pegá un enlace externo</span>
-                                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-                              </div>
-                            </>
-                          )}
-                          <div style={{ position: 'relative', marginTop: tareaForm.enlace ? 4 : 0 }}>
+                          <div style={{ position: 'relative', marginTop: 4 }}>
                             <input
                               type="url"
                               className="pl-input"
@@ -1208,11 +1224,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                               placeholder="https://..."
                               value={tareaForm.enlace || ''}
                               onChange={e => { updateForm('enlace', e.target.value); setSaveLinkOpen(false); setSaveLinkDone(null) }}
+                              autoFocus
                             />
                             {tareaForm.enlace && (
                               <button
                                 type="button"
-                                onClick={() => { updateForm('enlace', ''); setSaveLinkOpen(false); setSaveLinkDone(null) }}
+                                onClick={() => { updateForm('enlace', ''); setSaveLinkOpen(false); setSaveLinkDone(null); setContentPickerOpen(false) }}
                                 style={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}
                                 title="Quitar enlace"
                               >
@@ -1220,6 +1237,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                               </button>
                             )}
                           </div>
+                          {!tareaForm.enlace && (
+                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, lineHeight: 1.4 }}>{linkDesc}</div>
+                          )}
 
                           {tareaForm.enlace && (tareaForm.tipo === 'video' || tareaForm.tipo === 'audio') && (
                             <div style={{ marginTop: 8 }}>
@@ -1285,65 +1305,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                         </>
                       )}
 
-                      {kbItem?.hasQuiz && (
-                        <>
-                          {/* card del quiz del recurso */}
-                          <div style={{
-                            marginTop: 8, padding: '10px 14px', borderRadius: 10,
-                            background: tareaForm.incluirQuiz ? '#fefce8' : '#f8fafc',
-                            border: `1px solid ${tareaForm.incluirQuiz ? '#fde68a' : '#e2e8f0'}`,
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            transition: 'all .15s',
-                          }}>
-                            <div style={{
-                              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                              background: tareaForm.incluirQuiz ? '#fef3c7' : '#f1f5f9',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <HelpCircle size={14} style={{ color: tareaForm.incluirQuiz ? '#f59e0b' : '#94a3b8' }} />
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>
-                                {kbItem.quizName}
-                              </div>
-                              <div style={{ fontSize: 10, color: '#94a3b8' }}>
-                                {kbItem.quizPreguntas} preguntas · Se muestra al completar la tarea
-                              </div>
-                            </div>
-                            <div
-                              onClick={() => updateForm('incluirQuiz', !tareaForm.incluirQuiz)}
-                              className={`jb-toggle ${tareaForm.incluirQuiz ? 'on' : ''}`}
-                              style={{ cursor: 'pointer', flexShrink: 0 }}
-                            >
-                              <div className="jb-toggle-dot" />
-                            </div>
-                          </div>
-                          {kbItem.quizPreguntasFull?.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setQuizPreview(kbItem.quizPreguntasFull)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontSize: 11, fontWeight: 600, color: '#0C2D40', fontFamily: 'inherit' }}
-                            >
-                              <Eye size={12} />
-                              Previsualizar
-                            </button>
-                          )}
-                          {/* config del quiz inmediatamente debajo */}
-                          {tareaForm.incluirQuiz && (
-                            <div style={{ marginTop: 6, background: '#f8fafc', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, border: '1px solid #e2e8f0' }}>
-                              <div className="jb-field-toggle" onClick={() => updateForm('mostrarRespuestas', !tareaForm.mostrarRespuestas)}>
-                                <div>
-                                  <span>Mostrar respuestas correctas</span>
-                                  <div className="jb-toggle-hint">Al finalizar, el colaborador verá las respuestas correctas</div>
-                                </div>
-                                <div className={`jb-toggle ${tareaForm.mostrarRespuestas ? 'on' : ''}`}>
-                                  <div className="jb-toggle-dot" />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
                     </div>
                   )
                 })()}
@@ -1572,174 +1533,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                     </div>
                   </div>
 
-                  {/* Puntos */}
-                  {gamificacion && (
-                    <label className="pl-label" style={{ margin: 0, fontSize: 11, color: '#475569' }}>
-                      Puntos
-                      <input type="number" className="pl-input" style={{ background: '#fff' }} value={tareaForm.puntos} onChange={e => updateForm('puntos', Number(e.target.value))} />
-                    </label>
-                  )}
-                  {gamificacion && (
-                    <div style={{ fontSize: 10, color: tareaForm.verificarQuiz ? '#f59e0b' : '#94a3b8' }}>
-                      {tareaForm.verificarQuiz
-                        ? 'Los puntos se otorgan solo si aprueba la prueba de verificación'
-                        : 'Los puntos se otorgan cuando el colaborador complete la tarea'
-                      }
-                    </div>
-                  )}
                 </div>
 
                 {/* TOGGLES */}
-
-                {['video', 'audio', 'lectura', 'documento'].includes(tareaForm.tipo) && (
-                  <>
-                    {!tareaForm._kbItem?.hasQuiz && (
-                      <div className="jb-field-toggle" onClick={() => updateForm('verificarQuiz', !tareaForm.verificarQuiz)}>
-                        <div>
-                          <span>Verificar comprensión con prueba</span>
-                          <div className="jb-toggle-hint">{gamificacion ? 'Agrega una prueba para asegurar que el colaborador entendió el contenido. Los puntos se otorgan según el resultado.' : 'Agrega una prueba para asegurar que el colaborador entendió el contenido.'}</div>
-                        </div>
-                        <div className={`jb-toggle ${tareaForm.verificarQuiz ? 'on' : ''}`}>
-                          <div className="jb-toggle-dot" />
-                        </div>
-                      </div>
-                    )}
-
-                    {tareaForm.verificarQuiz && !tareaForm._kbItem?.hasQuiz && (
-                      <div style={{
-                        background: '#f8fafc', borderRadius: 10, padding: '14px 16px',
-                        display: 'flex', flexDirection: 'column', gap: 10,
-                        border: '1px solid #e2e8f0',
-                      }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Configuración de la prueba</div>
-                        {(() => {
-                          const quizzes = [
-                            { id: 'q1', name: 'Prueba de cultura organizacional', preguntas: 5, cat: 'Cultura' },
-                            { id: 'q2', name: 'Prueba de políticas internas', preguntas: 8, cat: 'Políticas' },
-                            { id: 'q3', name: 'Prueba de seguridad informática', preguntas: 6, cat: 'Procesos TI' },
-                            { id: 'q4', name: 'Prueba de producto', preguntas: 10, cat: 'Ventas' },
-                            { id: 'q5', name: 'Prueba de procesos del área', preguntas: 4, cat: 'Procesos TI' },
-                          ]
-                          const selected = quizzes.find(q => q.id === tareaForm.quizId)
-                          const filtered = quizzes.filter(q => q.name.toLowerCase().includes(quizSearch.toLowerCase()))
-                          return (
-                            <div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Seleccionar prueba de la biblioteca</div>
-                              <div style={{ position: 'relative' }}>
-                                <div
-                                  onClick={() => { setQuizDropOpen(!quizDropOpen); setQuizSearch('') }}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '9px 12px', borderRadius: 10,
-                                    border: `1.5px solid ${quizDropOpen ? '#0C2D40' : '#e2e8f0'}`,
-                                    background: '#fff', cursor: 'pointer',
-                                    transition: 'border-color .15s',
-                                  }}
-                                >
-                                  {selected ? (
-                                    <>
-                                      <HelpCircle size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                                      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{selected.name}</span>
-                                      <span style={{ fontSize: 10, color: '#94a3b8' }}>{selected.preguntas} preg.</span>
-                                    </>
-                                  ) : (
-                                    <span style={{ flex: 1, fontSize: 12, color: '#94a3b8' }}>Buscar prueba...</span>
-                                  )}
-                                  <ChevronRight size={13} style={{ color: '#94a3b8', transform: quizDropOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }} />
-                                </div>
-
-                                {quizDropOpen && (
-                                  <div style={{
-                                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-                                    background: '#fff', borderRadius: 12, padding: 6,
-                                    boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-                                    zIndex: 30, animation: 'plSlideUp .12s',
-                                  }}>
-                                    <div style={{ padding: '4px 6px 8px' }}>
-                                      <div style={{
-                                        display: 'flex', alignItems: 'center', gap: 6,
-                                        padding: '7px 10px', background: '#f8fafc', borderRadius: 8,
-                                        border: '1px solid #e2e8f0',
-                                      }}>
-                                        <Search size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                                        <input
-                                          type="text"
-                                          placeholder="Buscar prueba..."
-                                          value={quizSearch}
-                                          onChange={e => setQuizSearch(e.target.value)}
-                                          autoFocus
-                                          style={{
-                                            border: 'none', background: 'transparent', outline: 'none',
-                                            fontSize: 12, fontFamily: 'inherit', color: '#0C2D40', width: '100%',
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div style={{ maxHeight: 180, overflowY: 'auto' }}>
-                                      {filtered.length === 0 ? (
-                                        <div style={{ padding: '12px', textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
-                                          No se encontraron pruebas
-                                        </div>
-                                      ) : (
-                                        filtered.map(q => (
-                                          <button
-                                            key={q.id}
-                                            onClick={() => { updateForm('quizId', q.id); setQuizDropOpen(false); setQuizSearch('') }}
-                                            style={{
-                                              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                                              padding: '9px 10px', border: 'none', borderRadius: 8,
-                                              background: tareaForm.quizId === q.id ? '#f8fafc' : 'transparent',
-                                              cursor: 'pointer', textAlign: 'left',
-                                              fontFamily: 'inherit', transition: 'background .1s',
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                            onMouseLeave={e => { if (tareaForm.quizId !== q.id) e.currentTarget.style.background = 'transparent' }}
-                                          >
-                                            <HelpCircle size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{q.name}</div>
-                                              <div style={{ fontSize: 10, color: '#94a3b8' }}>{q.preguntas} preguntas · {q.cat}</div>
-                                            </div>
-                                            {tareaForm.quizId === q.id && <CheckCircle2 size={14} style={{ color: '#00E091', flexShrink: 0 }} />}
-                                          </button>
-                                        ))
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              {!tareaForm.quizId && (
-                                <div style={{ fontSize: 10, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                                  <HelpCircle size={11} />
-                                  Crea pruebas en Recursos corporativos para verlas aquí
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                        <div className="jb-form-row">
-                          <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                            Nota mínima (%)
-                            <input type="number" className="pl-input" placeholder="70" value={tareaForm.notaMinima ?? 70} onChange={e => updateForm('notaMinima', Number(e.target.value))} />
-                          </label>
-                          <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                            Intentos permitidos
-                            <input type="number" className="pl-input" placeholder="3" min="1" value={tareaForm.intentos ?? 3} onChange={e => updateForm('intentos', Math.max(1, Number(e.target.value)))} />
-                          </label>
-                        </div>
-                        <div className="jb-field-toggle" onClick={() => updateForm('mostrarRespuestas', !tareaForm.mostrarRespuestas)}>
-                          <div>
-                            <span>Mostrar respuestas correctas</span>
-                            <div className="jb-toggle-hint">Al finalizar, el colaborador verá las respuestas correctas</div>
-                          </div>
-                          <div className={`jb-toggle ${tareaForm.mostrarRespuestas ? 'on' : ''}`}>
-                            <div className="jb-toggle-dot" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
 
                 {['lectura', 'documento'].includes(tareaForm.tipo) && (
                   <div className="jb-field-toggle" onClick={() => updateForm('confirmacion', !tareaForm.confirmacion)}>
@@ -1770,15 +1566,82 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
               </div>
 
               <div className="pl-modal-footer">
-                <button
-                  className="pl-btn-cancel"
-                  onClick={() => setPreviewTask(tareaForm)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', whiteSpace: 'nowrap' }}
-                >
-                  <Eye size={13} /> Vista previa
-                </button>
                 <button className="pl-btn-cancel" onClick={closeModal}>Cancelar</button>
                 <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || respValues.length === 0} onClick={saveTareaForm}>Guardar cambios</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* MODAL ELEGIR ORIGEN DEL CONTENIDO (Recursos / Enlace) */}
+      {contentChooserOpen && tareaForm && (() => {
+        const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
+        const resourceDesc = CONTENT_RESOURCE_DESC[tareaForm.tipo] || 'Elegí un recurso ya subido por tu equipo'
+        const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pegá un enlace externo'
+        return (
+          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setContentChooserOpen(false)}>
+            <div className="pl-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'rgba(255,255,255,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Upload size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <h2>{uploadLabel}</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setContentChooserOpen(false)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setContentChooserOpen(false); setRpFolder(null); setRpSearch(''); setResourcePickerOpen(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '14px 16px', borderRadius: 12,
+                    border: '1.5px solid #e2e8f0', background: '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'border-color .15s, background .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#00E091'; e.currentTarget.style.background = '#f8fafc' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#fff' }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: '#00E09118', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BookOpen size={18} style={{ color: '#00E091' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Recursos corporativos</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>{resourceDesc}</div>
+                  </div>
+                  <ChevronRight size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setContentChooserOpen(false); setContentPickerOpen(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '14px 16px', borderRadius: 12,
+                    border: '1.5px solid #e2e8f0', background: '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'border-color .15s, background .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = '#f8fafc' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = '#fff' }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: '#0C2D4012', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Link2 size={18} style={{ color: '#0C2D40' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Enlace externo</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>{linkDesc}</div>
+                  </div>
+                  <ChevronRight size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                </button>
               </div>
             </div>
           </div>
@@ -1801,20 +1664,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
         const docList = folder ? folder.docs.filter(d => matchesType(d) && d.name.toLowerCase().includes(rpSearch.toLowerCase())) : []
 
         function pickDoc(doc) {
-          const linkedQuiz = doc.quiz || null
           const item = {
             name: doc.name,
             tipo: doc.tipo === 'video' ? 'video' : doc.tipo === 'audio' ? 'audio' : 'documento',
             cat: folder.name,
             url: doc.url || '',
-            hasQuiz: !!linkedQuiz,
-            quizName: linkedQuiz?.name,
-            quizPreguntas: linkedQuiz?.preguntas?.length || 0,
-            quizPreguntasFull: linkedQuiz?.preguntas || [],
           }
           updateForm('enlace', item.url)
           updateForm('_kbItem', item)
-          updateForm('incluirQuiz', !!linkedQuiz)
           if (!tareaForm.name || tareaForm.name.startsWith('Nueva tarea')) {
             updateForm('name', doc.name)
           }
@@ -2405,7 +2262,16 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
                   </div>
                   <h2 style={{ margin: 0 }}>Editor de prueba</h2>
                 </div>
-                <button className="pl-modal-close" onClick={() => setQuizEditorJB(null)}><X size={18} /></button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    className="pl-modal-close"
+                    onClick={() => setPreviewTask({ ...(tareaForm || {}), tipo: 'quiz', quizPreguntas: qe.preguntas })}
+                    title="Vista previa"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button className="pl-modal-close" onClick={() => setQuizEditorJB(null)}><X size={18} /></button>
+                </div>
               </div>
 
               <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
@@ -2493,16 +2359,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel }) 
               </div>
 
               <div className="pl-modal-footer">
-                <button
-                  className="pl-btn-cancel"
-                  onClick={() => setPreviewTask({ ...(tareaForm || {}), tipo: 'quiz', quizPreguntas: qe.preguntas })}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 'auto', whiteSpace: 'nowrap' }}
-                >
-                  <Eye size={13} /> Vista previa
-                </button>
                 <button className="pl-btn-cancel" onClick={() => setQuizEditorJB(null)}>Cancelar</button>
                 <button className="pl-btn-save" disabled={qe.preguntas.length === 0} onClick={guardar}>
-                  Guardar prueba ({qe.preguntas.length} pregunta{qe.preguntas.length !== 1 ? 's' : ''})
+                  Guardar prueba
                 </button>
               </div>
             </div>

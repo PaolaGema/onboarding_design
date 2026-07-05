@@ -310,7 +310,7 @@ export default function Dashboard() {
           <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 4px 16px rgba(12,45,64,.12)' }}>
             {/* header navy */}
             <div style={{ background: 'linear-gradient(135deg, #0C2D40 0%, #1a4a63 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-              <div style={{ maxWidth: 480 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 5 }}>
                   {doneCount === 0
                     ? `Bienvenido al módulo de Onboarding, ${firstName}`
@@ -329,46 +329,66 @@ export default function Dashboard() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{doneCount}/2</span>
               </div>
             </div>
-            {/* camino de nodos */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 0, background: '#fff', padding: '32px 24px 28px' }}>
+            {/* camino de nodos — estilo JourneyBuilder, vertical */}
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+              background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)', padding: '32px 24px',
+            }}>
               {steps.map((s, i) => {
                 const isNext = s === nextStep
                 const StepIcon = s.icon
                 return (
-                  <div key={s.label} style={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <button onClick={() => navigate(s.path)} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                      width: 180, border: 'none', background: 'none',
-                      cursor: 'pointer', fontFamily: 'inherit',
-                    }}>
+                  <div key={s.label}>
+                    {i > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ width: 2, height: 22, background: steps[i - 1].done ? '#00E091' : '#cbd5e1', borderRadius: 1 }} />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate(s.path)}
+                      onMouseEnter={e => { e.currentTarget.firstChild.firstChild.style.transform = 'scale(1.07)' }}
+                      onMouseLeave={e => { e.currentTarget.firstChild.firstChild.style.transform = 'scale(1)' }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                        border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
                       <div style={{ position: 'relative' }}>
                         <div style={{
-                          width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+                          width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: s.done ? '#00E091' : isNext ? '#0C2D40' : '#e2e8f0',
-                          boxShadow: isNext ? '0 4px 14px rgba(12,45,64,.3)' : 'none',
-                          transition: 'transform .15s',
+                          boxShadow: isNext ? '0 4px 14px rgba(12,45,64,.3)' : '0 2px 8px rgba(12,45,64,.08)',
+                          transition: 'transform .15s, box-shadow .15s',
+                          animation: isNext ? 'duoPulse 2s ease-in-out infinite' : 'none',
                         }}>
-                          {s.done ? <Check size={24} style={{ color: '#fff' }} /> : <StepIcon size={22} style={{ color: isNext ? '#fff' : '#94a3b8' }} />}
+                          {s.done ? <Check size={22} style={{ color: '#fff' }} /> : <StepIcon size={20} style={{ color: isNext ? '#fff' : '#94a3b8' }} />}
+                        </div>
+                        <div style={{
+                          position: 'absolute', top: -4, left: -4,
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: '#fff', border: `1.5px solid ${s.done ? '#00E091' : isNext ? '#0C2D40' : '#cbd5e1'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, fontWeight: 800, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8',
+                        }}>
+                          {i + 1}
                         </div>
                         {isNext && (
                           <div style={{
-                            position: 'absolute', top: -6, right: -6,
+                            position: 'absolute', top: -6, right: -10,
                             background: '#f59e0b', color: '#fff', fontSize: 9, fontWeight: 800,
                             padding: '2px 6px', borderRadius: 20, whiteSpace: 'nowrap',
+                            animation: 'bubbleBounce 1.5s ease-in-out infinite',
                           }}>
                             Ir ahora
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8', textAlign: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: s.done ? '#00E091' : isNext ? '#0C2D40' : '#94a3b8', textAlign: 'center', marginTop: 4 }}>
                         {s.label}
                       </span>
-                      <span style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4, textAlign: 'center' }}>{s.sub}</span>
+                      <span style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4, textAlign: 'center', maxWidth: 200 }}>{s.sub}</span>
                     </button>
-                    {i < steps.length - 1 && (
-                      <div style={{ width: 60, height: 2, background: steps[i + 1].done || s.done ? '#00E091' : '#e2e8f0', marginTop: 27, borderRadius: 1 }} />
-                    )}
                   </div>
                 )
               })}

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
-import { colaboradoresData } from '../../pages/personas/Colaboradores'
 import {
   Search, X, Filter, Check, ChevronLeft, ChevronRight,
   ChevronDown, Calendar, Rocket
@@ -106,7 +105,10 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
 
   const [selectedColabs, setSelectedColabs] = useState([])
   const [colabSearch, setColabSearch] = useState('')
-  const [colabFilterDepto, setColabFilterDepto] = useState('Todas')
+  const [colabFilterDepto, setColabFilterDepto] = useState(() => {
+    const preselected = rutasAsignar.find(r => r.id === preselectedRutaId)
+    return preselected && preselected.area !== 'Todas las áreas' ? preselected.area : 'Todas'
+  })
   const [colabFilterSucursal, setColabFilterSucursal] = useState('Todas')
   const [colabFilterCargo, setColabFilterCargo] = useState('Todos')
   const [colabFechaDesde, setColabFechaDesde] = useState('')
@@ -125,9 +127,6 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   const [rfDropSede, setRfDropSede] = useState(false)
   const [rfDropArea, setRfDropArea] = useState(false)
   const [rfDropCargo, setRfDropCargo] = useState(false)
-  const [buddy, setBuddy] = useState(null)
-  const [buddySearch, setBuddySearch] = useState('')
-  const [buddyOpen, setBuddyOpen] = useState(false)
 
   const hasActiveFilters = colabFilterDepto !== 'Todas' || colabFilterSucursal !== 'Todas' || colabFilterCargo !== 'Todos' || colabFechaDesde || colabFechaHasta
   const filteredColabs = colaboradoresDisponibles.filter(c => {
@@ -147,6 +146,11 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   function clearFilters() {
     setColabFilterDepto('Todas'); setColabFilterSucursal('Todas'); setColabFilterCargo('Todos'); setColabFechaDesde(''); setColabFechaHasta('')
   }
+  function selectRuta(r) {
+    setOnbSelected(r.id)
+    setColabFilterDepto(r.area && r.area !== 'Todas las áreas' ? r.area : 'Todas')
+    setColabFilterCargo('Todos')
+  }
   function toggleColab(c) {
     setSelectedColabs(prev =>
       prev.find(s => s.name === c.name)
@@ -157,10 +161,6 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   const isColabSelected = (c) => selectedColabs.some(s => s.name === c.name)
   const selectedRuta = rutasAsignar.find(r => r.id === onbSelected) || null
   const canConfirm = selectedColabs.length > 0 && onbSelected && onbFecha
-  const buddyCandidatos = colaboradoresData.filter(c =>
-    !selectedColabs.some(s => s.name === c.name) &&
-    c.name.toLowerCase().includes(buddySearch.toLowerCase())
-  )
 
   return (
     <div className="pl-overlay" onClick={onClose}>
@@ -179,99 +179,13 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           </button>
         </div>
 
-        {/* CONTENIDO: 4 COLUMNAS */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }} onClick={() => setBuddyOpen(false)}>
+        {/* CONTENIDO: 3 COLUMNAS */}
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }}>
 
-          {/* COL 1: COLABORADORES */}
-          <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>1.</span> Colaboradores</span>
-              <button onClick={() => setShowFilters(true)} style={{
-                padding: '3px 8px', borderRadius: 6,
-                border: hasActiveFilters ? '1px solid #0C2D40' : '1px solid #e2e8f0',
-                background: hasActiveFilters ? '#f0f9ff' : '#fff',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
-                fontFamily: 'inherit', fontSize: 10, fontWeight: 600,
-                color: hasActiveFilters ? '#0C2D40' : '#94a3b8',
-              }}>
-                <Filter size={10} />
-                {hasActiveFilters
-                  ? `${[colabFilterDepto !== 'Todas', colabFilterSucursal !== 'Todas', colabFilterCargo !== 'Todos', !!colabFechaDesde, !!colabFechaHasta].filter(Boolean).length} filtros`
-                  : 'Filtros'}
-              </button>
-            </div>
-
-            <div className="pl-search-wrap" style={{ flex: 'none' }}>
-              <Search size={12} className="pl-search-ico" />
-              <input type="text" className="pl-search" style={{ fontSize: 11 }} placeholder="Buscar..." value={colabSearch} onChange={e => setColabSearch(e.target.value)} />
-            </div>
-
-            {/* CHIPS FILTROS */}
-            {hasActiveFilters && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {colabFilterSucursal !== 'Todas' && (
-                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    {colabFilterSucursal}
-                    <button onClick={() => setColabFilterSucursal('Todas')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#1e40af' }} /></button>
-                  </span>
-                )}
-                {colabFilterDepto !== 'Todas' && (
-                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#f0fdf4', color: '#166534', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    {colabFilterDepto}
-                    <button onClick={() => { setColabFilterDepto('Todas'); setColabFilterCargo('Todos') }} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#166534' }} /></button>
-                  </span>
-                )}
-                {colabFilterCargo !== 'Todos' && (
-                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
-                    {colabFilterCargo}
-                    <button onClick={() => setColabFilterCargo('Todos')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#92400e' }} /></button>
-                  </span>
-                )}
-                <button onClick={clearFilters} style={{ fontSize: 8, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
-              </div>
-            )}
-
-            {/* LISTA */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {filteredColabs.map(c => {
-                const sel = isColabSelected(c)
-                return (
-                  <button key={c.name} onClick={() => toggleColab(c)} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 10px', borderRadius: 6, width: '100%',
-                    border: 'none',
-                    background: sel ? '#d1fae5' : 'transparent',
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                    transition: 'all .12s',
-                    borderBottom: '1px solid #f8fafc',
-                  }}
-                    onMouseEnter={e => { if (!sel) e.currentTarget.style.background = '#f8fafc' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = sel ? '#d1fae5' : 'transparent' }}
-                  >
-                    <div style={{
-                      width: 15, height: 15, borderRadius: 4, border: sel ? '2px solid #00E091' : '1.5px solid #d1d5db',
-                      background: sel ? '#00E091' : '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      {sel && <Check size={8} style={{ color: '#fff' }} />}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: sel ? 600 : 500, color: sel ? '#0C2D40' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                      <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.depto} · {c.sucursal}</div>
-                    </div>
-                  </button>
-                )
-              })}
-              {filteredColabs.length === 0 && (
-                <div style={{ padding: 16, textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>Sin resultados</div>
-              )}
-            </div>
-          </div>
-
-          {/* COL 2: RUTA */}
+          {/* COL 1: RUTA */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>2.</span> Ruta</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>1.</span> Ruta</span>
               <button onClick={() => setShowRutaFilters(true)} style={{
                 padding: '3px 8px', borderRadius: 6,
                 border: (onbSede !== 'Todas' || onbArea !== 'Todas' || onbCargo !== 'Todos') ? '1px solid #0C2D40' : '1px solid #e2e8f0',
@@ -399,7 +313,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
               {rutasAsignar
                 .filter(r => (onbArea === 'Todas' || r.area === onbArea) && (onbCargo === 'Todos' || r.name.toLowerCase().includes(onbCargo.toLowerCase())) && r.name.toLowerCase().includes(onbSearch.toLowerCase()))
                 .map(r => (
-                  <button key={r.id} onClick={() => setOnbSelected(r.id)} style={{
+                  <button key={r.id} onClick={() => selectRuta(r)} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 10px', borderRadius: 6, width: '100%',
                     border: 'none',
@@ -424,79 +338,96 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
             </div>
           </div>
 
-          {/* COL 3: FECHA */}
-          <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto', borderRight: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
-            <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
-          </div>
+          {/* COL 2: COLABORADORES */}
+          <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>2.</span> Colaboradores</span>
+              <button onClick={() => setShowFilters(true)} style={{
+                padding: '3px 8px', borderRadius: 6,
+                border: hasActiveFilters ? '1px solid #0C2D40' : '1px solid #e2e8f0',
+                background: hasActiveFilters ? '#f0f9ff' : '#fff',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                fontFamily: 'inherit', fontSize: 10, fontWeight: 600,
+                color: hasActiveFilters ? '#0C2D40' : '#94a3b8',
+              }}>
+                <Filter size={10} />
+                {hasActiveFilters
+                  ? `${[colabFilterDepto !== 'Todas', colabFilterSucursal !== 'Todas', colabFilterCargo !== 'Todos', !!colabFechaDesde, !!colabFechaHasta].filter(Boolean).length} filtros`
+                  : 'Filtros'}
+              </button>
+            </div>
 
-          {/* COL 4: BUDDY */}
-          <div style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>
-              <span style={{ color: '#94a3b8', fontWeight: 600 }}>4.</span> Buddy <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span>
-            </span>
-            <p style={{ fontSize: 10, color: '#94a3b8', margin: '-4px 0 0', lineHeight: 1.4 }}>
-              Su acompañante guía durante el onboarding.
-            </p>
+            <div className="pl-search-wrap" style={{ flex: 'none' }}>
+              <Search size={12} className="pl-search-ico" />
+              <input type="text" className="pl-search" style={{ fontSize: 11 }} placeholder="Buscar..." value={colabSearch} onChange={e => setColabSearch(e.target.value)} />
+            </div>
 
-            {buddy ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: buddy.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{buddy.initials}</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{buddy.name}</div>
-                  <div style={{ fontSize: 9, color: '#94a3b8' }}>{buddy.cargo}</div>
-                </div>
-                <button onClick={() => setBuddy(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#94a3b8', display: 'flex', flexShrink: 0 }}>
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <div className="pl-search-wrap">
-                  <Search size={11} className="pl-search-ico" />
-                  <input
-                    type="text" className="pl-search" style={{ fontSize: 11 }}
-                    placeholder="Buscar persona..."
-                    value={buddySearch}
-                    onChange={e => { setBuddySearch(e.target.value); setBuddyOpen(true) }}
-                    onFocus={() => setBuddyOpen(true)}
-                  />
-                </div>
-                {buddyOpen && (
-                  <div style={{
-                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30,
-                    background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0',
-                    boxShadow: '0 8px 24px rgba(0,0,0,.12)', maxHeight: 180, overflowY: 'auto', padding: 4,
-                  }}>
-                    {buddyCandidatos.length > 0 ? buddyCandidatos.slice(0, 20).map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => { setBuddy(c); setBuddySearch(''); setBuddyOpen(false) }}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '6px 8px', border: 'none', borderRadius: 7,
-                          background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: 8, fontWeight: 700, color: '#fff' }}>{c.initials}</span>
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                          <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.cargo}</div>
-                        </div>
-                      </button>
-                    )) : (
-                      <div style={{ padding: 10, textAlign: 'center', fontSize: 10, color: '#94a3b8' }}>Sin resultados</div>
-                    )}
-                  </div>
+            {/* CHIPS FILTROS */}
+            {hasActiveFilters && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {colabFilterSucursal !== 'Todas' && (
+                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#eff6ff', color: '#1e40af', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {colabFilterSucursal}
+                    <button onClick={() => setColabFilterSucursal('Todas')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#dbeafe', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#1e40af' }} /></button>
+                  </span>
                 )}
+                {colabFilterDepto !== 'Todas' && (
+                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#f0fdf4', color: '#166534', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {colabFilterDepto}
+                    <button onClick={() => { setColabFilterDepto('Todas'); setColabFilterCargo('Todos') }} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#bbf7d0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#166534' }} /></button>
+                  </span>
+                )}
+                {colabFilterCargo !== 'Todos' && (
+                  <span style={{ fontSize: 9, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {colabFilterCargo}
+                    <button onClick={() => setColabFilterCargo('Todos')} style={{ width: 12, height: 12, borderRadius: '50%', border: 'none', background: '#fde68a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}><X size={7} style={{ color: '#92400e' }} /></button>
+                  </span>
+                )}
+                <button onClick={clearFilters} style={{ fontSize: 8, fontWeight: 600, color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
               </div>
             )}
+
+            {/* LISTA */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {filteredColabs.map(c => {
+                const sel = isColabSelected(c)
+                return (
+                  <button key={c.name} onClick={() => toggleColab(c)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 10px', borderRadius: 6, width: '100%',
+                    border: 'none',
+                    background: sel ? '#d1fae5' : 'transparent',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                    transition: 'all .12s',
+                    borderBottom: '1px solid #f8fafc',
+                  }}
+                    onMouseEnter={e => { if (!sel) e.currentTarget.style.background = '#f8fafc' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = sel ? '#d1fae5' : 'transparent' }}
+                  >
+                    <div style={{
+                      width: 15, height: 15, borderRadius: 4, border: sel ? '2px solid #00E091' : '1.5px solid #d1d5db',
+                      background: sel ? '#00E091' : '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {sel && <Check size={8} style={{ color: '#fff' }} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: sel ? 600 : 500, color: sel ? '#0C2D40' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                      <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.depto} · {c.sucursal}</div>
+                    </div>
+                  </button>
+                )
+              })}
+              {filteredColabs.length === 0 && (
+                <div style={{ padding: 16, textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>Sin resultados</div>
+              )}
+            </div>
+          </div>
+
+          {/* COL 3: FECHA */}
+          <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
+            <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
           </div>
         </div>
 
@@ -593,7 +524,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           <button className="pl-btn-cancel" onClick={onClose}>Cancelar</button>
           <button className="pl-btn-save" disabled={!canConfirm}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...(!canConfirm ? { opacity: 0.5, cursor: 'default' } : {}) }}
-            onClick={() => canConfirm && onConfirm(selectedColabs, selectedRuta, onbFecha, buddy)}>
+            onClick={() => canConfirm && onConfirm(selectedColabs, selectedRuta, onbFecha)}>
             <Rocket size={13} />
             Asignar a {selectedColabs.length || '...'} colaborador{selectedColabs.length !== 1 ? 'es' : ''}
           </button>

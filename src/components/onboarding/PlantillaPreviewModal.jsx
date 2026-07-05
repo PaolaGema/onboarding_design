@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, X, Sparkles, Layers, ListChecks } from 'lucide-react'
+import { Eye, X, Layers, ListChecks } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
 
@@ -60,7 +60,7 @@ export default function PlantillaPreviewModal({ plantilla, onClose, onUseTemplat
                     fontSize: 10, fontWeight: 700, color: '#6d28d9',
                     background: '#f5f3ff', padding: '3px 9px', borderRadius: 20,
                   }}>
-                    <Sparkles size={11} /> SoulyHR
+                    SoulyHR
                   </span>
                 </div>
 
