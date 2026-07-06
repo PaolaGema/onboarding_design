@@ -577,7 +577,7 @@ export default function Plantillas() {
                           { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
                         ] : [
-                          ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                          ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                           { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
@@ -911,7 +911,7 @@ export default function Plantillas() {
                             { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
                           ] : [
-                            ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                            ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                             { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },

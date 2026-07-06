@@ -1583,13 +1583,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
                 {/* TOGGLES */}
 
-                {['lectura', 'documento'].includes(tareaForm.tipo) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #dbeafe' }}>
-                    <Info size={14} style={{ color: '#3b82f6', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>El colaborador deberá confirmar que leyó el documento para completar la tarea</span>
-                  </div>
-                )}
-
                 {tareaForm.tipo === 'quiz' && (
                   <div className="jb-field-toggle" onClick={() => updateForm('mostrarRespuestas', !tareaForm.mostrarRespuestas)}>
                     <div>

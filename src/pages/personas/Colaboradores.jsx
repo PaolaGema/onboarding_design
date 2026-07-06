@@ -492,8 +492,8 @@ export default function Colaboradores() {
                         { icon: Pencil, label: 'Editar', color: '#475569' },
                         { icon: Shield, label: 'Roles y permisos', color: '#475569', action: () => setRolModal(c) },
                         ...(c.onb === 'graduado'
-                          ? [{ icon: Repeat, label: 'Asignar reboarding', color: '#8b5cf6', action: () => { setOnbModal({ ...c, _tipo: 'Reboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]
-                          : [{ icon: Rocket, label: 'Asignar onboarding', color: '#0C2D40', action: () => { setOnbModal({ ...c, _tipo: 'Onboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]),
+                          ? [{ icon: Repeat, label: 'Asignar ruta de reboarding', color: '#8b5cf6', action: () => { setOnbModal({ ...c, _tipo: 'Reboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]
+                          : [{ icon: Rocket, label: 'Asignar ruta de onboarding', color: '#0C2D40', action: () => { setOnbModal({ ...c, _tipo: 'Onboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]),
                         { icon: Send, label: 'Enviar credenciales', color: '#475569' },
                         { icon: RefreshCw, label: 'Cambiar estado', color: '#475569', action: () => setEstadoModal(c) },
                       ].map(action => (
@@ -603,7 +603,7 @@ export default function Colaboradores() {
                     <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{onbModal.initials}</span>
                   </div>
                   <div>
-                    <h2 style={{ margin: 0, fontSize: 15 }}>{onbModal._tipo === 'Reboarding' ? 'Asignar reboarding' : 'Asignar onboarding'}</h2>
+                    <h2 style={{ margin: 0, fontSize: 15 }}>{onbModal._tipo === 'Reboarding' ? 'Asignar ruta de reboarding' : 'Asignar ruta de onboarding'}</h2>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{onbModal.name} · {onbModal.depto}</span>
                   </div>
                 </div>

@@ -387,7 +387,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 100px;
+  min-width: 70px;
 }
 
 .pr-pct {

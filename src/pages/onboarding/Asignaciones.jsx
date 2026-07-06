@@ -8,6 +8,7 @@ import {
   Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
+import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
 import { rutasData } from './JourneyBuilder'
 import EmptyState from '../../components/layout/EmptyState'
 
@@ -86,6 +87,8 @@ export default function Asignaciones() {
   const [recEnviado, setRecEnviado] = useState(false)
   const [menuPos, setMenuPos] = useState(null)
   const [detalle, setDetalle] = useState(null)
+  const [buddyModal, setBuddyModal] = useState(null)
+  const [desasignarBuddyTarget, setDesasignarBuddyTarget] = useState(null)
 
   const hasAsigFilters = filterStatus !== 'todos' || filterTipo !== 'todos'
   function clearAsigFilters() { setFilterStatus('todos'); setFilterTipo('todos') }
@@ -188,6 +191,26 @@ export default function Asignaciones() {
     setPausarTarget(null)
   }
 
+  function handleAsignarBuddy(candidato) {
+    setAsignaciones(asignaciones.map(a =>
+      a.id === buddyModal.id ? { ...a, buddy: { name: candidato.name, initials: candidato.initials, color: candidato.color } } : a
+    ))
+    addFeedEntry(`${candidato.name} fue asignado/a como buddy de ${buddyModal.nombre}`)
+    setBuddyModal(null)
+  }
+
+  function confirmDesasignarBuddy(a) {
+    setDesasignarBuddyTarget(a)
+    setMenuOpen(null)
+  }
+
+  function handleDesasignarBuddy() {
+    setAsignaciones(asignaciones.map(a =>
+      a.id === desasignarBuddyTarget.id ? { ...a, buddy: null } : a
+    ))
+    setDesasignarBuddyTarget(null)
+  }
+
   function confirmDelete(a) {
     setDeleteTarget(a)
     setMenuOpen(null)
@@ -252,7 +275,7 @@ export default function Asignaciones() {
 
         {!isAreaRole && (
           <button className="pl-btn-new" onClick={() => setModal(true)} style={{ padding: '0 14px', height: 34, fontSize: 11.5, marginLeft: 'auto' }}>
-            <UserPlus size={14} /> Asignar ruta
+            <UserPlus size={14} /> Asignar ruta a colaboradores
           </button>
         )}
       </div>
@@ -370,6 +393,7 @@ export default function Asignaciones() {
                 )}
               </th>
               <th>Inicio</th>
+              <th>Buddy</th>
               <th></th>
             </tr>
           </thead>
@@ -410,6 +434,18 @@ export default function Asignaciones() {
                 </td>
                 <td><span className="as-fecha">{a.fechaInicio}</span></td>
                 <td>
+                  {a.buddy ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: a.buddy.color || '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ color: '#fff', fontSize: 8.5, fontWeight: 700 }}>{a.buddy.initials}</span>
+                      </div>
+                      <span style={{ fontSize: 11.5, color: '#334155', whiteSpace: 'nowrap' }}>{a.buddy.name}</span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#cbd5e1' }}>Sin asignar</span>
+                  )}
+                </td>
+                <td>
                   <div className="as-actions-cell">
                     <div className="as-menu-wrap">
                       <button
@@ -430,6 +466,16 @@ export default function Asignaciones() {
                             <Eye size={13} />
                             Ver detalles
                           </button>
+                          <button className="as-menu-item" onClick={() => { setBuddyModal(a); setMenuOpen(null) }}>
+                            <UserCheck size={13} />
+                            {a.buddy ? 'Cambiar buddy' : 'Asignar buddy'}
+                          </button>
+                          {a.buddy && (
+                            <button className="as-menu-item as-menu-del" onClick={() => confirmDesasignarBuddy(a)}>
+                              <X size={13} />
+                              Desasignar buddy
+                            </button>
+                          )}
                           {(a.status === 'atrasado' || a.status === 'en-riesgo') && (
                             <button className="as-menu-item" onClick={() => openRecordatorio(a)}>
                               <Send size={13} />
@@ -466,7 +512,7 @@ export default function Asignaciones() {
                       : 'Asigna una ruta de onboarding a cada nuevo colaborador para que comience su proceso.')
                   : 'Intenta con otro término de búsqueda o ajusta los filtros.'
               }
-              actionLabel={asignaciones.length === 0 && plantillasDisponibles.length > 0 ? 'Asignar ruta' : undefined}
+              actionLabel={asignaciones.length === 0 && plantillasDisponibles.length > 0 ? 'Asignar ruta a colaboradores' : undefined}
               actionIcon={UserPlus}
               onAction={() => setModal(true)}
             />
@@ -538,6 +584,15 @@ export default function Asignaciones() {
         />
       )}
 
+      {/* MODAL ASIGNAR BUDDY */}
+      {buddyModal && (
+        <AsignarBuddyModal
+          colaborador={buddyModal}
+          onClose={() => setBuddyModal(null)}
+          onConfirm={handleAsignarBuddy}
+        />
+      )}
+
       {/* MODAL DESASIGNAR */}
       {pausarTarget && (
         <div className="pl-overlay" onClick={() => setPausarTarget(null)}>
@@ -558,6 +613,26 @@ export default function Asignaciones() {
               <button className="pl-btn-save" onClick={handlePausar}>
                 {pausarTarget.status === 'pausado' ? 'Reanudar' : 'Pausar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {desasignarBuddyTarget && (
+        <div className="pl-overlay" onClick={() => setDesasignarBuddyTarget(null)}>
+          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
+              <div className="pl-del-icon">
+                <AlertTriangle size={28} />
+              </div>
+              <h2 className="pl-del-title">Desasignar buddy</h2>
+              <p className="pl-del-desc">
+                ¿Quitar a <strong>{desasignarBuddyTarget.buddy?.name}</strong> como buddy de <strong>{desasignarBuddyTarget.nombre}</strong>?
+              </p>
+            </div>
+            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
+              <button className="pl-btn-cancel" onClick={() => setDesasignarBuddyTarget(null)}>Cancelar</button>
+              <button className="pl-btn-delete" onClick={handleDesasignarBuddy}>Desasignar</button>
             </div>
           </div>
         </div>
@@ -696,6 +771,11 @@ export default function Asignaciones() {
                   <span className={`as-status ${statusCls[detalle.status]}`}>{statusLabels[detalle.status]}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>Día {detalle.dia} / {detalle.totalDias}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>· Inicio {detalle.fechaInicio}</span>
+                  {detalle.buddy && (
+                    <span style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      · Buddy: <strong style={{ color: '#334155', fontWeight: 600 }}>{detalle.buddy.name}</strong>
+                    </span>
+                  )}
                 </div>
                 <div className="pr-progress" style={{ marginBottom: 20 }}>
                   <div className="pr-pct">{detalle.pct}%</div>

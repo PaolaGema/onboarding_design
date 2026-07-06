@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, X, Filter, Check, ChevronLeft, ChevronRight,
-  ChevronDown, Calendar, Rocket
+  ChevronDown, Calendar, Rocket, AlertTriangle
 } from 'lucide-react'
 
 const colaboradoresDisponibles = [
@@ -20,6 +20,12 @@ const colaboradoresDisponibles = [
 
 const DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do']
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+function formatFechaCorta(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`
+}
 
 function MiniCalendar({ value, onChange }) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }, [])
@@ -128,6 +134,9 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   const [rfDropArea, setRfDropArea] = useState(false)
   const [rfDropCargo, setRfDropCargo] = useState(false)
 
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }, [])
+  const ingresoDatesSelected = [...new Set(selectedColabs.map(c => c.ingreso))]
+
   const hasActiveFilters = colabFilterDepto !== 'Todas' || colabFilterSucursal !== 'Todas' || colabFilterCargo !== 'Todos' || colabFechaDesde || colabFechaHasta
   const filteredColabs = colaboradoresDisponibles.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(colabSearch.toLowerCase()) ||
@@ -164,7 +173,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
 
   return (
     <div className="pl-overlay" onClick={onClose}>
-      <div className="pl-modal jb-modal" style={{ width: 1180, maxWidth: '96vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+      <div className="pl-modal jb-modal" style={{ width: 940, maxWidth: '96vw', height: '92vh', maxHeight: 860, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
 
         {/* HEADER */}
         <div className="pl-modal-header" style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -183,7 +192,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflowY: 'auto' }}>
 
           {/* COL 1: RUTA */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9', minWidth: 0 }}>
+          <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', borderRight: '1px solid #f1f5f9', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>1.</span> Ruta</span>
               <button onClick={() => setShowRutaFilters(true)} style={{
@@ -414,6 +423,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, fontWeight: sel ? 600 : 500, color: sel ? '#0C2D40' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                       <div style={{ fontSize: 9, color: '#b0b8c4' }}>{c.depto} · {c.sucursal}</div>
+                      <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Ingreso: {formatFechaCorta(c.ingreso)}</div>
                     </div>
                   </button>
                 )
@@ -428,6 +438,44 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
           <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 18px', overflowY: 'auto' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}><span style={{ color: '#94a3b8', fontWeight: 600 }}>3.</span> Fecha de inicio</span>
             <MiniCalendar value={onbFecha} onChange={setOnbFecha} />
+
+            {selectedColabs.length > 0 && (
+              ingresoDatesSelected.length === 1 ? (() => {
+                const ingresoStr = ingresoDatesSelected[0]
+                const ingresoDate = new Date(ingresoStr + 'T00:00:00')
+                const isPast = ingresoDate < today
+                const isActive = onbFecha === ingresoStr
+                return isPast ? (
+                  <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <AlertTriangle size={13} style={{ color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 9.5, color: '#92400e', lineHeight: 1.4 }}>
+                      La fecha de ingreso ({formatFechaCorta(ingresoStr)}) ya pasó. Elige una fecha manual (hoy o posterior) para iniciar el onboarding.
+                    </span>
+                  </div>
+                ) : (
+                  <button onClick={() => setOnbFecha(ingresoStr)} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 12px', borderRadius: 10,
+                    border: isActive ? '1.5px solid #00E091' : '1px solid #e2e8f0',
+                    background: isActive ? '#ecfdf5' : '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  }}>
+                    <Rocket size={13} style={{ color: isActive ? '#059669' : '#94a3b8', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: isActive ? '#059669' : '#334155' }}>Iniciar el día de ingreso</div>
+                      <div style={{ fontSize: 9, color: '#94a3b8' }}>{formatFechaCorta(ingresoStr)}</div>
+                    </div>
+                    {isActive && <Check size={13} style={{ color: '#059669', flexShrink: 0 }} />}
+                  </button>
+                )
+              })() : (
+                <div style={{ padding: '10px 12px', borderRadius: 10, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.4 }}>
+                    Los colaboradores seleccionados tienen distintas fechas de ingreso. Elige la fecha de inicio manualmente.
+                  </span>
+                </div>
+              )
+            )}
           </div>
         </div>
 
