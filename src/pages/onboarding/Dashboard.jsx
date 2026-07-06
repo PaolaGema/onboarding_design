@@ -23,7 +23,7 @@ const STATUS_LABELS = {
   'atrasado': 'Atrasados',
   'en-riesgo': 'En riesgo',
 }
-const AREA_COLORS = ['#3b82f6', '#00E091', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#0d9488']
+const AREA_COLORS = ['#102F41', '#1B4D6A', '#256A93', '#2F88BC', '#479FD1', '#68B0D9']
 const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#c2703d']
 
 const upcomingData = [

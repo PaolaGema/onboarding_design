@@ -5,7 +5,7 @@ import {
   Trophy, Bot, Megaphone, AlertTriangle, Info,
   Route, Zap,
   Pencil,
-  Clock, AlertCircle, X, Award, Upload, Eye, Trash2
+  Clock, AlertCircle, X, Award, Upload, Eye, Trash2, Check
 } from 'lucide-react'
 
 const toggleMessages = {
@@ -129,9 +129,14 @@ const cornerStyle = (top, right, bottom, left, color) => ({
 })
 
 const modoAsignacion = [
-  { key: 'manual', label: 'Manual', desc: 'Un administrador asigna la ruta a cada colaborador desde el módulo de Seguimiento.', icon: Pencil },
-  { key: 'auto', label: 'Automática', desc: 'El sistema asigna la ruta automáticamente en la fecha de ingreso, según el área y cargo.', icon: Zap },
+  { key: 'manual', label: 'Manual', desc: 'Un administrador elige y asigna la ruta de onboarding a cada colaborador nuevo, desde Seguimiento o Colaboradores.', icon: Pencil },
+  { key: 'auto', label: 'Automática', desc: 'El sistema asigna solo la ruta de onboarding a cada colaborador nuevo, el día que ingresa, según su área y cargo.', icon: Zap },
 ]
+
+const asignacionMessages = {
+  manual: 'De ahora en adelante, cuando entre un colaborador nuevo, tú o un administrador deberán elegir a mano qué ruta de onboarding le corresponde. Puedes hacerlo desde Seguimiento o desde la ficha del colaborador en Colaboradores, con la opción "Asignar ruta de onboarding". Si nadie lo hace, ese colaborador se quedará sin ruta de onboarding asignada.',
+  auto: 'De ahora en adelante, cada vez que entre un colaborador nuevo, el sistema le asignará solo una ruta de onboarding automáticamente, el mismo día de su ingreso. La ruta se elige según el área y el cargo del colaborador, sin que nadie tenga que hacerlo a mano. Igual podrás entrar a Seguimiento o a la ficha del colaborador en Colaboradores para revisar o cambiar esa asignación.',
+}
 
 export default function Configuracion() {
   const { configToggles, setConfigToggles, plantillas: allPlantillas } = useOnboardingData()
@@ -142,6 +147,7 @@ export default function Configuracion() {
   const [horaAsignacion, setHoraAsignacion] = useState(configToggles.horaAsignacion || '08:00')
   const { setGamificacion, setAsistenteIA } = useConfig()
   const [toggleConfirm, setToggleConfirm] = useState(null)
+  const [asignacionConfirm, setAsignacionConfirm] = useState(null)
   const [certPreview, setCertPreview] = useState(false)
   const logoInputRef = useRef(null)
 
@@ -167,6 +173,22 @@ export default function Configuracion() {
   function updateAsignacion(val) {
     setAsignacion(val)
     setConfigToggles(ct => ({ ...ct, asignacion: val }))
+  }
+
+  function requestAsignacion(val) {
+    if (val === asignacion) return
+    setAsignacionConfirm({
+      val,
+      fromLabel: modoAsignacion.find(m => m.key === asignacion)?.label,
+      label: modoAsignacion.find(m => m.key === val)?.label,
+      message: asignacionMessages[val],
+    })
+  }
+
+  function confirmAsignacion() {
+    if (!asignacionConfirm) return
+    updateAsignacion(asignacionConfirm.val)
+    setAsignacionConfirm(null)
   }
 
   function updateHora(val) {
@@ -244,41 +266,51 @@ export default function Configuracion() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-heading)' }}>Asignación de ruta</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              ¿Cómo y cuándo se asigna la ruta al nuevo colaborador?
+              ¿Cómo y cuándo se asigna la ruta de onboarding al colaborador nuevo?
             </div>
           </div>
         </div>
 
-        {/* SEGMENTED CONTROL */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 10, background: 'var(--input-bg)', border: '1px solid var(--border-soft)' }}>
+        {/* CARDS DE MODO */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {modoAsignacion.map(m => {
             const selected = asignacion === m.key
             const Icon = m.icon
             return (
               <button
                 key={m.key}
-                onClick={() => updateAsignacion(m.key)}
+                onClick={() => requestAsignacion(m.key)}
                 style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                  padding: '9px 12px', borderRadius: 7, border: 'none',
-                  background: selected ? 'var(--surface-card)' : 'transparent',
-                  boxShadow: selected ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
-                  cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700,
-                  color: selected ? 'var(--text-heading)' : 'var(--text-muted)',
+                  position: 'relative', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+                  padding: '14px 16px', borderRadius: 12,
+                  border: selected ? '1.5px solid #0C2D40' : '1.5px solid var(--border-soft)',
+                  background: selected ? 'var(--blue-bg)' : 'var(--input-bg)',
                   transition: 'all .15s',
                 }}
               >
-                <Icon size={13} />
-                {m.label}
+                {selected && (
+                  <div style={{
+                    position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%',
+                    background: '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Check size={11} style={{ color: '#fff' }} />
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    background: selected ? '#0C2D40' : 'var(--surface-hover)',
+                    color: selected ? '#fff' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Icon size={13} />
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: selected ? 'var(--text-heading)' : 'var(--text-muted)' }}>{m.label}</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.4, paddingRight: 18 }}>{m.desc}</div>
               </button>
             )
           })}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 9, padding: '0 2px' }}>
-          <Info size={11} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
-          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-            {modoAsignacion.find(m => m.key === asignacion)?.desc}
-          </span>
         </div>
 
         {/* HORA — solo si es automática */}
@@ -290,7 +322,7 @@ export default function Configuracion() {
           }}>
             <Clock size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1, minWidth: 160 }}>
-              Se asigna a las <strong style={{ color: 'var(--text-heading)' }}>{horaAsignacion}</strong> del día de ingreso, según área y cargo.
+              La ruta de onboarding se asigna a las <strong style={{ color: 'var(--text-heading)' }}>{horaAsignacion}</strong> del día de ingreso, según el área y el cargo del colaborador.
             </span>
             <input
               type="time"
@@ -683,6 +715,49 @@ export default function Configuracion() {
         </div>
       )}
 
+      {/* MODAL CONFIRMACIÓN ASIGNACIÓN */}
+      {asignacionConfirm && (
+        <div className="pl-overlay" onClick={() => setAsignacionConfirm(null)}>
+          <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <h2>¿Estás seguro de cambiar de {asignacionConfirm.fromLabel} a {asignacionConfirm.label}?</h2>
+              <button className="pl-modal-close" onClick={() => setAsignacionConfirm(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="pl-modal-body">
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+                padding: '12px 14px', borderRadius: 10,
+                background: 'var(--blue-bg)', border: '1px solid var(--border-soft)',
+              }}>
+                <Info size={16} style={{ color: 'var(--blue)', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)' }}>
+                  Este cambio aplica a todos los colaboradores nuevos
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
+                {asignacionConfirm.message}
+              </p>
+            </div>
+            <div className="pl-modal-footer">
+              <button className="pl-btn-cancel" onClick={() => setAsignacionConfirm(null)}>Cancelar</button>
+              <button
+                onClick={confirmAsignacion}
+                style={{
+                  padding: '9px 20px', borderRadius: 10, border: 'none',
+                  background: '#0C2D40',
+                  color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: 13, fontWeight: 700,
+                }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL PREVIEW CERTIFICADO */}
       {certPreview && (() => {
         const cert = config.find(c => c.key === 'certificado').defaults
@@ -701,6 +776,17 @@ export default function Configuracion() {
                 </button>
               </div>
               <div className="pl-modal-body">
+
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'var(--blue-bg)', border: '1px solid var(--border-soft)',
+                }}>
+                  <Info size={15} style={{ color: 'var(--blue)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 11.5, color: 'var(--blue)', lineHeight: 1.5 }}>
+                    Esto es solo un ejemplo. "Camila Herrera" y la ruta que ves abajo no son reales: cuando un colaborador se gradúe, su certificado saldrá con su propio nombre y la ruta de onboarding que él completó.
+                  </span>
+                </div>
 
                 {/* MARCO EXTERIOR */}
                 <div style={{
