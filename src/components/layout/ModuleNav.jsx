@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
+import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 
 const sectionInfo = {
   'Administración': 'Opciones para administrar el módulo de onboarding.',
@@ -85,6 +86,8 @@ export default function ModuleNav() {
   const { currentUser } = useUser()
   const { theme } = useTheme()
   const location = useLocation()
+  const navigate = useNavigate()
+  const { guardNavigate } = useUnsavedChanges()
 
   const isPersonas = location.pathname.startsWith('/personas')
   const isArchivos = location.pathname.startsWith('/archivos')
@@ -155,7 +158,7 @@ export default function ModuleNav() {
           <div key={group.section} style={{ marginBottom: gi < sections.length - 1 ? '1rem' : 0, paddingTop: gi > 0 ? '0.75rem' : 0, borderTop: gi > 0 && expanded ? '1px solid var(--border-soft)' : 'none', width: expanded ? undefined : '100%', display: expanded ? undefined : 'flex', flexDirection: expanded ? undefined : 'column', alignItems: expanded ? undefined : 'center' }}>
             {expanded && (
               <div style={{
-                fontSize: 10, fontWeight: 700, color: '#64748b',
+                fontSize: 10, fontWeight: 700, color: theme === 'dark' ? '#A9B7C6' : '#64748b',
                 textTransform: 'uppercase', letterSpacing: '0.05em',
                 padding: '0 0.85rem', marginBottom: '0.4rem',
                 display: 'flex', alignItems: 'center', gap: 4,
@@ -194,6 +197,7 @@ export default function ModuleNav() {
                   to={path}
                   end={end}
                   title={!expanded ? label : undefined}
+                  onClick={e => { e.preventDefault(); guardNavigate(() => navigate(path)) }}
                   className={({ isActive }) =>
                     `font-medium rounded-md flex items-center cursor-pointer transition-all duration-150 text-xs
                     ${isActive

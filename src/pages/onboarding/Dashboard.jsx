@@ -12,7 +12,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 /* ── DATA ────────────────────────────────────── */
 
 const STATUS_COLORS = {
-  'en-curso': '#3b82f6',
+  'en-curso': '#0C2D40',
   'completado': '#00E091',
   'atrasado': '#f59e0b',
   'en-riesgo': '#ef4444',

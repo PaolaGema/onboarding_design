@@ -1223,7 +1223,7 @@ export default function Plantillas() {
               </div>
 
               <div className="pl-label">
-                Cargo <span style={{ color: '#ef4444' }}>*</span>
+                <span>Cargo <span style={{ color: '#ef4444' }}>*</span></span>
                 <div className="pl-dropdown-wrap">
                   <input
                     type="text"

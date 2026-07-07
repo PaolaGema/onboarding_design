@@ -4,6 +4,7 @@ import { House, Calendar, UserRound, MessageCircleMore, ClipboardCheck, Settings
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import logoOscuro from '../../assets/imagenes/logo_souly_oscuro.png'
 import logoClaro from '../../assets/imagenes/logo_souly_claro.png'
 
@@ -68,8 +69,10 @@ export default function Sidebar() {
   const { currentUser } = useUser()
   const { theme } = useTheme()
   const { resetDemo, loadSampleData } = useOnboardingData()
+  const { guardNavigate } = useUnsavedChanges()
   const navItems = allNavItems.filter(item => item.roles.includes(currentUser.role))
   const isAdmin = currentUser.role === 'admin'
+  function go(path) { guardNavigate(() => navigate(path)) }
 
   const [showDemoMenu, setShowDemoMenu] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -147,7 +150,7 @@ export default function Sidebar() {
             label={label}
             active={isActive(path)}
             expanded={expanded}
-            onClick={() => path && navigate(path)}
+            onClick={() => path && go(path)}
           />
         ))}
       </nav>
@@ -222,7 +225,7 @@ export default function Sidebar() {
               label={label}
               expanded={expanded}
               variant={variant}
-              onClick={() => path && navigate(path)}
+              onClick={() => path && go(path)}
             />
           )
         })}

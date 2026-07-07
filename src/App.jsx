@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { RutaActivaProvider } from './context/RutaActivaContext'
 import { ConfigProvider } from './context/ConfigContext'
 import { OnboardingDataProvider } from './context/OnboardingDataContext'
+import { UnsavedChangesProvider } from './context/UnsavedChangesContext'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/onboarding/Dashboard'
 import Asignaciones from './pages/onboarding/Asignaciones'
@@ -25,6 +26,7 @@ export default function App() {
       <OnboardingDataProvider>
       <ConfigProvider>
       <RutaActivaProvider>
+      <UnsavedChangesProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/onboarding" element={<Layout />}>
@@ -49,6 +51,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         </Routes>
       </BrowserRouter>
+      </UnsavedChangesProvider>
       </RutaActivaProvider>
       </ConfigProvider>
       </OnboardingDataProvider>

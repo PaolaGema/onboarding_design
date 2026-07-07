@@ -218,18 +218,27 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
           </div>
         )
       }
-      case 'recorrido':
+      case 'recorrido': {
+        const paradas = (task.paradas || []).map(p => p.lugar).filter(Boolean)
+        const stops = paradas.length ? paradas : ['Recepción y entrada principal', 'Tu área de trabajo', 'Sala de reuniones', 'Comedor y áreas comunes']
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 5, background: '#eff6ff', color: '#2563eb', alignSelf: 'flex-start' }}>Recorrido libre</div>
-            {['Recepción y entrada principal', 'Tu área de trabajo', 'Sala de reuniones', 'Comedor y áreas comunes'].map((s, i) => (
+            {stops.map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
                 <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: '1.5px solid #d1d5db' }} />
                 <span style={{ fontSize: 12, color: '#334155' }}>{s}</span>
               </div>
             ))}
+            {task.guia && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: '#eff6ff', border: '1px solid #dbeafe', marginTop: 2 }}>
+                <UserCheck size={13} style={{ color: '#2563eb' }} />
+                <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>Guía: {task.guia}</span>
+              </div>
+            )}
           </div>
         )
+      }
       case 'subida':
         return (
           <div style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 28, textAlign: 'center', background: '#fdf2f8' }}>

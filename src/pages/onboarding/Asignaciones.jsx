@@ -70,8 +70,12 @@ export default function Asignaciones() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
   const [filterTipo, setFilterTipo] = useState('todos')
+  const [filterArea, setFilterArea] = useState('todas')
+  const [filterCargo, setFilterCargo] = useState('todos')
   const [afDropStatus, setAfDropStatus] = useState(false)
   const [afDropTipo, setAfDropTipo] = useState(false)
+  const [afDropArea, setAfDropArea] = useState(false)
+  const [afDropCargo, setAfDropCargo] = useState(false)
   const [statusHeaderPos, setStatusHeaderPos] = useState(null)
   const [tipoHeaderPos, setTipoHeaderPos] = useState(null)
   const [page, setPage] = useState(1)
@@ -90,13 +94,15 @@ export default function Asignaciones() {
   const [buddyModal, setBuddyModal] = useState(null)
   const [desasignarBuddyTarget, setDesasignarBuddyTarget] = useState(null)
 
-  const hasAsigFilters = filterStatus !== 'todos' || filterTipo !== 'todos'
-  function clearAsigFilters() { setFilterStatus('todos'); setFilterTipo('todos') }
+  const hasAsigFilters = filterStatus !== 'todos' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos'
+  function clearAsigFilters() { setFilterStatus('todos'); setFilterTipo('todos'); setFilterArea('todas'); setFilterCargo('todos') }
+
+  const cargosDeArea = [...new Set(asignaciones.filter(a => filterArea === 'todas' || a.area === filterArea).map(a => a.cargo).filter(Boolean))]
 
   useEffect(() => {
     function closeDrops(e) {
       if (!e.target.closest('[data-th-filter]')) {
-        setAfDropStatus(false); setAfDropTipo(false)
+        setAfDropStatus(false); setAfDropTipo(false); setAfDropArea(false); setAfDropCargo(false)
       }
     }
     document.addEventListener('mousedown', closeDrops)
@@ -105,12 +111,14 @@ export default function Asignaciones() {
 
   const filtered = asignaciones.filter(a => {
     const q = search.toLowerCase()
+    const matchArea = filterArea === 'todas' || a.area === filterArea
+    const matchCargo = filterCargo === 'todos' || a.cargo === filterCargo
     const matchSearch = a.nombre.toLowerCase().includes(q) ||
       a.ruta.toLowerCase().includes(q) ||
       a.area.toLowerCase().includes(q)
     const matchStatus = filterStatus === 'todos' || a.status === filterStatus
     const matchTipo = filterTipo === 'todos' || tipoDeRuta(a.ruta) === filterTipo
-    return matchSearch && matchStatus && matchTipo
+    return matchSearch && matchStatus && matchTipo && matchArea && matchCargo
   })
 
   const totalPages = Math.ceil(filtered.length / perPage)
@@ -128,6 +136,7 @@ export default function Asignaciones() {
       id: baseId + i + 1,
       nombre: c.name,
       area: c.depto || 'Sin asignar',
+      cargo: c.cargo || '',
       ruta: ruta.name,
       dia: 0,
       totalDias: 30,
@@ -267,6 +276,42 @@ export default function Asignaciones() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
+        </div>
+
+        {/* ÁREA */}
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }} data-th-filter>
+          <button type="button" className={`pl-dropdown-trigger${afDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setAfDropArea(!afDropArea); setAfDropCargo(false) }}>
+            <span style={{ whiteSpace: 'nowrap' }}>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+          </button>
+          {afDropArea && (
+            <div className="pl-dropdown-menu" style={{ minWidth: 160, maxHeight: 220, overflowY: 'auto' }}>
+              {['todas', ...new Set(asignaciones.map(a => a.area).filter(Boolean))].map(a => (
+                <button key={a} type="button" className={`pl-dropdown-item${filterArea === a ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterArea(a); setFilterCargo('todos'); setAfDropArea(false); setPage(1) }}>
+                  <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
+                  {filterArea === a && <Check size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* CARGO */}
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }} data-th-filter>
+          <button type="button" className={`pl-dropdown-trigger${afDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setAfDropCargo(!afDropCargo); setAfDropArea(false) }}>
+            <span style={{ whiteSpace: 'nowrap' }}>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+          </button>
+          {afDropCargo && (
+            <div className="pl-dropdown-menu" style={{ minWidth: 160, maxHeight: 220, overflowY: 'auto' }}>
+              {['todos', ...cargosDeArea].map(c => (
+                <button key={c} type="button" className={`pl-dropdown-item${filterCargo === c ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterCargo(c); setAfDropCargo(false); setPage(1) }}>
+                  <span>{c === 'todos' ? 'Todos los cargos' : c}</span>
+                  {filterCargo === c && <Check size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {hasAsigFilters && (

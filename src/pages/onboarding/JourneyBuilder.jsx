@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
@@ -113,6 +114,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
   const { plantillas, setPlantillas, addFeedEntry, recursos, setRecursos } = useOnboardingData()
+  const { dirty: hasUnsavedChanges, setDirty: setHasUnsavedChanges, setSaveHandler, guardNavigate } = useUnsavedChanges()
 
   const [rutaState, setRutaState] = useState(() => {
     const src = empty
@@ -167,7 +169,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [draftSavedAt, setDraftSavedAt] = useState(null)
   const canvasRef = useRef(null)
   const scrollInterval = useRef(null)
-  const isFirstRutaRender = useRef(true)
+  const initialRutaSnapshot = useRef({ rutaState, rutaConfig })
   const [floatLeftOffset, setFloatLeftOffset] = useState(320)
 
   // El panel "Etapas" es position:fixed (para quedar visible al scrollear el canvas),
@@ -200,14 +202,34 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         : p
     ))
     setDraftSavedAt(Date.now())
+    setHasUnsavedChanges(false)
   }
 
-  // Autoguardado: persiste el progreso como borrador sin necesidad de publicar la ruta
+  // Marca la ruta como "con cambios sin guardar" — el guardado real solo ocurre
+  // cuando el usuario lo confirma explícitamente (botón Guardar o al salir).
+  // Comparamos contra la referencia original (no un flag "primera vez") porque
+  // StrictMode invoca este efecto dos veces al montar y un flag se consumiría
+  // en la primera pasada, marcando la ruta como "sucia" sin que el usuario
+  // haya tocado nada.
   useEffect(() => {
-    if (isFirstRutaRender.current) { isFirstRutaRender.current = false; return }
-    const t = setTimeout(() => saveDraft(), 800)
-    return () => clearTimeout(t)
+    if (rutaState === initialRutaSnapshot.current.rutaState && rutaConfig === initialRutaSnapshot.current.rutaConfig) return
+    setHasUnsavedChanges(true)
   }, [rutaState, rutaConfig])
+
+  // Deja el guardado de esta ruta disponible para el aviso global de "cambios
+  // sin guardar" (se dispara también al navegar desde el sidebar o el menú del
+  // módulo, no solo con el botón "atrás" de acá abajo). Se reasigna en cada
+  // render para que siempre guarde el rutaState más reciente.
+  useEffect(() => {
+    setSaveHandler(saveDraft)
+  })
+
+  // Solo al desmontar de verdad: libera el handler y limpia el aviso global.
+  useEffect(() => () => { setSaveHandler(null); setHasUnsavedChanges(false) }, [])
+
+  function handleBack() {
+    guardNavigate(onBack)
+  }
 
   const handleCanvasDragOver = useCallback((e) => {
     e.preventDefault()
@@ -543,7 +565,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       {/* BARRA SUPERIOR */}
       <div className="jb-topbar">
         <div className="jb-breadcrumb">
-          <button className="jb-back" onClick={onBack}>
+          <button className="jb-back" onClick={handleBack}>
             <ArrowLeft size={16} />
           </button>
           <span className="jb-bc-text">{backLabel || 'Rutas'}</span>
@@ -558,7 +580,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             <Eye size={14} />
             Vista previa
           </button>
-          {draftSavedAt && (
+          {hasUnsavedChanges ? (
+            <span style={{ fontSize: 10.5, color: '#b45309', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+              <Info size={12} /> Cambios sin guardar
+            </span>
+          ) : draftSavedAt && (
             <span style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
               <CheckCircle2 size={12} /> Guardado
             </span>
@@ -578,6 +604,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 : p
             ))
             addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}`)
+            setHasUnsavedChanges(false)
             onBack()
           }}>
             <Save size={14} />
@@ -1466,18 +1493,62 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   )
                 })()}
 
-                {tareaForm.tipo === 'recorrido' && (
-                  <div className="jb-form-row">
-                    <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                      Ubicación
-                      <input type="text" className="pl-input" placeholder="Ej: Piso 3, Oficina principal" value={tareaForm.ubicacion || ''} onChange={e => updateForm('ubicacion', e.target.value)} />
-                    </label>
-                    <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                      Guía / Acompañante
-                      <input type="text" className="pl-input" placeholder="Nombre del guía" value={tareaForm.guia || ''} onChange={e => updateForm('guia', e.target.value)} />
-                    </label>
-                  </div>
-                )}
+                {tareaForm.tipo === 'recorrido' && (() => {
+                  const paradas = tareaForm.paradas?.length ? tareaForm.paradas : [{ id: 1, lugar: '' }]
+
+                  function updateParadas(next) { updateForm('paradas', next) }
+                  function updateParada(idx, value) { updateParadas(paradas.map((p, i) => i === idx ? { ...p, lugar: value } : p)) }
+                  function addParada() { updateParadas([...paradas, { id: Date.now(), lugar: '' }]) }
+                  function removeParada(idx) { updateParadas(paradas.filter((_, i) => i !== idx)) }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Paradas del recorrido</span>
+                        {paradas.map((p, idx) => (
+                          <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <input
+                              type="text" className="pl-input" style={{ flex: 1 }}
+                              placeholder="Ej: Piso 3, Oficina principal"
+                              value={p.lugar}
+                              onChange={e => updateParada(idx, e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeParada(idx)}
+                              disabled={paradas.length === 1}
+                              style={{
+                                width: 36, height: 36, borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0,
+                                background: '#fff', cursor: paradas.length === 1 ? 'default' : 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: paradas.length === 1 ? '#cbd5e1' : '#ef4444',
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addParada}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            padding: '8px 12px', borderRadius: 8, border: '1.5px dashed #cbd5e1',
+                            background: 'transparent', cursor: 'pointer', alignSelf: 'flex-start',
+                            fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit',
+                          }}
+                        >
+                          <Plus size={13} />
+                          Agregar parada
+                        </button>
+                      </div>
+                      <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
+                        Guía / Acompañante
+                        <input type="text" className="pl-input" placeholder="Nombre del guía" value={tareaForm.guia || ''} onChange={e => updateForm('guia', e.target.value)} />
+                      </label>
+                    </div>
+                  )
+                })()}
 
                 {tareaForm.tipo === 'subida' && (() => {
                   const documentos = tareaForm.documentos?.length ? tareaForm.documentos : [{ id: 1, nombre: '', formato: '' }]
@@ -2144,6 +2215,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           </div>
         )
       })()}
+
 
       {/* PREVISUALIZAR TAREA */}
       {previewTask && (
