@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Info, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 
@@ -50,6 +50,16 @@ const personasNav = [
   ]},
 ]
 
+const archivosNav = [
+  { section: 'Carpetas', items: [
+    { label: 'Todas las carpetas', path: '/archivos', icon: Folder, end: true },
+    { label: 'Onboarding', path: '/archivos/onboarding', icon: Rocket },
+    { label: 'Gestión de personas', path: '/archivos/personas', icon: UserRound },
+    { label: 'Comunicación', path: '/archivos/comunicacion', icon: MessageCircleMore },
+    { label: 'Evaluación', path: '/archivos/evaluacion', icon: ClipboardCheck },
+  ]},
+]
+
 const onboardingAuxiliarNav = [
   { section: 'Administración', items: [
     { label: 'Rutas', path: '/onboarding/plantillas', icon: Route },
@@ -67,6 +77,7 @@ const onboardingNavByRole = {
 const moduleConfig = {
   onboarding: { title: 'Módulo de Onboarding', icon: Rocket, desc: 'Administra la incorporación de nuevos colaboradores' },
   personas: { title: 'Gestión de Personas', icon: UserRound, desc: 'Directorio y datos de tu organización' },
+  archivos: { title: 'Mis archivos', icon: Folder, desc: 'Todos los archivos de la empresa, organizados por módulo' },
 }
 
 export default function ModuleNav() {
@@ -76,12 +87,15 @@ export default function ModuleNav() {
   const location = useLocation()
 
   const isPersonas = location.pathname.startsWith('/personas')
-  const moduleKey = isPersonas ? 'personas' : 'onboarding'
+  const isArchivos = location.pathname.startsWith('/archivos')
+  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : 'onboarding'
   const config = moduleConfig[moduleKey]
 
-  const sections = isPersonas
-    ? personasNav
-    : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
+  const sections = isArchivos
+    ? archivosNav
+    : isPersonas
+      ? personasNav
+      : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
 
   const ModuleIcon = config.icon
 

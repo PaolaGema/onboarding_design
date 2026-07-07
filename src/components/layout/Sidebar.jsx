@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { House, Calendar, UserRound, MessageCircleMore, ClipboardCheck, Settings, LogOut, Rocket, Menu, ChevronsRight, Database, RotateCcw, AlertTriangle, X } from 'lucide-react'
+import { House, Calendar, UserRound, MessageCircleMore, ClipboardCheck, Settings, LogOut, Rocket, Folder, Menu, ChevronsRight, Database, RotateCcw, AlertTriangle, X } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
@@ -14,6 +14,7 @@ const allNavItems = [
   { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
   { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
   { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: Folder, label: 'Mis archivos', path: '/archivos', roles: ['admin'] },
 ]
 
 const bottomItems = [

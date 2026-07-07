@@ -993,11 +993,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 {/* SECCIÓN: INFORMACIÓN BÁSICA */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Nombre de la tarea <span style={{ color: '#ef4444' }}>*</span>
+                    <span>Nombre de la tarea <span style={{ color: '#ef4444' }}>*</span></span>
                     <input type="text" className="pl-input" value={tareaForm.name} onChange={e => updateForm('name', e.target.value)} />
                   </label>
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Descripción <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span>
+                    <span>Descripción <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span></span>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: '2px 0 5px' }}>
                       El colaborador la verá al abrir la tarea. Explicale qué debe hacer.
                     </div>
@@ -1478,12 +1478,70 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   </div>
                 )}
 
-                {tareaForm.tipo === 'subida' && (
-                  <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Formatos aceptados
-                    <input type="text" className="pl-input" placeholder="Ej: PDF, JPG, PNG" value={tareaForm.formatos || ''} onChange={e => updateForm('formatos', e.target.value)} />
-                  </label>
-                )}
+                {tareaForm.tipo === 'subida' && (() => {
+                  const documentos = tareaForm.documentos?.length ? tareaForm.documentos : [{ id: 1, nombre: '', formato: '' }]
+
+                  function updateDocumentos(next) {
+                    updateForm('documentos', next)
+                  }
+                  function updateDocumento(idx, field, value) {
+                    updateDocumentos(documentos.map((d, i) => i === idx ? { ...d, [field]: value } : d))
+                  }
+                  function addDocumento() {
+                    updateDocumentos([...documentos, { id: Date.now(), nombre: '', formato: '' }])
+                  }
+                  function removeDocumento(idx) {
+                    updateDocumentos(documentos.filter((_, i) => i !== idx))
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Documentos a subir</span>
+                      {documentos.map((doc, idx) => (
+                        <div key={doc.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <input
+                            type="text" className="pl-input" style={{ flex: 2 }}
+                            placeholder="Ej: Cédula de identidad (frente)"
+                            value={doc.nombre}
+                            onChange={e => updateDocumento(idx, 'nombre', e.target.value)}
+                          />
+                          <input
+                            type="text" className="pl-input" style={{ flex: 1 }}
+                            placeholder="Formato: PDF, JPG"
+                            value={doc.formato}
+                            onChange={e => updateDocumento(idx, 'formato', e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeDocumento(idx)}
+                            disabled={documentos.length === 1}
+                            style={{
+                              width: 36, height: 36, borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0,
+                              background: '#fff', cursor: documentos.length === 1 ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: documentos.length === 1 ? '#cbd5e1' : '#ef4444',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addDocumento}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '8px 12px', borderRadius: 8, border: '1.5px dashed #cbd5e1',
+                          background: 'transparent', cursor: 'pointer', alignSelf: 'flex-start',
+                          fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit',
+                        }}
+                      >
+                        <Plus size={13} />
+                        Agregar documento
+                      </button>
+                    </div>
+                  )
+                })()}
 
                 {tareaForm.tipo === 'tarea-otro' && (
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>

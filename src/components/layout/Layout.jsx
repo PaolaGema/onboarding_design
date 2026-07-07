@@ -17,9 +17,10 @@ export default function Layout() {
 
   useEffect(() => {
     const isPersonas = location.pathname.startsWith('/personas') && location.pathname !== '/personas/organigrama'
+    const isArchivos = location.pathname.startsWith('/archivos')
     const isAdminRoute = ['/onboarding', '/onboarding/asignaciones', '/onboarding/plantillas', '/onboarding/conocimiento', '/onboarding/configuracion'].includes(location.pathname)
 
-    if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas)) {
+    if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas || isArchivos)) {
       navigate('/onboarding/mi-onboarding', { replace: true })
     }
   }, [currentUser.id, location.pathname])

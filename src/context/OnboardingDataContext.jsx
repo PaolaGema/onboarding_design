@@ -83,6 +83,9 @@ export function OnboardingDataProvider({ children }) {
     { name: 'Beneficios', docs: [] },
     { name: 'Cultura', docs: [] },
   ])
+  const [recursosPersonas, setRecursosPersonas] = useLocalStorage('recursosPersonas', [])
+  const [recursosComunicacion, setRecursosComunicacion] = useLocalStorage('recursosComunicacion', [])
+  const [recursosEvaluacion, setRecursosEvaluacion] = useLocalStorage('recursosEvaluacion', [])
   const [plantillas, setPlantillas] = useLocalStorage('plantillas', [])
   const [asignaciones, setAsignaciones] = useLocalStorage('asignaciones', [])
   const [feed, setFeed] = useLocalStorage('feed', [])
@@ -148,6 +151,9 @@ export function OnboardingDataProvider({ children }) {
   return (
     <OnboardingDataContext.Provider value={{
       recursos, setRecursos,
+      recursosPersonas, setRecursosPersonas,
+      recursosComunicacion, setRecursosComunicacion,
+      recursosEvaluacion, setRecursosEvaluacion,
       plantillas, setPlantillas,
       asignaciones, setAsignaciones,
       feed, addFeedEntry,

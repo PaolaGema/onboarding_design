@@ -876,14 +876,29 @@ export default function MiOnboarding({ forcePhone = false }) {
             </>
           )
         }
-        case 'subida':
+        case 'subida': {
+          const docs = (selTarea.documentos || []).filter(d => d.nombre?.trim())
+          if (docs.length === 0) {
+            return (
+              <div style={{ border: '2px dashed #f9a8d4', borderRadius: 8, padding: 14, textAlign: 'center', background: '#fdf2f8' }}>
+                <Upload size={18} style={{ color: '#ec4899', marginBottom: 4 }} />
+                <p style={{ fontSize: 9, fontWeight: 700, color: '#9d174d', margin: '0 0 2px' }}>Arrastra tu archivo aquí</p>
+                <p style={{ fontSize: 7, color: '#be185d', margin: 0 }}>o haz clic para seleccionar</p>
+              </div>
+            )
+          }
           return (
-            <div style={{ border: '2px dashed #f9a8d4', borderRadius: 8, padding: 14, textAlign: 'center', background: '#fdf2f8' }}>
-              <Upload size={18} style={{ color: '#ec4899', marginBottom: 4 }} />
-              <p style={{ fontSize: 9, fontWeight: 700, color: '#9d174d', margin: '0 0 2px' }}>Arrastra tus archivos aquí</p>
-              <p style={{ fontSize: 7, color: '#be185d', margin: 0 }}>o haz clic para seleccionar</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {docs.map((doc, i) => (
+                <div key={doc.id ?? i} style={{ border: '2px dashed #f9a8d4', borderRadius: 8, padding: 10, textAlign: 'center', background: '#fdf2f8' }}>
+                  <Upload size={14} style={{ color: '#ec4899', marginBottom: 3 }} />
+                  <p style={{ fontSize: 8, fontWeight: 700, color: '#9d174d', margin: '0 0 1px' }}>{doc.nombre}</p>
+                  <p style={{ fontSize: 6.5, color: '#be185d', margin: 0 }}>{doc.formato ? doc.formato : 'Clic para seleccionar'}</p>
+                </div>
+              ))}
             </div>
           )
+        }
         case 'completar-perfil': {
           const campos = selTarea.formCampos?.length ? selTarea.formCampos : []
           const tid = selTarea.id
@@ -1717,17 +1732,31 @@ export default function MiOnboarding({ forcePhone = false }) {
           return null
         }
 
-        case 'subida':
-          return (
-            <div style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 28, textAlign: 'center', background: '#fdf2f8' }}>
-              <Upload size={32} style={{ color: '#ec4899', marginBottom: 10 }} />
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#9d174d', margin: '0 0 4px' }}>Arrastra tus archivos aquí</p>
-              <p style={{ fontSize: 11, color: '#be185d', margin: '0 0 14px' }}>o haz clic para seleccionar</p>
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                {['PDF', 'JPG', 'PNG'].map(f => (<span key={f} style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: '#fce7f3', color: '#be185d' }}>{f}</span>))}
+        case 'subida': {
+          const docs = (selTarea.documentos || []).filter(d => d.nombre?.trim())
+          if (docs.length === 0) {
+            return (
+              <div style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 28, textAlign: 'center', background: '#fdf2f8' }}>
+                <Upload size={32} style={{ color: '#ec4899', marginBottom: 10 }} />
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#9d174d', margin: '0 0 4px' }}>Arrastra tu archivo aquí</p>
+                <p style={{ fontSize: 11, color: '#be185d', margin: 0 }}>o haz clic para seleccionar</p>
               </div>
+            )
+          }
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {docs.map((doc, i) => (
+                <div key={doc.id ?? i} style={{ border: '2px dashed #f9a8d4', borderRadius: 12, padding: 18, textAlign: 'center', background: '#fdf2f8' }}>
+                  <Upload size={22} style={{ color: '#ec4899', marginBottom: 6 }} />
+                  <p style={{ fontSize: 12.5, fontWeight: 700, color: '#9d174d', margin: '0 0 3px' }}>{doc.nombre}</p>
+                  <p style={{ fontSize: 10, color: '#be185d', margin: 0 }}>
+                    o haz clic para seleccionar{doc.formato ? ` · ${doc.formato}` : ''}
+                  </p>
+                </div>
+              ))}
             </div>
           )
+        }
 
         case 'completar-perfil': {
           const campos = selTarea.formCampos?.length ? selTarea.formCampos : []

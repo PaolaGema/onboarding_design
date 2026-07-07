@@ -224,6 +224,7 @@ export default function Colaboradores() {
   const [estadoModal, setEstadoModal] = useState(null)
   const [showOnbHelp, setShowOnbHelp] = useState(false)
   const [showStatusFilter, setShowStatusFilter] = useState(false)
+  const [showDeptoFilter, setShowDeptoFilter] = useState(false)
   const [onbModal, setOnbModal] = useState(null)
   const [onbSelected, setOnbSelected] = useState(null)
   const [onbFecha, setOnbFecha] = useState('')
@@ -302,7 +303,7 @@ export default function Colaboradores() {
             type="button"
             className={`pl-dropdown-trigger${showStatusFilter ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`}
             style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }}
-            onClick={() => setShowStatusFilter(!showStatusFilter)}
+            onClick={() => { setShowStatusFilter(!showStatusFilter); setShowDeptoFilter(false) }}
           >
             <span style={{ whiteSpace: 'nowrap' }}>
               {{ todos: 'Todos los estados', activo: 'Activos', vacaciones: 'Vacaciones', licencia: 'Licencia', suspendido: 'Suspendido', desvinculado: 'Desvinculado' }[filterStatus]}
@@ -334,27 +335,40 @@ export default function Colaboradores() {
           )}
         </div>
 
+        <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
+          <button
+            type="button"
+            className={`pl-dropdown-trigger${showDeptoFilter ? ' open' : ''}${filterDepto === 'Todos' ? ' placeholder' : ''}`}
+            style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }}
+            onClick={() => { setShowDeptoFilter(!showDeptoFilter); setShowStatusFilter(false) }}
+          >
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {filterDepto === 'Todos' ? 'Todas las áreas' : filterDepto}
+            </span>
+            <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+          </button>
+          {showDeptoFilter && (
+            <div className="pl-dropdown-menu" style={{ minWidth: 180 }}>
+              {departamentos.map(d => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`pl-dropdown-item${filterDepto === d ? ' selected' : ''}`}
+                  style={{ fontSize: 11.5, padding: '6px 9px' }}
+                  onClick={() => { setFilterDepto(d); setPage(1); setShowDeptoFilter(false) }}
+                >
+                  <span>{d === 'Todos' ? 'Todas las áreas' : d}</span>
+                  {filterDepto === d && <Check size={13} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button className="pl-btn-new" style={{ padding: '0 14px', height: 34, fontSize: 11.5, marginLeft: 'auto' }}>
           <Plus size={14} color="#00E091" />
           Nuevo colaborador
         </button>
-      </div>
-
-      <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 2px' }}>
-        {departamentos.map(d => (
-          <button
-            key={d}
-            onClick={() => { setFilterDepto(d); setPage(1) }}
-            style={{
-              padding: '5px 12px', borderRadius: 8, border: 'none',
-              fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-              background: filterDepto === d ? '#0C2D40' : '#f1f5f9',
-              color: filterDepto === d ? '#fff' : '#64748b',
-              transition: 'all .15s',
-            }}
-          >{d}</button>
-        ))}
       </div>
 
       <div className="as-table-wrap" style={{ overflowX: 'auto' }}>
