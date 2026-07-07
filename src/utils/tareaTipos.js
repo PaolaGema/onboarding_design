@@ -1,6 +1,7 @@
-import { Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile } from 'lucide-react'
+import { Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, IdCard } from 'lucide-react'
 
 export const tiposTarea = [
+  { key: 'perfil', label: 'Completar perfil', icon: IdCard, color: '#8b5cf6', resp: 'Colaborador', soloVistaPrevia: true },
   { key: 'video', label: 'Video', icon: Video, color: '#3b82f6', resp: 'Colaborador' },
   { key: 'audio', label: 'Audio / Podcast', icon: Headphones, color: '#06b6d4', resp: 'Colaborador' },
   { key: 'documento', label: 'Documento / PDF', icon: FileText, color: '#f97316', resp: 'Colaborador' },

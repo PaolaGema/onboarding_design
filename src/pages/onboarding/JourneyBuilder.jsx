@@ -25,10 +25,10 @@ const pulsoPreguntasSugeridas = [
   '¿Qué tan a gusto te sientes con el equipo hasta ahora?',
 ]
 
-const CONTENT_UPLOAD_LABEL = { video: 'Subir video', audio: 'Subir audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
-const CONTENT_RESOURCE_DESC = { video: 'Elegí un video ya subido por tu equipo', audio: 'Elegí un audio ya subido por tu equipo', lectura: 'Elegí un documento ya subido por tu equipo', documento: 'Elegí un documento ya subido por tu equipo', enlace: 'Elegí un recurso ya guardado por tu equipo' }
-const CONTENT_LINK_DESC = { video: 'Pegá el enlace de un video de YouTube, Vimeo, Google Drive, etc. Todavía no se pueden subir archivos de video directamente.', audio: 'Pegá el enlace de un audio o podcast. Todavía no se pueden subir archivos de audio directamente.', lectura: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pegá el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pegá cualquier enlace externo' }
-const CONTENT_LINK_PLACEHOLDER = { video: 'Pegá aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pegá aquí el link de tu audio o podcast', lectura: 'Pegá aquí el link de tu documento (Drive, PDF...)', documento: 'Pegá aquí el link de tu documento (Drive, PDF...)', enlace: 'Pegá aquí tu enlace' }
+const CONTENT_UPLOAD_LABEL = { video: 'Agregar enlace de video', audio: 'Agregar enlace de audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
+const CONTENT_RESOURCE_DESC = { video: 'Elige un enlace de video ya guardado por tu equipo', audio: 'Elige un enlace de audio ya guardado por tu equipo', lectura: 'Elige un documento ya subido por tu equipo', documento: 'Elige un documento ya subido por tu equipo', enlace: 'Elige un recurso ya guardado por tu equipo' }
+const CONTENT_LINK_DESC = { video: 'Pega el enlace de un video de YouTube, Vimeo, Google Drive, etc. Todavía no se pueden subir archivos de video directamente.', audio: 'Pega el enlace de un audio o podcast. Todavía no se pueden subir archivos de audio directamente.', lectura: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pega cualquier enlace externo' }
+const CONTENT_LINK_PLACEHOLDER = { video: 'Pega aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pega aquí el link de tu audio o podcast', lectura: 'Pega aquí el link de tu documento (Drive, PDF...)', documento: 'Pega aquí el link de tu documento (Drive, PDF...)', enlace: 'Pega aquí tu enlace' }
 const CONTENT_ITEM_LABEL = { video: 'este video', audio: 'este audio', lectura: 'este documento', documento: 'este documento', enlace: 'este enlace' }
 
 const formTiposCampo = [
@@ -278,12 +278,25 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     if (fromIdx === toIdx) return
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      const flat = []
-      next.etapas[selEtapa].actividades.forEach(a => a.tareas.forEach(t => flat.push(t)))
-      const [moved] = flat.splice(fromIdx, 1)
-      const insertAt = toIdx > fromIdx ? toIdx - 1 : toIdx
-      flat.splice(insertAt, 0, moved)
-      next.etapas[selEtapa].actividades = [{ name: 'General', tareas: flat }]
+      const acts = next.etapas[selEtapa].actividades
+
+      function locate(flatIdx) {
+        let count = 0
+        for (let ai = 0; ai < acts.length; ai++) {
+          const len = acts[ai].tareas.length
+          if (count + len >= flatIdx) return { ai, ti: flatIdx - count }
+          count += len
+        }
+        return { ai: acts.length - 1, ti: acts[acts.length - 1].tareas.length }
+      }
+
+      const from = locate(fromIdx)
+      const [moved] = acts[from.ai].tareas.splice(from.ti, 1)
+
+      const adjToIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
+      const to = locate(adjToIdx)
+      acts[to.ai].tareas.splice(to.ti, 0, moved)
+
       return next
     })
     setDragNode(null)
@@ -479,8 +492,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       return next
     })
 
-    setSelTarea(newTarea)
-    setTareaForm({ ...newTarea })
+    if (!tipo.soloVistaPrevia) {
+      setSelTarea(newTarea)
+      setTareaForm({ ...newTarea })
+    }
     setContentPickerOpen(false)
   }
 
@@ -865,7 +880,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       items.push(
                         <div
                           key={`drop-end-${ai}`}
-                          className={`jb-drop-zone ${dropTarget === endIdx ? 'active' : ''}`}
+                          className={`jb-drop-zone jb-drop-zone-end ${dropTarget === endIdx ? 'active' : ''}`}
                           style={{ '--x-off': `${endXOff}px` }}
                           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = dragNode !== null ? 'move' : 'copy'; setDropTarget(endIdx) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(null) }}
@@ -899,22 +914,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   <Layers size={14} />
                   Agregar actividad
                 </button>
-
-                {/* INDICADOR AGREGAR TAREA */}
-                {etapa.actividades.length > 0 && (
-                <div className="jb-add-task-wrap">
-                  <div
-                    className="jb-drop-indicator"
-                    onClick={e => {
-                      e.stopPropagation()
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      openAddPicker(rect, tipoKey => createTarea(tipoKey))
-                    }}
-                  >
-                    <Plus size={16} />
-                  </div>
-                </div>
-                )}
               </div>
               </>) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '60px 20px', height: '100%' }}>
@@ -999,7 +998,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
                     <span>Descripción <span style={{ color: '#94a3b8', fontWeight: 500 }}>(opcional)</span></span>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, margin: '2px 0 5px' }}>
-                      El colaborador la verá al abrir la tarea. Explicale qué debe hacer.
+                      El colaborador la verá al abrir la tarea. Explícale qué debe hacer.
                     </div>
                     <textarea
                       className="pl-input" style={{ resize: 'vertical', minHeight: '52px', marginTop: 0 }}
@@ -1013,7 +1012,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 {/* SECCIÓN: RESPONSABLE */}
                 {tareaForm.tipo === 'video' ? (
                   <div className="pl-label">
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza?</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea?</span>
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 14px', borderRadius: 10, marginTop: 4,
@@ -1030,7 +1029,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   </div>
                 ) : (
                 <div className="pl-label" style={{ position: 'relative' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién la realiza? <span style={{ color: '#ef4444' }}>*</span></span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea? <span style={{ color: '#ef4444' }}>*</span></span>
                   <div
                     onClick={e => {
                       if (!tareaForm._respOpen) {
@@ -1142,8 +1141,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   const ItemIconSel = kbItem ? (kbItem.tipo === 'video' ? Video : kbItem.tipo === 'audio' ? Headphones : FileText) : null
                   const itemColorSel = kbItem ? (kbItem.tipo === 'video' ? '#3b82f6' : kbItem.tipo === 'audio' ? '#06b6d4' : '#64748b') : null
                   const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
-                  const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pegá un enlace externo'
-                  const linkPlaceholder = CONTENT_LINK_PLACEHOLDER[tareaForm.tipo] || 'Pegá aquí tu enlace'
+                  const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pega un enlace externo'
+                  const linkPlaceholder = CONTENT_LINK_PLACEHOLDER[tareaForm.tipo] || 'Pega aquí tu enlace'
                   const itemLabel = CONTENT_ITEM_LABEL[tareaForm.tipo] || 'este recurso'
                   return (
                     <div className="pl-label" style={{ position: 'relative' }}>
@@ -1305,14 +1304,16 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                                   <button
                                     type="button"
                                     onClick={() => setSaveLinkOpen(!saveLinkOpen)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontSize: 11, fontWeight: 600, color: '#0C2D40', fontFamily: 'inherit' }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #00E09145', background: '#00E0910d', cursor: 'pointer', padding: '7px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, color: '#0C2D40', fontFamily: 'inherit', transition: 'border-color .15s, background .15s' }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#00E091'; e.currentTarget.style.background = '#00E0911a' }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#00E09145'; e.currentTarget.style.background = '#00E0910d' }}
                                   >
-                                    <BookOpen size={12} style={{ color: '#00E091' }} />
+                                    <BookOpen size={13} style={{ color: '#00E091' }} />
                                     Guardar en Recursos corporativos
                                   </button>
                                   {!saveLinkOpen && (
-                                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
-                                      Guardá una copia de {itemLabel} en tu biblioteca para poder reutilizarlo en otras tareas, sin tener que volver a pegar el link.
+                                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6, lineHeight: 1.4 }}>
+                                      ¿Quieres guardar {itemLabel} en Recursos corporativos? Si lo guardas, vas a poder reutilizarlo en otras tareas sin volver a pegar el link.
                                     </div>
                                   )}
                                   {saveLinkOpen && (
@@ -1669,8 +1670,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       {/* MODAL ELEGIR ORIGEN DEL CONTENIDO (Recursos / Enlace) */}
       {contentChooserOpen && tareaForm && (() => {
         const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
-        const resourceDesc = CONTENT_RESOURCE_DESC[tareaForm.tipo] || 'Elegí un recurso ya subido por tu equipo'
-        const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pegá un enlace externo'
+        const resourceDesc = CONTENT_RESOURCE_DESC[tareaForm.tipo] || 'Elige un recurso ya subido por tu equipo'
+        const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pega un enlace externo'
         return (
           <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setContentChooserOpen(false)}>
             <div className="pl-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
@@ -1824,7 +1825,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       <div style={{ padding: '30px 20px', textAlign: 'center' }}>
                         <FolderOpen size={22} style={{ color: '#cbd5e1', marginBottom: 8 }} />
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>Todavía no subiste ningún recurso</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Andá a "Recursos corporativos" en el menú lateral para crear una carpeta y subir tus primeros archivos.</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Anda a "Recursos corporativos" en el menú lateral para crear una carpeta y subir tus primeros archivos.</div>
                       </div>
                     ) : (
                       <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>No se encontraron carpetas con ese nombre</div>
@@ -1857,12 +1858,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       {folder.docs.length === 0 ? (
                         <>
                           <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>La carpeta "{folder.name}" está vacía</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Subí archivos acá desde la sección "Recursos corporativos" en el menú lateral.</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Sube archivos aquí desde la sección "Recursos corporativos" en el menú lateral.</div>
                         </>
                       ) : (
                         <>
                           <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4 }}>Sin {wantType === 'video' ? 'videos' : wantType === 'audio' ? 'audios' : 'documentos'} en esta carpeta</div>
-                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Subí {wantType === 'video' ? 'un video' : wantType === 'audio' ? 'un audio' : 'un documento'} a "{folder.name}" desde "Recursos corporativos", o elegí otra carpeta.</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>Sube {wantType === 'video' ? 'un video' : wantType === 'audio' ? 'un audio' : 'un documento'} a "{folder.name}" desde "Recursos corporativos", o elige otra carpeta.</div>
                         </>
                       )}
                     </div>
@@ -2066,17 +2067,22 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       )}
 
       {/* MENÚ CONTEXTUAL NODO */}
-      {contextMenu && (
+      {contextMenu && (() => {
+        const ctxTarea = etapa.actividades.flatMap(a => a.tareas).find(t => t.id === contextMenu.id)
+        const ctxTipo = tipoMap[ctxTarea?.tipo]
+        return (
         <div className="jb-ctx-backdrop" onClick={() => setContextMenu(null)}>
           <div className="jb-ctx-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={e => e.stopPropagation()}>
-            <button className="jb-ctx-item" onClick={() => { const t = etapa.actividades.flatMap(a => a.tareas).find(t => t.id === contextMenu.id); if (t) { setPreviewTask(t) }; setContextMenu(null) }}>
+            <button className="jb-ctx-item" onClick={() => { if (ctxTarea) { setPreviewTask(ctxTarea) }; setContextMenu(null) }}>
               <Eye size={13} />
               Previsualizar tarea
             </button>
-            <button className="jb-ctx-item" onClick={() => { const t = etapa.actividades.flatMap(a => a.tareas).find(t => t.id === contextMenu.id); if (t) { selectTarea(t) }; setContextMenu(null) }}>
-              <Pencil size={13} />
-              Editar tarea
-            </button>
+            {!ctxTipo?.soloVistaPrevia && (
+              <button className="jb-ctx-item" onClick={() => { if (ctxTarea) { selectTarea(ctxTarea) }; setContextMenu(null) }}>
+                <Pencil size={13} />
+                Editar tarea
+              </button>
+            )}
             <button className="jb-ctx-item" onClick={() => { duplicateTarea(contextMenu.id); setContextMenu(null) }}>
               <Copy size={13} />
               Duplicar tarea
@@ -2087,7 +2093,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             </button>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* PICKER TIPO DE TAREA (clic en un "+" del lienzo) */}
       {addPickerTarget && (
@@ -2143,7 +2150,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         <TaskPreviewModal
           task={previewTask}
           onClose={() => setPreviewTask(null)}
-          onEdit={() => { selectTarea(previewTask); setPreviewTask(null) }}
+          onEdit={tipoMap[previewTask.tipo]?.soloVistaPrevia ? undefined : () => { selectTarea(previewTask); setPreviewTask(null) }}
         />
       )}
 

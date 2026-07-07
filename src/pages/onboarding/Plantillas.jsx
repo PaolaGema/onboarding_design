@@ -752,9 +752,10 @@ export default function Plantillas() {
           <table className="as-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: '22%' }}>Nombre de la ruta</th>
-                <th style={{ width: '22%' }}>Descripción</th>
-                <th style={{ width: '12%' }} data-th-filter>
+                <th style={{ width: '18%' }}>Nombre de la ruta</th>
+                <th style={{ width: '18%' }}>Descripción</th>
+                <th style={{ width: '14%' }}>Área / Cargo</th>
+                <th style={{ width: '10%' }} data-th-filter>
                   <button
                     type="button"
                     onClick={e => {
@@ -786,8 +787,8 @@ export default function Plantillas() {
                     </div>
                   )}
                 </th>
-                <th style={{ width: '9%' }}>Etapas</th>
-                <th style={{ width: '12%' }}>Colaboradores</th>
+                <th style={{ width: '7%' }}>Etapas</th>
+                <th style={{ width: '10%' }}>Colaboradores</th>
                 <th style={{ width: '15%' }} data-th-filter>
                   <button
                     type="button"
@@ -848,6 +849,20 @@ export default function Plantillas() {
                     >
                       {p.descripcion || '—'}
                     </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="6" y="10" width="12" height="12" rx="2" ry="2"/></svg>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.area}</span>
+                      </div>
+                      {p.cargo && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.cargo}</span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -1120,7 +1135,7 @@ export default function Plantillas() {
                 </div>
               )}
               <label className="pl-label">
-                Nombre de la ruta
+                <span>Nombre de la ruta <span style={{ color: '#ef4444' }}>*</span></span>
                 <input
                   type="text"
                   className="pl-input"
@@ -1145,7 +1160,7 @@ export default function Plantillas() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div className="pl-label">
-                  Tipo
+                  <span>Tipo <span style={{ color: '#ef4444' }}>*</span></span>
                   <div className="pl-dropdown-wrap">
                     <button
                       type="button"
@@ -1174,7 +1189,7 @@ export default function Plantillas() {
                 </div>
 
                 <div className="pl-label">
-                  Área
+                  <span>Área <span style={{ color: '#ef4444' }}>*</span></span>
                   <div className="pl-dropdown-wrap">
                     <input
                       type="text"
@@ -1208,7 +1223,7 @@ export default function Plantillas() {
               </div>
 
               <div className="pl-label">
-                Cargo
+                Cargo <span style={{ color: '#ef4444' }}>*</span>
                 <div className="pl-dropdown-wrap">
                   <input
                     type="text"
@@ -1260,7 +1275,7 @@ export default function Plantillas() {
               <button
                 className="pl-btn-save"
                 onClick={handleSave}
-                disabled={!form.name.trim()}
+                disabled={!form.name.trim() || !form.tipo || !form.area || (form.area !== 'Todas las áreas' && !form.cargo)}
               >
                 {modal === 'crear' ? 'Crear y diseñar ruta' : 'Guardar cambios'}
               </button>

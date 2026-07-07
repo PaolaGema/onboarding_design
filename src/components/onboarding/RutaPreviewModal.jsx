@@ -1,7 +1,71 @@
 import { useState } from 'react'
-import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck } from 'lucide-react'
+import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck, ChevronDown } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
+
+const PERFIL_TABS = [
+  { key: 'personales', label: 'Datos personales' },
+  { key: 'laboral', label: 'Información laboral' },
+  { key: 'preferencias', label: 'Preferencias personales' },
+  { key: 'documentacion', label: 'Documentación' },
+]
+
+const PERFIL_SECCIONES = {
+  personales: ['Datos de acceso', 'Datos de documento de identidad', 'Datos personales', 'Datos de residencia', 'Contactos de emergencia', 'Datos personales de salud'],
+  laboral: ['Datos laborales básicos', 'Datos de contrato', 'Datos de pago'],
+  preferencias: ['Uniforme', 'Lista de deseos para cumpleaños', 'Habilidades'],
+}
+
+function PerfilPreviewTabs() {
+  const [tab, setTab] = useState('personales')
+  return (
+    <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+      <div style={{ display: 'flex', background: '#f1f5f9', overflowX: 'auto' }}>
+        {PERFIL_TABS.map(t => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            style={{
+              flex: '1 0 auto', padding: '10px 10px', fontSize: 10.5, fontWeight: 700,
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+              background: tab === t.key ? '#0C2D40' : 'transparent',
+              color: tab === t.key ? '#fff' : '#64748b',
+              textAlign: 'center',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ padding: 14 }}>
+        {tab === 'documentacion' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b' }}>Documentos cargados en el sistema</div>
+            {['Foto del empleado', 'Contrato', 'Documento de identidad'].map(d => (
+              <div key={d} style={{ border: '1.5px dashed #cbd5e1', borderRadius: 10, padding: 14, textAlign: 'center', background: '#f8fafc' }}>
+                <Upload size={16} style={{ color: '#94a3b8' }} />
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#334155', marginTop: 6 }}>{d}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {PERFIL_SECCIONES[tab].map(s => (
+              <div key={s} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: 8, background: '#0C2D40', color: '#fff',
+              }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700 }}>{s}</span>
+                <ChevronDown size={13} style={{ opacity: .7 }} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function TaskPreviewModal({ task, onClose, onEdit }) {
   const { gamificacion } = useConfig()
@@ -11,6 +75,16 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
 
   function renderContenido() {
     switch (task.tipo) {
+      case 'perfil':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #dbeafe' }}>
+              <Info size={14} style={{ color: '#3b82f6' }} />
+              <span style={{ fontSize: 11.5, color: '#1e40af', fontWeight: 600 }}>Formulario fijo del sistema: el colaborador completa sus datos personales, laborales, preferencias y documentación.</span>
+            </div>
+            <PerfilPreviewTabs />
+          </div>
+        )
       case 'video': {
         const videoUrl = task.enlace || task._kbItem?.url
         const videoId = videoUrl ? (toEmbedUrl(videoUrl).match(/embed\/([a-zA-Z0-9_-]+)/)?.[1]) : null
@@ -427,7 +501,7 @@ export default function RutaPreviewModal({ name, etapas, onClose, onEditTask }) 
         <TaskPreviewModal
           task={activeTask}
           onClose={() => setActiveTask(null)}
-          onEdit={onEditTask ? () => { onEditTask(activeTask); setActiveTask(null) } : undefined}
+          onEdit={onEditTask && !tipoMap[activeTask.tipo]?.soloVistaPrevia ? () => { onEditTask(activeTask); setActiveTask(null) } : undefined}
         />
       )}
     </>

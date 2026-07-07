@@ -1905,14 +1905,13 @@ select.pl-input:focus {
   transform: scale(1.1);
 }
 
-/* BOTÓN + AGREGAR TAREA */
+/* BOTÓN + AGREGAR TAREA (al final de cada actividad, siempre visible) */
 
-.jb-add-task-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 8px;
-  position: relative;
+.jb-drop-zone-end {
+  height: auto;
+  opacity: 1;
+  pointer-events: auto;
+  padding: 10px 0;
 }
 
 /* MENÚ CONTEXTUAL NODO */
