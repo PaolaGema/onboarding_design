@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight, House, Sun } from 'lucide-react'
+import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight, House, Sun, Calendar } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
@@ -73,6 +73,12 @@ const personasNav = [
   ]},
 ]
 
+const calendarioNav = [
+  { section: 'Calendario', items: [
+    { label: 'Mi calendario', path: '/calendario', icon: Calendar, end: true },
+  ]},
+]
+
 const archivosNav = [
   { section: 'Carpetas', items: [
     { label: 'Todas las carpetas', path: '/archivos', icon: Folder, end: true },
@@ -102,6 +108,7 @@ const moduleConfig = {
   onboarding: { title: 'Módulo de Onboarding', icon: Rocket, desc: 'Administra la incorporación de nuevos colaboradores' },
   personas: { title: 'Gestión de Personas', icon: UserRound, desc: 'Directorio y datos de tu organización' },
   archivos: { title: 'Mis archivos', icon: Folder, desc: 'Todos los archivos de la empresa, organizados por módulo' },
+  calendario: { title: 'Mi calendario', icon: Calendar, desc: 'Cumpleaños, aniversarios, evaluaciones y publicaciones programadas' },
 }
 
 export default function ModuleNav() {
@@ -115,16 +122,19 @@ export default function ModuleNav() {
   const isPersonas = location.pathname.startsWith('/personas')
   const isArchivos = location.pathname.startsWith('/archivos')
   const isInicio = location.pathname.startsWith('/inicio')
-  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : isInicio ? 'inicio' : 'onboarding'
+  const isCalendario = location.pathname.startsWith('/calendario')
+  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : isCalendario ? 'calendario' : isInicio ? 'inicio' : 'onboarding'
   const config = moduleConfig[moduleKey]
 
   const sections = isArchivos
     ? archivosNav
     : isPersonas
       ? personasNav
-      : isInicio
-        ? (inicioNavByRole[currentUser.role] || inicioAdminNav)
-        : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
+      : isCalendario
+        ? calendarioNav
+        : isInicio
+          ? (inicioNavByRole[currentUser.role] || inicioAdminNav)
+          : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
 
   const ModuleIcon = config.icon
 

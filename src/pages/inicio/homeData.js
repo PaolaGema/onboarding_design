@@ -5,18 +5,18 @@
 export const AREAS = ['Ventas', 'Tecnología', 'Marketing', 'Operaciones', 'Recursos Humanos', 'Diseño', 'Dirección General', 'Psicometría']
 
 export const colaboradores = [
-  { id: 1, nombre: 'Renata Solís', area: 'Ventas', cargo: 'Ejecutiva Comercial', estado: 'activo', rol: 'Colaborador', fechaIngreso: '14/03/2022' },
-  { id: 2, nombre: 'Bruno Alcázar', area: 'Tecnología', cargo: 'Desarrollador Backend', estado: 'activo', rol: 'Colaborador', fechaIngreso: '02/11/2023' },
-  { id: 3, nombre: 'Melisa Ortega', area: 'Marketing', cargo: 'Content Creator', estado: 'licencia', rol: 'Colaborador', fechaIngreso: '20/06/2024' },
-  { id: 4, nombre: 'Ignacio Rivas', area: 'Operaciones', cargo: 'Analista de Procesos', estado: 'licencia', rol: 'Colaborador', fechaIngreso: '05/01/2021' },
-  { id: 5, nombre: 'Carla Ibáñez', area: 'Recursos Humanos', cargo: 'Generalista RRHH', estado: 'activo', rol: 'Admin. RRHH', fechaIngreso: '11/09/2020' },
-  { id: 6, nombre: 'Tomás Cáceres', area: 'Diseño', cargo: 'Diseñador UX/UI', estado: 'suspendido', rol: 'Colaborador', fechaIngreso: '30/07/2025' },
-  { id: 7, nombre: 'Valeria Roque', area: 'Ventas', cargo: 'Gerente de Ventas', estado: 'activo', rol: 'Asistente', fechaIngreso: '02/01/2019' },
-  { id: 8, nombre: 'Sebastián Quiroga', area: 'Dirección General', cargo: 'Director Ejecutivo', estado: 'activo', rol: 'Admin. General', fechaIngreso: '15/02/2018' },
-  { id: 9, nombre: 'Fabiola Terán', area: 'Psicometría', cargo: 'Psicómetra Especialista', estado: 'activo', rol: 'Colaborador', fechaIngreso: '02/05/2021' },
-  { id: 10, nombre: 'Marco Andrade', area: 'Tecnología', cargo: 'QA Tester', estado: 'inactivo', rol: 'Colaborador', fechaIngreso: '19/08/2022' },
-  { id: 11, nombre: 'Daniela Ponce', area: 'Marketing', cargo: 'Asistente de Marketing', estado: 'activo', rol: 'Colaborador', fechaIngreso: '09/07/2024' },
-  { id: 12, nombre: 'Gabriel Nava', area: 'Operaciones', cargo: 'Project Manager', estado: 'activo', rol: 'Colaborador', fechaIngreso: '09/07/2023' },
+  { id: 1, nombre: 'Renata Solís', area: 'Ventas', cargo: 'Ejecutiva Comercial', estado: 'activo', rol: 'Colaborador', fechaIngreso: '14/03/2022', fechaNacimiento: '14/06/1994' },
+  { id: 2, nombre: 'Bruno Alcázar', area: 'Tecnología', cargo: 'Desarrollador Backend', estado: 'activo', rol: 'Colaborador', fechaIngreso: '02/11/2023', fechaNacimiento: '22/09/1990' },
+  { id: 3, nombre: 'Melisa Ortega', area: 'Marketing', cargo: 'Content Creator', estado: 'licencia', rol: 'Colaborador', fechaIngreso: '20/06/2024', fechaNacimiento: '05/03/1996' },
+  { id: 4, nombre: 'Ignacio Rivas', area: 'Operaciones', cargo: 'Analista de Procesos', estado: 'licencia', rol: 'Colaborador', fechaIngreso: '05/01/2021', fechaNacimiento: '30/06/1988' },
+  { id: 5, nombre: 'Carla Ibáñez', area: 'Recursos Humanos', cargo: 'Generalista RRHH', estado: 'activo', rol: 'Admin. RRHH', fechaIngreso: '11/09/2020', fechaNacimiento: '11/11/1985' },
+  { id: 6, nombre: 'Tomás Cáceres', area: 'Diseño', cargo: 'Diseñador UX/UI', estado: 'suspendido', rol: 'Colaborador', fechaIngreso: '30/07/2025', fechaNacimiento: '19/06/1997' },
+  { id: 7, nombre: 'Valeria Roque', area: 'Ventas', cargo: 'Gerente de Ventas', estado: 'activo', rol: 'Asistente', fechaIngreso: '02/01/2019', fechaNacimiento: '02/01/1982' },
+  { id: 8, nombre: 'Sebastián Quiroga', area: 'Dirección General', cargo: 'Director Ejecutivo', estado: 'activo', rol: 'Admin. General', fechaIngreso: '15/02/2018', fechaNacimiento: '15/08/1975' },
+  { id: 9, nombre: 'Fabiola Terán', area: 'Psicometría', cargo: 'Psicómetra Especialista', estado: 'activo', rol: 'Colaborador', fechaIngreso: '02/05/2021', fechaNacimiento: '28/06/1993' },
+  { id: 10, nombre: 'Marco Andrade', area: 'Tecnología', cargo: 'QA Tester', estado: 'inactivo', rol: 'Colaborador', fechaIngreso: '19/08/2022', fechaNacimiento: '09/12/1991' },
+  { id: 11, nombre: 'Daniela Ponce', area: 'Marketing', cargo: 'Asistente de Marketing', estado: 'activo', rol: 'Colaborador', fechaIngreso: '09/07/2024', fechaNacimiento: '09/07/1998' },
+  { id: 12, nombre: 'Gabriel Nava', area: 'Operaciones', cargo: 'Project Manager', estado: 'activo', rol: 'Colaborador', fechaIngreso: '09/07/2023', fechaNacimiento: '23/06/1989' },
 ]
 
 export const invitaciones = { pendientes: 4, aceptadas: 5, expiradas: 0, canceladas: 0 }
@@ -61,3 +61,5 @@ export const procesosEvaluacion = [
 export const pdi = { activos: 18, total: 21, objetivosCumplidosPct: 14, avancePromedioPct: 17 }
 
 export const climaLaboralEnps = 62
+
+export const rotacionMensual = { pct: 3.2, salidas: 1 }

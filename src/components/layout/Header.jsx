@@ -12,6 +12,7 @@ const pageHeaders = {
   '/onboarding/conocimiento': { title: 'Recursos corporativos' },
   '/onboarding/configuracion': { title: 'Configuración avanzada' },
   '/personas/colaboradores': { title: 'Colaboradores' },
+  '/calendario': { title: 'Mi calendario' },
 }
 
 export default function Header({ floating }) {
@@ -27,10 +28,11 @@ export default function Header({ floating }) {
   const isPersonas = location.pathname.startsWith('/personas')
   const isInicio = location.pathname.startsWith('/inicio')
   const isMiDia = location.pathname === '/inicio/mi-dia'
+  const isCalendario = location.pathname.startsWith('/calendario')
   const pageInfo = pageHeaders[location.pathname]
   const headerTitle = pageInfo?.title
     ?? (currentUser.role === 'admin' ? 'Dashboard' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding')
-  const headerSubtitle = isMiDia ? 'Tu espacio personal' : isInicio ? 'Vista general de la plataforma' : isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'
+  const headerSubtitle = isMiDia ? 'Tu espacio personal' : isCalendario ? 'Eventos y actividades programadas' : isInicio ? 'Vista general de la plataforma' : isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'
 
   const totalDocs = recursos.reduce((s, c) => s + c.docs.length, 0)
   const setupSteps = [

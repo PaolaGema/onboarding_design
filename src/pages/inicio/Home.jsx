@@ -1,17 +1,24 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
-  Target, Award, ClipboardList, Megaphone, Cake, Mail,
+  Target, Award, ClipboardList, Megaphone, CalendarDays, ChevronLeft, ChevronRight, Mail,
   Heart, Eye, Trophy, UserRound, CheckCircle2,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { chartTooltipStyle } from '../../utils/chartTooltip'
 import {
+  HOY, MESES, DIAS_SEMANA, parseFechaDMY, buildCalendarCells, buildEventosDelMes, CALENDAR_LEGEND, avatarUrl,
+} from '../../utils/calendarEvents'
+import {
   AREAS, colaboradores, invitaciones, publicaciones, totalPublicaciones,
   reconocimientos, evalTotales, procesosPorTipo, procesosEvaluacion, pdi, climaLaboralEnps,
+  rotacionMensual,
 } from './homeData'
+
+const DIA_DETALLE_MAX = 5
 
 /* ── CONSTANTES DE PRESENTACIÓN ──────────────── */
 
@@ -43,29 +50,15 @@ const SALUD_INFO = {
   'programado': { color: 'var(--purple)', label: 'Programado' },
 }
 
-function parseFechaDMY(str) {
-  const [d, m, y] = str.split('/').map(Number)
-  return { d, m, y }
-}
-
-function proximoAniversario(fechaIngreso, hoy) {
-  const { d, m, y } = parseFechaDMY(fechaIngreso)
-  let next = new Date(hoy.getFullYear(), m - 1, d)
-  if (next < hoy) next = new Date(hoy.getFullYear() + 1, m - 1, d)
-  const diffDays = Math.round((next - hoy) / 86400000)
-  const anios = next.getFullYear() - y
-  return { diffDays, anios, next }
-}
-
-const avatarUrl = (name) => `https://i.pravatar.cc/40?u=${encodeURIComponent(name)}`
-
 /* ── COMPONENT ───────────────────────────────── */
 
 export default function Home() {
   const { currentUser } = useUser()
+  const navigate = useNavigate()
   const { asignaciones: ctxAsignaciones } = useOnboardingData()
   const [areaFiltro, setAreaFiltro] = useState('todas')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
+  const [selectedDay, setSelectedDay] = useState(null)
 
   const firstName = currentUser.name.split(' ')[0]
   const onboardingsEnCurso = ctxAsignaciones.filter(a => a.status === 'en-curso').length
@@ -87,11 +80,14 @@ export default function Home() {
   const totalProcesos = Object.values(evalTotales).reduce((s, v) => s + v, 0)
   const procesosFiltrados = estadoFiltro === 'todos' ? procesosEvaluacion : procesosEvaluacion.filter(p => p.estado === estadoFiltro)
 
-  const hoy = new Date(2026, 5, 17) // "hoy" ficticio del demo, igual que el Dashboard de Onboarding
-  const aniversarios = colaboradores
-    .map(c => ({ ...c, ...proximoAniversario(c.fechaIngreso, hoy) }))
-    .sort((a, b) => a.diffDays - b.diffDays)
-    .slice(0, 3)
+  const hoy = HOY
+  const activeDay = selectedDay ?? hoy.getDate()
+
+  const cumpleañosEsteMes = colaboradores.filter(c => parseFechaDMY(c.fechaNacimiento).m === hoy.getMonth() + 1).length
+
+  const calendarCells = buildCalendarCells(hoy.getFullYear(), hoy.getMonth())
+  const eventosPorDia = buildEventosDelMes(hoy.getFullYear(), hoy.getMonth())
+  const eventosDelDia = eventosPorDia[activeDay] || []
 
   const kpis = [
     { title: 'Colaboradores activos', value: String(activosCount), label: `De ${colaboradores.length} en la organización`, accent: 'var(--blue)' },
@@ -102,31 +98,172 @@ export default function Home() {
     { title: 'Clima laboral (eNPS)', value: String(climaLaboralEnps), label: 'Última medición', accent: 'var(--green)' },
   ]
 
+  const kpisSecundarios = [
+    { title: 'Rotación de personal', value: `${rotacionMensual.pct}%`, label: `${rotacionMensual.salidas} baja${rotacionMensual.salidas !== 1 ? 's' : ''} este mes`, accent: 'var(--red)' },
+    { title: 'Cumpleaños este mes', value: String(cumpleañosEsteMes), label: 'Colaboradores celebrando', accent: '#ec4899' },
+  ]
+
   return (
     <div className="content-scroll">
 
-      {/* ── WELCOME BANNER ──────────────────── */}
-      <div className="welcome-banner">
-        <div className="welcome-left">
-          <img src={viaSaludando} alt="" className="welcome-mascot" />
-          <div className="welcome-content">
-            <div className="welcome-title">Hola, {firstName}</div>
-            <div className="welcome-sub">
-              Este es el resumen de tu organización hoy: onboarding, desempeño, encuestas, reconocimientos y más.
+      {/* ── WELCOME + KPIS  |  CALENDARIO ───── */}
+      <div className="two-col" style={{ alignItems: 'start' }}>
+
+        {/* LEFT: WELCOME BANNER + KPIS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="welcome-banner">
+            <div className="welcome-left">
+              <img src={viaSaludando} alt="" className="welcome-mascot" />
+              <div className="welcome-content">
+                <div className="welcome-title">Hola, {firstName}</div>
+                <div className="welcome-sub">
+                  Este es el resumen de tu organización hoy: onboarding, desempeño, encuestas, reconocimientos y más.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="kpi-strip">
+            {kpis.slice(0, 3).map(k => (
+              <div key={k.title} className="kpi-card" style={{ '--kpi-accent': k.accent }}>
+                <div className="kpi-title">{k.title}</div>
+                <div className="kpi-val">{k.value}</div>
+                <div className="kpi-lbl">{k.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="kpi-strip">
+            {kpis.slice(3, 6).map(k => (
+              <div key={k.title} className="kpi-card" style={{ '--kpi-accent': k.accent }}>
+                <div className="kpi-title">{k.title}</div>
+                <div className="kpi-val">{k.value}</div>
+                <div className="kpi-lbl">{k.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.6px' }}>
+              Otras métricas
+            </div>
+            <div className="kpi-strip">
+              {kpisSecundarios.map(k => (
+                <div key={k.title} className="kpi-card" style={{ '--kpi-accent': k.accent }}>
+                  <div className="kpi-title">{k.title}</div>
+                  <div className="kpi-val">{k.value}</div>
+                  <div className="kpi-lbl">{k.label}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── KPI STRIP ──────────────────────── */}
-      <div className="kpi-strip">
-        {kpis.map(k => (
-          <div key={k.title} className="kpi-card" style={{ '--kpi-accent': k.accent }}>
-            <div className="kpi-title">{k.title}</div>
-            <div className="kpi-val">{k.value}</div>
-            <div className="kpi-lbl">{k.label}</div>
+        {/* RIGHT: CALENDARIO + PRÓXIMOS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="sec-card">
+            <div className="sc-hd">
+              <CalendarDays size={15} style={{ color: 'var(--blue)' }} />
+              <h3>{MESES[hoy.getMonth()]} {hoy.getFullYear()}</h3>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => navigate('/calendario?mes=-1')} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border-soft)', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                  <ChevronLeft size={13} />
+                </button>
+                <button onClick={() => navigate('/calendario?mes=1')} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid var(--border-soft)', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                  <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
+            <div className="sc-body" style={{ padding: '14px 18px 18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                {DIAS_SEMANA.map(d => (
+                  <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', padding: '0 0 8px' }}>{d}</div>
+                ))}
+                {calendarCells.map((cell, i) => {
+                  const isToday = cell.inMonth && cell.day === hoy.getDate()
+                  const isSelected = cell.inMonth && cell.day === activeDay
+                  const eventos = cell.inMonth ? eventosPorDia[cell.day] : null
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => cell.inMonth && setSelectedDay(cell.day)}
+                      disabled={!cell.inMonth}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '3px 0',
+                        background: 'none', border: 'none', fontFamily: 'inherit', cursor: cell.inMonth ? 'pointer' : 'default',
+                      }}
+                    >
+                      <span style={{
+                        width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: isSelected || isToday ? 700 : 500,
+                        background: isSelected ? 'var(--navy)' : 'transparent',
+                        border: !isSelected && isToday ? '1.5px solid var(--navy)' : 'none',
+                        color: !cell.inMonth ? 'var(--border-dark)' : isSelected ? '#fff' : isToday ? 'var(--navy)' : 'var(--text-heading)',
+                      }}>{cell.day}</span>
+                      <span style={{ display: 'flex', gap: 2, height: 4 }}>
+                        {eventos && eventos.slice(0, 3).map((e, j) => (
+                          <span key={j} style={{ width: 4, height: 4, borderRadius: '50%', background: e.color }} />
+                        ))}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 14, marginTop: 10, paddingTop: 12, borderTop: '1px solid var(--border-soft)', flexWrap: 'wrap' }}>
+                {CALENDAR_LEGEND.map(l => (
+                  <span key={l.label} style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: l.color, display: 'inline-block' }} /> {l.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* DETALLE DEL DÍA SELECCIONADO */}
+              <div style={{ marginTop: 4, paddingTop: 12, borderTop: '1px solid var(--border-soft)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 4 }}>
+                  {activeDay} de {MESES[hoy.getMonth()]}{activeDay === hoy.getDate() ? ' · Hoy' : ''}
+                </div>
+                {eventosDelDia.length > 0 ? (
+                  <>
+                    {eventosDelDia.slice(0, DIA_DETALLE_MAX).map((e, i) => (
+                      <div key={i} className="upcoming-item">
+                        <div className="ui-date">
+                          <div className="ui-day">{String(activeDay).padStart(2, '0')}</div>
+                          <div className="ui-month">{MESES[hoy.getMonth()].slice(0, 3).toUpperCase()}</div>
+                        </div>
+                        <div className="ui-info">
+                          <div className="ui-name">{e.titulo}</div>
+                          <div className="ui-sub">{e.subtitulo}</div>
+                          <div className="ui-sub">{e.tipo}</div>
+                        </div>
+                        {e.kind === 'persona' ? (
+                          <div className="ui-av"><img src={avatarUrl(e.titulo)} alt={e.titulo} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={ev => { ev.currentTarget.style.display = 'none' }} /></div>
+                        ) : (
+                          <div className="ui-av" style={{ background: `${e.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <e.Icon size={14} style={{ color: e.color }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {eventosDelDia.length > DIA_DETALLE_MAX && (
+                      <button
+                        onClick={() => navigate(`/calendario?dia=${activeDay}`)}
+                        style={{
+                          width: '100%', marginTop: 4, padding: '9px 0', borderRadius: 8,
+                          border: '1px solid var(--border-soft)', background: 'var(--surface-hover)',
+                          color: 'var(--blue)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        Ver todo ({eventosDelDia.length}) →
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ padding: '10px 0', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin actividades este día</div>
+                )}
+              </div>
+            </div>
           </div>
-        ))}
+        </div>
       </div>
 
       {/* ── ANALYTICS: COLABORADORES + PROCESOS ── */}
@@ -342,29 +479,6 @@ export default function Home() {
                     <div className="ai-sub">{r.tipo}: {r.motivo} · {r.audiencia}</div>
                   </div>
                   <Award size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* PRÓXIMOS ANIVERSARIOS */}
-          <div className="sec-card">
-            <div className="sc-hd">
-              <Cake size={15} style={{ color: '#ec4899' }} />
-              <h3>Próximos aniversarios</h3>
-            </div>
-            <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-              {aniversarios.map(a => (
-                <div key={a.id} className="upcoming-item">
-                  <div className="ui-date">
-                    <div className="ui-day">{String(a.next.getDate()).padStart(2, '0')}</div>
-                    <div className="ui-month">{a.next.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '').toUpperCase()}</div>
-                  </div>
-                  <div className="ui-info">
-                    <div className="ui-name">{a.nombre}</div>
-                    <div className="ui-sub">{a.anios > 0 ? `${a.anios} ${a.anios === 1 ? 'año' : 'años'} en la empresa` : 'Se une este año'}</div>
-                  </div>
-                  <div className="ui-av"><img src={avatarUrl(a.nombre)} alt={a.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
                 </div>
               ))}
             </div>

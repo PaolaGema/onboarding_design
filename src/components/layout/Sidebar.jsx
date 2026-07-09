@@ -10,7 +10,7 @@ import logoClaro from '../../assets/imagenes/logo_souly_claro.png'
 
 const allNavItems = [
   { icon: House, label: 'Inicio', path: '/inicio', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
-  { icon: Calendar, label: 'Mi calendario', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: Calendar, label: 'Mi calendario', path: '/calendario', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
   { icon: UserRound, label: 'Gestión de personas', path: '/personas/colaboradores', roles: ['admin', 'manager'] },
   { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
   { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },

@@ -8,6 +8,7 @@ import { UnsavedChangesProvider } from './context/UnsavedChangesContext'
 import Layout from './components/layout/Layout'
 import Home from './pages/inicio/Home'
 import MiDia from './pages/inicio/MiDia'
+import Calendario from './pages/calendario/Calendario'
 import Dashboard from './pages/onboarding/Dashboard'
 import Asignaciones from './pages/onboarding/Asignaciones'
 import Plantillas from './pages/onboarding/Plantillas'
@@ -34,6 +35,9 @@ export default function App() {
           <Route path="/inicio" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="mi-dia" element={<MiDia />} />
+          </Route>
+          <Route path="/calendario" element={<Layout />}>
+            <Route index element={<Calendario />} />
           </Route>
           <Route path="/onboarding" element={<Layout />}>
             <Route index element={<Dashboard />} />
