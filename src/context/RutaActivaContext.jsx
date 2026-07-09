@@ -18,7 +18,8 @@ const rutaColaboradorDefault = {
           tareas: [
             { id: 101, name: 'Video de bienvenida', tipo: 'video', puntos: 10, obligatoria: true, done: false, desc: 'Conoce nuestra cultura y valores.', verificarQuiz: true },
             { id: 102, name: 'Manual de funciones', tipo: 'documento', puntos: 15, obligatoria: true, done: false, desc: 'Lee el manual de tu cargo.' },
-            { id: 103, name: 'Completar mi perfil', tipo: 'completar-perfil', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos en la plataforma.' },
+            { id: 103, name: 'Completar mi perfil', tipo: 'perfil', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos personales, laborales, preferencias y documentación.' },
+            { id: 109, name: 'Podcast de bienvenida', tipo: 'audio', puntos: 5, obligatoria: false, done: false, desc: 'Escucha el mensaje de bienvenida de nuestro equipo.' },
           ],
         },
       ],
@@ -33,7 +34,8 @@ const rutaColaboradorDefault = {
           tareas: [
             { id: 104, name: 'Recorrido por instalaciones', tipo: 'recorrido', puntos: 20, obligatoria: true, done: false, desc: 'Visita las áreas principales de la empresa.' },
             { id: 105, name: 'Prueba de cultura', tipo: 'quiz', puntos: 15, obligatoria: true, done: false, desc: 'Evalúa lo que aprendiste sobre nuestra cultura.' },
-            { id: 106, name: 'Formulario bancario', tipo: 'form-custom', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos para el pago de nómina.' },
+            { id: 106, name: 'Formulario bancario', tipo: 'completar-perfil', puntos: 5, obligatoria: false, done: false, desc: 'Completa tus datos para el pago de nómina.' },
+            { id: 110, name: 'Reunión 1:1 con tu buddy', tipo: 'tarea-otro', puntos: 10, obligatoria: true, done: false, desc: 'Coordina una reunión de bienvenida con tu buddy asignado.' },
           ],
         },
       ],
@@ -48,6 +50,7 @@ const rutaColaboradorDefault = {
           tareas: [
             { id: 107, name: 'Evaluación de integración', tipo: 'quiz', puntos: 25, obligatoria: true, done: false, desc: 'Evaluación final de tu proceso de onboarding.' },
             { id: 108, name: 'Entrega de proyecto', tipo: 'subida', puntos: 20, obligatoria: true, done: false, desc: 'Sube tu primer entregable al equipo.' },
+            { id: 111, name: '¿Cómo te sientes en tu primer mes?', tipo: 'pulso', puntos: 5, obligatoria: false, done: false, desc: 'Cuéntanos cómo va tu proceso de integración.' },
           ],
         },
       ],

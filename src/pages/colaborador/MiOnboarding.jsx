@@ -9,7 +9,7 @@ import {
   ClipboardList, UserCheck, MapPin, ShieldCheck,
   ExternalLink, X, Route, Info, Rocket,
   Play, Download, ChevronRight,
-  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network
+  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network, IdCard
 } from 'lucide-react'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
@@ -26,7 +26,7 @@ const iconMap = {
   subida: Upload, 'tarea-otro': UserCheck,
   recorrido: MapPin, lectura: FileText,
   enlace: ExternalLink, 'form-custom': ClipboardList, confirmacion: Trophy,
-  pulso: Smile,
+  pulso: Smile, perfil: IdCard,
 }
 
 const colorMap = {
@@ -35,8 +35,22 @@ const colorMap = {
   'tarea-otro': '#ef4444', recorrido: '#d946ef',
   lectura: '#f97316', enlace: '#6366f1',
   'form-custom': '#10b981', confirmacion: '#f59e0b',
-  pulso: '#f472b6',
+  pulso: '#f472b6', perfil: '#8b5cf6',
 }
+
+const PERFIL_TABS = [
+  { key: 'personales', label: 'Datos personales' },
+  { key: 'laboral', label: 'Información laboral' },
+  { key: 'preferencias', label: 'Preferencias personales' },
+  { key: 'documentacion', label: 'Documentación' },
+]
+const PERFIL_SECCIONES = {
+  personales: ['Datos de acceso', 'Datos de documento de identidad', 'Datos personales', 'Datos de residencia', 'Contactos de emergencia', 'Datos personales de salud'],
+  laboral: ['Datos laborales básicos', 'Datos de contrato', 'Datos de pago'],
+  preferencias: ['Uniforme', 'Lista de deseos para cumpleaños', 'Habilidades'],
+  documentacion: ['Foto del empleado', 'Contrato', 'Documento de identidad'],
+}
+const PERFIL_TOTAL_SECCIONES = Object.values(PERFIL_SECCIONES).reduce((s, arr) => s + arr.length, 0)
 
 function flatTareas(etapa) {
   return etapa.actividades.flatMap(a => a.tareas)
@@ -77,6 +91,9 @@ export default function MiOnboarding({ forcePhone = false }) {
   const [pulsoSubmitted, setPulsoSubmitted] = useState({})
   const [formRespuestas, setFormRespuestas] = useState({})
   const [formSubmitted, setFormSubmitted] = useState({})
+  const [perfilTab, setPerfilTab] = useState({})
+  const [perfilProgress, setPerfilProgress] = useState({})
+  const [perfilSubmitted, setPerfilSubmitted] = useState({})
   const [selContext, setSelContext] = useState(null)
   const [etapasOpen, setEtapasOpen] = useState(true)
   const [infoOpen, setInfoOpen] = useState(true)
@@ -114,6 +131,9 @@ export default function MiOnboarding({ forcePhone = false }) {
     setPulsoSubmitted({})
     setFormRespuestas({})
     setFormSubmitted({})
+    setPerfilTab({})
+    setPerfilProgress({})
+    setPerfilSubmitted({})
   }
 
   function sendChat(text) {
@@ -980,6 +1000,73 @@ export default function MiOnboarding({ forcePhone = false }) {
             </div>
           )
         }
+        case 'perfil': {
+          const tid = selTarea.id
+          const isPerfilDone = readOnly || !!perfilSubmitted[tid]
+          const tab = perfilTab[tid] || 'personales'
+          const progress = perfilProgress[tid] || {}
+          const doneCount = Object.values(progress).filter(Boolean).length
+          const allDone = doneCount >= PERFIL_TOTAL_SECCIONES
+          const toggleSeccion = (key) => {
+            setPerfilProgress(prev => {
+              const current = prev[tid] || {}
+              return { ...prev, [tid]: { ...current, [key]: !current[key] } }
+            })
+          }
+          if (isPerfilDone) {
+            return (
+              <div style={{ border: '1px solid #ddd6fe', borderRadius: 8, padding: 10, textAlign: 'center', background: '#f5f3ff' }}>
+                <CheckCircle2 size={14} style={{ color: '#7c3aed' }} />
+                <div style={{ fontSize: 8, fontWeight: 700, color: '#5b21b6', marginTop: 2 }}>Perfil completado</div>
+              </div>
+            )
+          }
+          return (
+            <div style={{ border: '1px solid #ddd6fe', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 8px', background: '#f5f3ff', borderBottom: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#5b21b6' }}>Completar perfil</span>
+                <span style={{ fontSize: 7, color: '#7c3aed' }}>{doneCount}/{PERFIL_TOTAL_SECCIONES}</span>
+              </div>
+              <div style={{ display: 'flex', overflowX: 'auto' }}>
+                {PERFIL_TABS.map(t => (
+                  <button key={t.key} onClick={() => setPerfilTab(prev => ({ ...prev, [tid]: t.key }))} style={{
+                    flex: '1 0 auto', padding: '5px 4px', fontSize: 6.5, fontWeight: 700,
+                    border: 'none', borderBottom: tab === t.key ? '2px solid #7c3aed' : '2px solid transparent',
+                    background: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                    color: tab === t.key ? '#5b21b6' : '#94a3b8',
+                  }}>{t.label}</button>
+                ))}
+              </div>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {PERFIL_SECCIONES[tab].map(s => {
+                  const key = `${tab}:${s}`
+                  const done = !!progress[key]
+                  return (
+                    <div key={key} onClick={() => toggleSeccion(key)} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 6,
+                      background: done ? '#f5f3ff' : '#f8fafc', border: '1px solid #f1f5f9', cursor: 'pointer',
+                    }}>
+                      <div style={{
+                        width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+                        background: done ? '#7c3aed' : '#fff',
+                        border: done ? 'none' : '1.5px solid #d1d5db',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {done && <CheckCircle2 size={8} style={{ color: '#fff' }} />}
+                      </div>
+                      <span style={{ fontSize: 7, color: '#475569' }}>{s}</span>
+                    </div>
+                  )
+                })}
+                <button
+                  disabled={!allDone}
+                  onClick={() => { setPerfilSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                  style={{ marginTop: 4, padding: '5px 12px', borderRadius: 6, background: allDone ? '#7c3aed' : '#e2e8f0', color: allDone ? '#fff' : '#94a3b8', border: 'none', fontSize: 8, fontWeight: 700, cursor: allDone ? 'pointer' : 'default', fontFamily: 'inherit', alignSelf: 'flex-start' }}
+                >Enviar perfil</button>
+              </div>
+            </div>
+          )
+        }
         case 'tarea-otro':
           return (
             <div style={{ border: '1px solid #fecaca', borderRadius: 8, overflow: 'hidden' }}>
@@ -1840,6 +1927,84 @@ export default function MiOnboarding({ forcePhone = false }) {
                 >
                   <ClipboardList size={14} />
                   Enviar formulario
+                </button>
+              </div>
+            </div>
+          )
+        }
+        case 'perfil': {
+          const tid = selTarea.id
+          const isPerfilDone = readOnly || !!perfilSubmitted[tid]
+          const tab = perfilTab[tid] || 'personales'
+          const progress = perfilProgress[tid] || {}
+          const doneCount = Object.values(progress).filter(Boolean).length
+          const allDone = doneCount >= PERFIL_TOTAL_SECCIONES
+          const toggleSeccion = (key) => {
+            setPerfilProgress(prev => {
+              const current = prev[tid] || {}
+              return { ...prev, [tid]: { ...current, [key]: !current[key] } }
+            })
+          }
+          if (isPerfilDone) {
+            return (
+              <div style={{ border: '1px solid #ddd6fe', borderRadius: 12, padding: '20px 24px', textAlign: 'center', background: '#f5f3ff', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <CheckCircle2 size={24} style={{ color: '#7c3aed' }} />
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#5b21b6' }}>Perfil completado</div>
+              </div>
+            )
+          }
+          return (
+            <div style={{ border: '1px solid #ddd6fe', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', background: '#f5f3ff', borderBottom: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IdCard size={15} style={{ color: '#7c3aed' }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#5b21b6' }}>Completar perfil</span>
+                </div>
+                <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>{doneCount}/{PERFIL_TOTAL_SECCIONES}</span>
+              </div>
+              <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
+                {PERFIL_TABS.map(t => (
+                  <button key={t.key} onClick={() => setPerfilTab(prev => ({ ...prev, [tid]: t.key }))} style={{
+                    flex: 1, padding: '10px 8px', fontSize: 11.5, fontWeight: 700,
+                    border: 'none', borderBottom: tab === t.key ? '2px solid #7c3aed' : '2px solid transparent',
+                    background: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    color: tab === t.key ? '#5b21b6' : '#94a3b8',
+                  }}>{t.label}</button>
+                ))}
+              </div>
+              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {PERFIL_SECCIONES[tab].map(s => {
+                  const key = `${tab}:${s}`
+                  const done = !!progress[key]
+                  return (
+                    <button key={key} onClick={() => toggleSeccion(key)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8,
+                      background: done ? '#f5f3ff' : '#fff', border: done ? '1.5px solid #7c3aed' : '1px solid #f1f5f9',
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                    }}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                        background: done ? '#7c3aed' : '#fff',
+                        border: done ? 'none' : '2px solid #cbd5e1',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {done && <CheckCircle2 size={11} style={{ color: '#fff' }} />}
+                      </div>
+                      <span style={{ fontSize: 12, color: '#475569' }}>{s}</span>
+                    </button>
+                  )
+                })}
+                <button
+                  disabled={!allDone}
+                  onClick={() => { setPerfilSubmitted(prev => ({ ...prev, [tid]: true })); toggleDone(tid); setSelTarea(prev => ({ ...prev, done: true })) }}
+                  style={{
+                    alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 8,
+                    background: allDone ? '#7c3aed' : '#e2e8f0', color: allDone ? '#fff' : '#94a3b8', border: 'none',
+                    fontSize: 12, fontWeight: 700, cursor: allDone ? 'pointer' : 'default', fontFamily: 'inherit', marginTop: 4,
+                  }}
+                >
+                  <IdCard size={14} />
+                  Enviar perfil
                 </button>
               </div>
             </div>

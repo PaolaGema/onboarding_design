@@ -5,6 +5,8 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 
 const pageHeaders = {
+  '/inicio': { title: 'Inicio' },
+  '/inicio/mi-dia': { title: 'Mi día' },
   '/onboarding/plantillas': { title: 'Rutas de Onboarding' },
   '/onboarding/asignaciones': { title: 'Seguimiento' },
   '/onboarding/conocimiento': { title: 'Recursos corporativos' },
@@ -23,10 +25,12 @@ export default function Header({ floating }) {
   const ref = useRef(null)
 
   const isPersonas = location.pathname.startsWith('/personas')
+  const isInicio = location.pathname.startsWith('/inicio')
+  const isMiDia = location.pathname === '/inicio/mi-dia'
   const pageInfo = pageHeaders[location.pathname]
   const headerTitle = pageInfo?.title
     ?? (currentUser.role === 'admin' ? 'Dashboard' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding')
-  const headerSubtitle = isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'
+  const headerSubtitle = isMiDia ? 'Tu espacio personal' : isInicio ? 'Vista general de la plataforma' : isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'
 
   const totalDocs = recursos.reduce((s, c) => s + c.docs.length, 0)
   const setupSteps = [

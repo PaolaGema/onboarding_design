@@ -1,17 +1,39 @@
 import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight, House, Sun } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 
 const sectionInfo = {
   'Administración': 'Opciones para administrar el módulo de onboarding.',
-  'Mi espacio': 'Tu onboarding personal como colaborador.',
+  'Mi espacio': 'Tu espacio personal como colaborador.',
 }
 const sectionInfoTitle = {
   'Administración': 'Administración',
   'Mi espacio': 'Mi espacio',
+}
+
+const inicioAdminNav = [
+  { section: 'Administración', items: [
+    { label: 'Dashboard', path: '/inicio', icon: LayoutDashboard, end: true },
+  ]},
+  { section: 'Mi espacio', items: [
+    { label: 'Mi día', path: '/inicio/mi-dia', icon: Sun },
+  ]},
+]
+
+const inicioColabNav = [
+  { section: 'Mi espacio', items: [
+    { label: 'Mi día', path: '/inicio/mi-dia', icon: Sun },
+  ]},
+]
+
+const inicioNavByRole = {
+  admin: inicioAdminNav,
+  manager: inicioAdminNav,
+  auxiliar: inicioAdminNav,
+  colaborador: inicioColabNav,
 }
 
 const onboardingAdminNav = [
@@ -76,6 +98,7 @@ const onboardingNavByRole = {
 }
 
 const moduleConfig = {
+  inicio: { title: 'Inicio', icon: House, desc: 'Vista general de la plataforma y tu espacio personal' },
   onboarding: { title: 'Módulo de Onboarding', icon: Rocket, desc: 'Administra la incorporación de nuevos colaboradores' },
   personas: { title: 'Gestión de Personas', icon: UserRound, desc: 'Directorio y datos de tu organización' },
   archivos: { title: 'Mis archivos', icon: Folder, desc: 'Todos los archivos de la empresa, organizados por módulo' },
@@ -91,14 +114,17 @@ export default function ModuleNav() {
 
   const isPersonas = location.pathname.startsWith('/personas')
   const isArchivos = location.pathname.startsWith('/archivos')
-  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : 'onboarding'
+  const isInicio = location.pathname.startsWith('/inicio')
+  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : isInicio ? 'inicio' : 'onboarding'
   const config = moduleConfig[moduleKey]
 
   const sections = isArchivos
     ? archivosNav
     : isPersonas
       ? personasNav
-      : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
+      : isInicio
+        ? (inicioNavByRole[currentUser.role] || inicioAdminNav)
+        : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
 
   const ModuleIcon = config.icon
 

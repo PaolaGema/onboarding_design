@@ -6,6 +6,8 @@ import { ConfigProvider } from './context/ConfigContext'
 import { OnboardingDataProvider } from './context/OnboardingDataContext'
 import { UnsavedChangesProvider } from './context/UnsavedChangesContext'
 import Layout from './components/layout/Layout'
+import Home from './pages/inicio/Home'
+import MiDia from './pages/inicio/MiDia'
 import Dashboard from './pages/onboarding/Dashboard'
 import Asignaciones from './pages/onboarding/Asignaciones'
 import Plantillas from './pages/onboarding/Plantillas'
@@ -29,6 +31,10 @@ export default function App() {
       <UnsavedChangesProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/inicio" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="mi-dia" element={<MiDia />} />
+          </Route>
           <Route path="/onboarding" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="asignaciones" element={<Asignaciones />} />

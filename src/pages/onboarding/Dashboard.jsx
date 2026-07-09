@@ -8,6 +8,7 @@ import {
   Star, CalendarHeart, Trophy, Medal,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { chartTooltipStyle } from '../../utils/chartTooltip'
 
 /* ── DATA ────────────────────────────────────── */
 
@@ -23,8 +24,8 @@ const STATUS_LABELS = {
   'atrasado': 'Atrasados',
   'en-riesgo': 'En riesgo',
 }
-const AREA_COLORS = ['#102F41', '#1B4D6A', '#256A93', '#2F88BC', '#479FD1', '#68B0D9']
-const MEDAL_COLORS = ['#f59e0b', '#94a3b8', '#c2703d']
+const AREA_COLORS = ['#0C2D40', '#0D6B4E', '#0D9463', '#00C27E', '#00E091', '#7EF0C0']
+const RANK_COLORS = AREA_COLORS.slice(0, 3)
 
 const upcomingData = [
   { day: '10', month: 'JUN', name: 'Sofía Ramírez', sub: 'Ventas · Ruta asignada', color: '#f59e0b' },
@@ -111,7 +112,7 @@ export default function Dashboard() {
         <div className="kpi-strip">
           {managerKpis.map((k) => (
             <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`} style={{ '--kpi-accent': k.accent }}>
-              <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
+              <div className="kpi-title">{k.title}</div>
               <div className="kpi-val">{k.value}</div>
               <div className="kpi-lbl">{k.label}</div>
             </div>
@@ -416,7 +417,7 @@ export default function Dashboard() {
           <div className="kpi-strip">
             {dynKpis.map((k) => (
               <div key={k.title} className={`kpi-card${k.alert ? ' alert' : ''}`} style={{ '--kpi-accent': k.accent }}>
-                <div className="kpi-title" style={{ color: k.accent }}>{k.title}</div>
+                <div className="kpi-title">{k.title}</div>
                 <div className="kpi-val">{k.value}</div>
                 <div className="kpi-lbl">{k.label}</div>
               </div>
@@ -457,7 +458,7 @@ export default function Dashboard() {
                       <Pie data={statusData} dataKey="value" nameKey="label" innerRadius={48} outerRadius={72} paddingAngle={3} strokeWidth={0}>
                         {statusData.map((d, i) => <Cell key={i} fill={d.color} />)}
                       </Pie>
-                      <Tooltip formatter={(value, name) => [value, name]} />
+                      <Tooltip {...chartTooltipStyle} formatter={(value, name) => [value, name]} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="donut-center">
@@ -484,8 +485,8 @@ export default function Dashboard() {
                   <BarChart data={areaData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }}>
                     <XAxis type="number" hide />
                     <YAxis type="category" dataKey="area" width={90} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'var(--input-bg)' }} />
-                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={16}>
+                    <Tooltip {...chartTooltipStyle} cursor={{ fill: 'var(--input-bg)' }} />
+                    <Bar dataKey="count" name="Onboardings" radius={[0, 6, 6, 0]} barSize={16}>
                       {areaData.map((d, i) => <Cell key={i} fill={AREA_COLORS[i % AREA_COLORS.length]} />)}
                     </Bar>
                   </BarChart>
@@ -526,11 +527,11 @@ export default function Dashboard() {
         return (
           <div className="top-row">
             <div className="sec-card">
-              <div className="sc-hd"><h3><Trophy size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top rutas más usadas</h3></div>
+              <div className="sc-hd"><Trophy size={14} style={{ color: '#f59e0b' }} /><h3>Top rutas más usadas</h3></div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
                 {topRutas.length > 0 ? topRutas.map((r, i) => (
                   <div key={r.ruta} className="ruta-row">
-                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="rank-badge" style={{ background: RANK_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
                     <div className="ruta-name">{r.ruta}</div>
                     <div className="ruta-count">{r.count} {r.count === 1 ? 'persona' : 'personas'}</div>
                   </div>
@@ -541,11 +542,11 @@ export default function Dashboard() {
             </div>
 
             <div className="sec-card">
-              <div className="sc-hd"><h3><Medal size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top colaboradores por avance</h3></div>
+              <div className="sc-hd"><Medal size={14} style={{ color: '#f59e0b' }} /><h3>Top colaboradores por avance</h3></div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
                 {topColaboradores.length > 0 ? topColaboradores.map((a, i) => (
                   <div key={a.id} className="ruta-row">
-                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="rank-badge" style={{ background: RANK_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
                     <div className="ruta-name">{a.nombre}</div>
                     <div className="ruta-count">{a.pct}%</div>
                   </div>
@@ -556,11 +557,11 @@ export default function Dashboard() {
             </div>
 
             <div className="sec-card">
-              <div className="sc-hd"><h3><Trophy size={14} style={{ color: '#f59e0b', marginRight: 4, verticalAlign: -2 }} />Top áreas con mejor completitud</h3></div>
+              <div className="sc-hd"><Trophy size={14} style={{ color: '#f59e0b' }} /><h3>Top áreas con mejor completitud</h3></div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
                 {topAreas.length > 0 ? topAreas.map((a, i) => (
                   <div key={a.area} className="ruta-row">
-                    <div className="rank-badge" style={{ background: MEDAL_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
+                    <div className="rank-badge" style={{ background: RANK_COLORS[i] || 'var(--border-dark)' }}>{i + 1}</div>
                     <div className="ruta-name">{a.area}</div>
                     <div className="ruta-count">{a.pct}%</div>
                   </div>

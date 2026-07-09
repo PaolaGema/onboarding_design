@@ -131,9 +131,17 @@ body {
   flex-shrink: 0;
 }
 
-.welcome-banner::before,
-.welcome-banner::after {
-  display: none;
+.welcome-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 340px;
+  height: 100%;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNDAgMTUwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48cGF0aCBkPSJNNzQsOTkgQzc1LjAsOTYuMCA3Ny4zLDg2LjUgODAsODEgQzgyLjcsNzUuNSA4Ni43LDcwLjIgOTAsNjYgQzkzLjMsNjEuOCA5Ni43LDU4LjcgMTAwLDU2IEMxMDMuMyw1My4zIDEwNi43LDUxLjUgMTEwLDUwIEMxMTMuMyw0OC41IDExNi43LDQ3LjcgMTIwLDQ3IEMxMjMuMyw0Ni4zIDEyNi43LDQ1LjggMTMwLDQ2IEMxMzMuMyw0Ni4yIDEzNi43LDQ2LjcgMTQwLDQ4IEMxNDMuMyw0OS4zIDE0Ni43LDUxLjIgMTUwLDU0IEMxNTMuMyw1Ni44IDE1Ni43LDYwLjcgMTYwLDY1IEMxNjMuMyw2OS4zIDE2Ni43LDc2LjIgMTcwLDgwIEMxNzMuMyw4My44IDE3Ni43LDg1LjggMTgwLDg4IEMxODMuMyw5MC4yIDE4Ni43LDkxLjggMTkwLDkzIEMxOTMuMyw5NC4yIDE5Ni43LDk0LjcgMjAwLDk1IEMyMDMuMyw5NS4zIDIwNi43LDk1LjIgMjEwLDk1IEMyMTMuMyw5NC44IDIxNi43LDk0LjUgMjIwLDk0IEMyMjMuMyw5My41IDIyNi43LDkyLjggMjMwLDkyIEMyMzMuMyw5MS4yIDIzNi43LDkwLjAgMjQwLDg5IEMyNDMuMyw4OC4wIDI0Ni43LDg3LjMgMjUwLDg2IEMyNTMuMyw4NC43IDI1Ni43LDgyLjUgMjYwLDgxIEMyNjMuMyw3OS41IDI2Ni43LDc4LjUgMjcwLDc3IEMyNzMuMyw3NS41IDI3Ni43LDczLjggMjgwLDcyIEMyODMuMyw3MC4yIDI4Ni43LDY4LjAgMjkwLDY2IEMyOTMuMyw2NC4wIDI5Ni43LDYyLjAgMzAwLDYwIEMzMDMuMyw1OC4wIDMwNi43LDU2LjMgMzEwLDU0IEMzMTMuMyw1MS43IDMxNi43LDQ4LjcgMzIwLDQ2IEMzMjMuMyw0My4zIDMyNy4zLDQwLjMgMzMwLDM4IEMzMzIuNywzNS43IDMzNS4wLDMzLjAgMzM2LDMyIEw0MDAsLTMwIEw0MDAsMjAwIEw3NCwyMDAgWiIgZmlsbD0iIzFhNGE2MyIvPjxjaXJjbGUgY3g9IjIxNSIgY3k9IjQxIiByPSIyMiIgZmlsbD0iIzFhNGE2MyIvPjxjaXJjbGUgY3g9IjI3MCIgY3k9IjIxIiByPSIyMCIgZmlsbD0iIzFhNGE2MyIvPjwvc3ZnPg==");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 .welcome-left {
@@ -238,15 +246,6 @@ body {
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-card);
   position: relative;
-  overflow: hidden;
-}
-
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: var(--kpi-accent, transparent);
 }
 
 .kpi-card.alert {
@@ -259,6 +258,7 @@ body {
   text-transform: uppercase;
   letter-spacing: .8px;
   margin-bottom: 6px;
+  color: var(--kpi-accent, var(--text-muted));
 }
 
 .kpi-val {

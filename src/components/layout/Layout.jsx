@@ -22,7 +22,9 @@ export default function Layout() {
     const isArchivos = location.pathname.startsWith('/archivos')
     const isAdminRoute = ['/onboarding', '/onboarding/asignaciones', '/onboarding/plantillas', '/onboarding/conocimiento', '/onboarding/configuracion'].includes(location.pathname)
 
-    if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas || isArchivos)) {
+    if (currentUser.role === 'colaborador' && location.pathname === '/inicio') {
+      navigate('/inicio/mi-dia', { replace: true })
+    } else if (currentUser.role === 'colaborador' && (isAdminRoute || isPersonas || isArchivos)) {
       navigate('/onboarding/mi-onboarding', { replace: true })
     }
   }, [currentUser.id, location.pathname])
