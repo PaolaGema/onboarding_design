@@ -8,13 +8,16 @@ import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import logoOscuro from '../../assets/imagenes/logo_souly_oscuro.png'
 import logoClaro from '../../assets/imagenes/logo_souly_claro.png'
 
+// El buddy ve exactamente lo mismo que un colaborador: acompañar no otorga permisos.
+const TODOS = ['admin', 'manager', 'auxiliar', 'colaborador', 'buddy']
+
 const allNavItems = [
-  { icon: House, label: 'Inicio', path: '/inicio', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
-  { icon: Calendar, label: 'Mi calendario', path: '/calendario', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: House, label: 'Inicio', path: '/inicio', roles: TODOS },
+  { icon: Calendar, label: 'Mi calendario', path: '/calendario', roles: TODOS },
   { icon: UserRound, label: 'Gestión de personas', path: '/personas/colaboradores', roles: ['admin', 'manager'] },
-  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
-  { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
-  { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: ['admin', 'manager', 'auxiliar', 'colaborador'] },
+  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: TODOS },
+  { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: TODOS },
+  { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: TODOS },
   { icon: Folder, label: 'Mis archivos', path: '/archivos', roles: ['admin'] },
 ]
 

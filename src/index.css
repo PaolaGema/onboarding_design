@@ -283,8 +283,40 @@ body {
 
 .two-col {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 20px;
+}
+
+/* ── ZONE HEADERS ──────────────────────────────── */
+
+/* Rótulo que separa el dashboard por el trabajo que hace el usuario en cada franja.
+   Vive fuera de los cards para no competir con los títulos de cada uno. */
+.zone-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.zone-hd-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+
+.zone-hd-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.zone-hd-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
 }
 
 /* ── SECTION CARDS ─────────────────────────────── */
@@ -312,7 +344,8 @@ body {
   flex: 1;
 }
 
-.sc-hd a {
+.sc-hd a,
+.chip-link {
   font-size: 11px;
   font-weight: 600;
   color: var(--blue);
@@ -324,9 +357,16 @@ body {
   transition: all .15s;
 }
 
-.sc-hd a:hover {
+.sc-hd a:hover,
+.chip-link:hover {
   background: rgba(59,130,246,.2);
   color: #1d4ed8;
+}
+
+button.chip-link {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .sc-body {
@@ -452,6 +492,72 @@ body {
 }
 
 .ai-badge { flex-shrink: 0; }
+
+/* ── PUBLICACIONES ─────────────────────────────── */
+
+/* El separador va entre filas, no debajo de cada una: así la última no choca con la
+   línea del pie "Mostrando 5 de 19". */
+.pub-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  transition: background .1s;
+}
+
+.pub-item + .pub-item { border-top: 1px solid var(--border-soft); }
+
+.pub-item:hover {
+  background: var(--surface-hover);
+  margin: 0 -22px;
+  padding: 12px 22px;
+  border-radius: 10px;
+}
+
+/* El título manda: se le deja crecer hasta dos líneas y ahí se corta. */
+.pub-titulo {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-heading);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pub-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pub-audiencia {
+  font-size: 9.5px;
+  padding: 2px 9px;
+}
+
+.pub-fecha {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pub-stats {
+  display: flex;
+  gap: 14px;
+}
+
+.pub-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 
 .badge {
   display: inline-flex;
@@ -624,7 +730,15 @@ body {
 
 .analytics-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Las alertas del día conviven con el rail del calendario. Con cuatro tarjetas, un mínimo
+   de 340px las cuadra en 2×2 en pantallas normales y en una columna cuando no caben. */
+.alert-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 20px;
 }
 
@@ -674,6 +788,24 @@ body {
   gap: 8px;
   font-size: 11.5px;
 }
+
+/* Variante clicable: abre la lista del estado. Se sangra para que el hover
+   respire sin desalinear el texto respecto de la leyenda estática. */
+.donut-legend-item--clickable {
+  width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.donut-legend-item--clickable:hover { background: var(--surface-hover); }
 
 .donut-legend-dot {
   width: 8px;

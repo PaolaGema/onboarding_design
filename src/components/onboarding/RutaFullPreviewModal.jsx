@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
-import { colaboradoresData } from '../../pages/personas/Colaboradores'
+import { colaboradoresData } from '../../pages/personas/colaboradoresData'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
 
 const hoyFecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })

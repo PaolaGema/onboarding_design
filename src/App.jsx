@@ -15,6 +15,7 @@ import Plantillas from './pages/onboarding/Plantillas'
 import Conocimiento from './pages/onboarding/Conocimiento'
 import Configuracion from './pages/onboarding/Configuracion'
 import MiOnboarding from './pages/colaborador/MiOnboarding'
+import MisAcompanados from './pages/onboarding/MisAcompanados'
 import Colaboradores from './pages/personas/Colaboradores'
 import Organigrama from './pages/personas/Organigrama'
 import MisArchivos from './pages/archivos/MisArchivos'
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="conocimiento" element={<Conocimiento />} />
             <Route path="configuracion" element={<Configuracion />} />
             <Route path="mi-onboarding" element={<MiOnboarding />} />
+            <Route path="acompanados" element={<MisAcompanados />} />
           </Route>
           <Route path="/personas" element={<Layout />}>
             <Route path="colaboradores" element={<Colaboradores />} />

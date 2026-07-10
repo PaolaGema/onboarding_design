@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Crown, Building2, Users, ChevronDown, ChevronUp } from 'lucide-react'
-import { colaboradoresData } from './Colaboradores'
+import { colaboradoresData } from './colaboradoresData'
 
 const seniorRoles = ['Líder de área', 'Supervisor', 'Sub-admin RRHH', 'Gerente']
 

@@ -1,38 +1,36 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, MoreHorizontal, Calendar, ChevronLeft, ChevronRight, ChevronDown, Check, Eye, Pencil, Rocket, Repeat, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, Send, Route, Filter, Info } from 'lucide-react'
+import { Search, Plus, MoreHorizontal, Calendar, ChevronLeft, ChevronRight, ChevronDown, Check, Eye, Pencil, Rocket, Repeat, Shield, X, CheckCircle2, RefreshCw, Palmtree, Stethoscope, Ban, UserMinus, UserPlus, Users, Unlink, Send, Route, Filter, Info, AlertTriangle } from 'lucide-react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { rutasData } from '../onboarding/JourneyBuilder'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
+import { avatarUrl } from '../../utils/calendarEvents'
+import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
+import { departamentos, colaboradoresData, ESTADOS_ONBOARDING, CON_RUTA_ACTIVA } from './colaboradoresData'
 
-export const departamentos = ['Todos', 'Ventas', 'Tecnología', 'Marketing', 'Operaciones', 'Recursos Humanos', 'Finanzas', 'Diseño']
-
-export const colaboradoresData = [
-  { id: 1, name: 'Diego Morales', email: 'diego.morales@trabajito.com', depto: 'Tecnología', cargo: 'Desarrollador Backend', rol: 'Colaborador', ingreso: '15 Mar 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'DM', color: '#3b82f6' },
-  { id: 2, name: 'Camila Herrera', email: 'camila.herrera@trabajito.com', depto: 'Ventas', cargo: 'Ejecutiva Comercial', rol: 'Colaborador', ingreso: '02 Ene 2026', status: 'activo', registro: 100, onb: 'en-curso', initials: 'CH', color: '#f97316' },
-  { id: 3, name: 'Valentina Cruz', email: 'valentina.cruz@trabajito.com', depto: 'Diseño', cargo: 'Diseñadora UX/UI', rol: 'Colaborador', ingreso: '20 May 2026', status: 'activo', registro: 100, onb: 'en-riesgo', initials: 'VC', color: '#ec4899' },
-  { id: 4, name: 'Facundo Medina', email: 'facundo.medina@trabajito.com', depto: 'Tecnología', cargo: 'QA Engineer', rol: 'Colaborador', ingreso: '10 Abr 2026', status: 'activo', registro: 100, onb: 'en-riesgo', initials: 'FM', color: '#ef4444' },
-  { id: 5, name: 'Sofía Ramírez', email: 'sofia.ramirez@trabajito.com', depto: 'Ventas', cargo: 'Pasante Comercial', rol: 'Colaborador', ingreso: '10 Jun 2026', status: 'activo', registro: 60, onb: 'sin-ruta', initials: 'SR', color: '#f59e0b' },
-  { id: 6, name: 'Martín Solano', email: 'martin.solano@trabajito.com', depto: 'Tecnología', cargo: 'Frontend Developer', rol: 'Colaborador', ingreso: '03 Feb 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'MS', color: '#10b981' },
-  { id: 7, name: 'Luciana Paredes', email: 'luciana.paredes@trabajito.com', depto: 'Ventas', cargo: 'Account Manager', rol: 'Colaborador', ingreso: '17 Jun 2026', status: 'activo', registro: 40, onb: 'sin-ruta', initials: 'LP', color: '#0d9488' },
-  { id: 8, name: 'Tomás Ibáñez', email: 'tomas.ibanez@trabajito.com', depto: 'Operaciones', cargo: 'Analista de Procesos', rol: 'Colaborador', ingreso: '17 Jun 2026', status: 'activo', registro: 25, onb: 'sin-ruta', initials: 'TI', color: '#8b5cf6' },
-  { id: 9, name: 'Paola Arce', email: 'paola.arce@trabajito.com', depto: 'Recursos Humanos', cargo: 'Especialista RRHH', rol: 'Sub-admin RRHH', ingreso: '10 Ago 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'PA', color: '#d946ef' },
-  { id: 10, name: 'Roberto Peña', email: 'roberto.pena@trabajito.com', depto: 'Finanzas', cargo: 'Contador General', rol: 'Supervisor', ingreso: '05 Nov 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'RP', color: '#0C2D40' },
-  { id: 11, name: 'Andrea Núñez', email: 'andrea.nunez@trabajito.com', depto: 'Marketing', cargo: 'Community Manager', rol: 'Colaborador', ingreso: '22 Sep 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'AN', color: '#06b6d4' },
-  { id: 12, name: 'Nicolás Zapata', email: 'nicolas.zapata@trabajito.com', depto: 'Ventas', cargo: 'Ejecutivo Senior', rol: 'Líder de área', ingreso: '14 Jul 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'NZ', color: '#84cc16' },
-  { id: 13, name: 'Carolina Vega', email: 'carolina.vega@trabajito.com', depto: 'Marketing', cargo: 'Analista de Marketing', rol: 'Colaborador', ingreso: '08 Mar 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'CV', color: '#14b8a6' },
-  { id: 14, name: 'Alejandro Ríos', email: 'alejandro.rios@trabajito.com', depto: 'Tecnología', cargo: 'DevOps Engineer', rol: 'Colaborador', ingreso: '22 Nov 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'AR', color: '#6366f1' },
-  { id: 15, name: 'Daniela Flores', email: 'daniela.flores@trabajito.com', depto: 'Recursos Humanos', cargo: 'Analista de Nóminas', rol: 'Colaborador', ingreso: '15 Ene 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'DF', color: '#e11d48' },
-  { id: 16, name: 'Sebastián Torres', email: 'sebastian.torres@trabajito.com', depto: 'Operaciones', cargo: 'Coordinador Logístico', rol: 'Supervisor', ingreso: '03 Sep 2025', status: 'vacaciones', registro: 100, onb: 'graduado', initials: 'ST', color: '#0891b2' },
-  { id: 17, name: 'Isabella Mendoza', email: 'isabella.mendoza@trabajito.com', depto: 'Finanzas', cargo: 'Analista Financiera', rol: 'Colaborador', ingreso: '18 Abr 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'IM', color: '#7c3aed' },
-  { id: 18, name: 'Mateo Guzmán', email: 'mateo.guzman@trabajito.com', depto: 'Ventas', cargo: 'SDR Junior', rol: 'Colaborador', ingreso: '25 Jun 2026', status: 'activo', registro: 75, onb: 'sin-ruta', initials: 'MG', color: '#ca8a04' },
-  { id: 19, name: 'Renata Castillo', email: 'renata.castillo@trabajito.com', depto: 'Diseño', cargo: 'Diseñadora Gráfica', rol: 'Colaborador', ingreso: '12 Feb 2026', status: 'activo', registro: 100, onb: 'en-curso', initials: 'RC', color: '#db2777' },
-  { id: 20, name: 'Gabriel Pacheco', email: 'gabriel.pacheco@trabajito.com', depto: 'Tecnología', cargo: 'Data Analyst', rol: 'Colaborador', ingreso: '30 May 2025', status: 'activo', registro: 100, onb: 'en-curso', initials: 'GP', color: '#059669' },
-  { id: 21, name: 'Valeria Rojas', email: 'valeria.rojas@trabajito.com', depto: 'Marketing', cargo: 'Content Creator', rol: 'Colaborador', ingreso: '07 Ago 2025', status: 'activo', registro: 100, onb: 'graduado', initials: 'VR', color: '#c026d3' },
-  { id: 22, name: 'Emilio Vargas', email: 'emilio.vargas@trabajito.com', depto: 'Operaciones', cargo: 'Asistente Operativo', rol: 'Colaborador', ingreso: '20 Jun 2026', status: 'licencia', registro: 50, onb: 'sin-ruta', initials: 'EV', color: '#ea580c' },
-  { id: 23, name: 'Camilo Espinoza', email: 'camilo.espinoza@trabajito.com', depto: 'Finanzas', cargo: 'Tesorero', rol: 'Gerente', ingreso: '11 Oct 2024', status: 'activo', registro: 100, onb: 'n-a', initials: 'CE', color: '#2563eb' },
-  { id: 24, name: 'Julieta Sánchez', email: 'julieta.sanchez@trabajito.com', depto: 'Recursos Humanos', cargo: 'Reclutadora', rol: 'Colaborador', ingreso: '28 Jun 2026', status: 'activo', registro: 15, onb: 'sin-ruta', initials: 'JS', color: '#9333ea' },
-]
+/* Foto real del colaborador; si no carga, caen las iniciales sobre su color de siempre. */
+function Avatar({ name, initials, color, size = 34 }) {
+  const [sinFoto, setSinFoto] = useState(false)
+  return (
+    <div
+      className="as-avatar"
+      style={{
+        background: color, width: size, height: size, overflow: 'hidden', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontSize: Math.round(size * 0.32), fontWeight: 700, letterSpacing: '.02em',
+      }}
+    >
+      {sinFoto ? initials : (
+        <img
+          src={avatarUrl(name)}
+          alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          onError={() => setSinFoto(true)}
+        />
+      )}
+    </div>
+  )
+}
 
 const permisosPorRol = {
   'Colaborador': [
@@ -215,6 +213,10 @@ function MiniCalendar({ value, onChange }) {
 export default function Colaboradores() {
   const { activarRuta } = useRutaActiva()
   const { plantillas } = useOnboardingData()
+  // Copia local: asignar, desasignar y cambiar de buddy tienen que verse en la tabla.
+  const [colaboradores, setColaboradores] = useState(colaboradoresData)
+  const [buddyModal, setBuddyModal] = useState(null)
+  const [confirmar, setConfirmar] = useState(null)
   const [search, setSearch] = useState('')
   const [filterDepto, setFilterDepto] = useState('Todos')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -240,7 +242,23 @@ export default function Colaboradores() {
     return () => document.removeEventListener('click', close)
   }, [menuOpen])
 
-  const filtered = colaboradoresData.filter(c => {
+  const actualizar = (id, cambios) => setColaboradores(prev => prev.map(c => (c.id === id ? { ...c, ...cambios } : c)))
+
+  function asignarRuta(colaborador, ruta) {
+    // Recién asignada, la ruta todavía no arrancó: el colaborador debe abrirla.
+    actualizar(colaborador.id, { onb: 'sin-iniciar', ruta: ruta.name })
+  }
+
+  function desasignarRuta(colaborador) {
+    actualizar(colaborador.id, { onb: 'sin-ruta', ruta: null, buddy: null })
+  }
+
+  function asignarBuddy(candidato) {
+    actualizar(buddyModal.id, { buddy: { name: candidato.name, initials: candidato.initials, color: candidato.color } })
+    setBuddyModal(null)
+  }
+
+  const filtered = colaboradores.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.cargo.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase())
@@ -252,8 +270,8 @@ export default function Colaboradores() {
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((page - 1) * perPage, page * perPage)
 
-  const totalActivos = colaboradoresData.filter(c => c.status === 'activo').length
-  const totalInactivos = colaboradoresData.filter(c => c.status !== 'activo').length
+  const totalActivos = colaboradores.filter(c => c.status === 'activo').length
+  const totalInactivos = colaboradores.filter(c => c.status !== 'activo').length
 
   return (
     <div className="content-scroll">
@@ -267,7 +285,7 @@ export default function Colaboradores() {
       <div className="kpi-strip">
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--blue)' }}>
           <div className="kpi-title" style={{ color: 'var(--blue)' }}>Total</div>
-          <div className="kpi-val">{colaboradoresData.length}</div>
+          <div className="kpi-val">{colaboradores.length}</div>
           <div className="kpi-lbl">Colaboradores registrados</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
@@ -402,14 +420,8 @@ export default function Colaboradores() {
                       Estados de onboarding
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { label: 'N/A', color: '#cbd5e1', bg: 'rgba(203,213,225,.15)', desc: 'Incorporado antes del sistema' },
-                        { label: 'Sin ruta', color: '#94a3b8', bg: 'rgba(148,163,184,.15)', desc: 'Nuevo ingreso sin ruta asignada' },
-                        { label: 'En curso', color: '#3b82f6', bg: 'rgba(59,130,246,.15)', desc: 'Realizando su onboarding' },
-                        { label: 'En riesgo', color: '#dc2626', bg: 'rgba(220,38,38,.15)', desc: '+3 días sin actividad' },
-                        { label: 'Graduado', color: '#00E091', bg: 'rgba(0,224,145,.15)', desc: 'Completó todas las etapas' },
-                      ].map(s => (
-                        <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {Object.entries(ESTADOS_ONBOARDING).map(([key, s]) => (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <span style={{
                             fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
                             background: s.bg, color: s.color, whiteSpace: 'nowrap', minWidth: 70, textAlign: 'center',
@@ -421,6 +433,7 @@ export default function Colaboradores() {
                   </div>
                 )}
               </th>
+              <th>Buddy</th>
               <th>Ingreso</th>
               <th>Estado</th>
               <th></th>
@@ -431,7 +444,7 @@ export default function Colaboradores() {
               <tr key={c.id}>
                 <td>
                   <div className="as-person">
-                    <div className="as-avatar" style={{ background: c.color }}>{c.initials}</div>
+                    <Avatar name={c.name} initials={c.initials} color={c.color} />
                     <div>
                       <div className="as-name">{c.name}</div>
                       <div className="as-area">{c.email}</div>
@@ -456,15 +469,25 @@ export default function Colaboradores() {
                   <span style={{
                     fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: { 'graduado': '#f0fdf4', 'en-curso': '#eff6ff', 'en-riesgo': '#fef2f2', 'sin-ruta': '#f8fafc', 'n-a': '#f8fafc' }[c.onb],
-                    color: { 'graduado': '#16a34a', 'en-curso': '#2563eb', 'en-riesgo': '#dc2626', 'sin-ruta': '#64748b', 'n-a': '#b0b8c4' }[c.onb],
+                    background: ESTADOS_ONBOARDING[c.onb].bg,
+                    color: ESTADOS_ONBOARDING[c.onb].color,
                   }}>
                     <span style={{
                       width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                      background: { 'graduado': '#16a34a', 'en-curso': '#2563eb', 'en-riesgo': '#dc2626', 'sin-ruta': '#94a3b8', 'n-a': '#cbd5e1' }[c.onb],
+                      background: ESTADOS_ONBOARDING[c.onb].dot,
                     }} />
-                    {{ 'sin-ruta': 'Sin ruta', 'en-curso': 'En curso', 'en-riesgo': 'En riesgo', 'graduado': 'Graduado', 'n-a': 'N/A' }[c.onb]}
+                    {ESTADOS_ONBOARDING[c.onb].label}
                   </span>
+                </td>
+                <td>
+                  {c.buddy ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <Avatar name={c.buddy.name} initials={c.buddy.initials} color={c.buddy.color} size={22} />
+                      <span style={{ fontSize: 11.5, color: '#334155', whiteSpace: 'nowrap' }}>{c.buddy.name}</span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#cbd5e1' }}>—</span>
+                  )}
                 </td>
                 <td><span className="as-fecha">{c.ingreso}</span></td>
                 <td>
@@ -492,6 +515,25 @@ export default function Colaboradores() {
                   {menuOpen === c.id && (() => {
                     const idx = paginated.indexOf(c)
                     const openUp = idx >= paginated.length - 2
+                    const conRuta = CON_RUTA_ACTIVA.includes(c.onb)
+                    const abrirAsignarRuta = tipo => () => {
+                      setOnbModal({ ...c, _tipo: tipo }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas')
+                    }
+
+                    // El menú refleja en qué punto del ciclo está la persona: no se ofrece
+                    // asignar una ruta a quien ya la tiene, ni un buddy a quien no la tiene.
+                    const accionesRuta = c.onb === 'graduado'
+                      ? [{ icon: Repeat, label: 'Asignar ruta de reboarding', color: '#8b5cf6', action: abrirAsignarRuta('Reboarding') }]
+                      : conRuta
+                        ? [
+                          c.buddy
+                            ? { icon: Users, label: 'Cambiar buddy', color: '#475569', action: () => setBuddyModal(c) }
+                            : { icon: UserPlus, label: 'Asignar buddy', color: '#0C2D40', action: () => setBuddyModal(c) },
+                          ...(c.buddy ? [{ icon: UserMinus, label: 'Desasignar buddy', color: '#dc2626', action: () => setConfirmar({ tipo: 'buddy', colaborador: c }) }] : []),
+                          { icon: Unlink, label: 'Desasignar ruta de onboarding', color: '#dc2626', action: () => setConfirmar({ tipo: 'ruta', colaborador: c }) },
+                        ]
+                        : [{ icon: Rocket, label: 'Asignar ruta de onboarding', color: '#0C2D40', action: abrirAsignarRuta('Onboarding') }]
+
                     return (
                     <div style={{
                       position: 'absolute', right: 0,
@@ -505,9 +547,7 @@ export default function Colaboradores() {
                         { icon: Eye, label: 'Ver perfil', color: '#475569' },
                         { icon: Pencil, label: 'Editar', color: '#475569' },
                         { icon: Shield, label: 'Roles y permisos', color: '#475569', action: () => setRolModal(c) },
-                        ...(c.onb === 'graduado'
-                          ? [{ icon: Repeat, label: 'Asignar ruta de reboarding', color: '#8b5cf6', action: () => { setOnbModal({ ...c, _tipo: 'Reboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]
-                          : [{ icon: Rocket, label: 'Asignar ruta de onboarding', color: '#0C2D40', action: () => { setOnbModal({ ...c, _tipo: 'Onboarding' }); setOnbSelected(null); setOnbFecha(''); setOnbSearch(''); setOnbArea('Todas') } }]),
+                        ...accionesRuta,
                         { icon: Send, label: 'Enviar credenciales', color: '#475569' },
                         { icon: RefreshCw, label: 'Cambiar estado', color: '#475569', action: () => setEstadoModal(c) },
                       ].map(action => (
@@ -609,13 +649,7 @@ export default function Colaboradores() {
             <div className="pl-modal jb-modal" style={{ width: 860, maxWidth: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    background: onbModal.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{onbModal.initials}</span>
-                  </div>
+                  <Avatar name={onbModal.name} initials={onbModal.initials} color={onbModal.color} size={36} />
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>{onbModal._tipo === 'Reboarding' ? 'Asignar ruta de reboarding' : 'Asignar ruta de onboarding'}</h2>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{onbModal.name} · {onbModal.depto}</span>
@@ -762,6 +796,7 @@ export default function Colaboradores() {
                       const globalEtapas = getGlobalEtapas(plantillas, null)
                       etapas.unshift(...globalEtapas)
                       activarRuta(etapas, { nombre: ruta.name, area: ruta.area })
+                      asignarRuta(onbModal, ruta)
                     }
                     setOnbModal(null)
                   }}
@@ -789,13 +824,7 @@ export default function Colaboradores() {
             <div className="pl-modal jb-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    background: estadoModal.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{estadoModal.initials}</span>
-                  </div>
+                  <Avatar name={estadoModal.name} initials={estadoModal.initials} color={estadoModal.color} size={36} />
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>Cambiar estado</h2>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{estadoModal.name}</span>
@@ -863,13 +892,7 @@ export default function Colaboradores() {
             <div className="pl-modal jb-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    background: rolModal.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>{rolModal.initials}</span>
-                  </div>
+                  <Avatar name={rolModal.name} initials={rolModal.initials} color={rolModal.color} size={36} />
                   <div>
                     <h2 style={{ margin: 0, fontSize: 15 }}>{rolModal.name}</h2>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{rolModal.cargo} · {rolModal.depto}</span>
@@ -926,6 +949,53 @@ export default function Colaboradores() {
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={() => setRolModal(null)}>Cerrar</button>
                 <button className="pl-btn-save">Editar permisos</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* MODAL ASIGNAR / CAMBIAR BUDDY — mismo componente que usa el módulo de Onboarding */}
+      {buddyModal && (
+        <AsignarBuddyModal
+          colaborador={{ ...buddyModal, nombre: buddyModal.name }}
+          onClose={() => setBuddyModal(null)}
+          onConfirm={asignarBuddy}
+        />
+      )}
+
+      {/* CONFIRMACIÓN DE DESASIGNACIÓN */}
+      {confirmar && (() => {
+        const esBuddy = confirmar.tipo === 'buddy'
+        const c = confirmar.colaborador
+        return (
+          <div className="pl-overlay" onClick={() => setConfirmar(null)}>
+            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
+                <div className="pl-del-icon">
+                  <AlertTriangle size={28} />
+                </div>
+                <h2 className="pl-del-title">{esBuddy ? 'Desasignar buddy' : 'Desasignar ruta de onboarding'}</h2>
+                <p className="pl-del-desc">
+                  {esBuddy ? (
+                    <>¿Quitar a <strong>{c.buddy?.name}</strong> como buddy de <strong>{c.name}</strong>?</>
+                  ) : (
+                    <>Se quitará la ruta de onboarding de <strong>{c.name}</strong> y también su buddy. Volverá al estado <strong>Sin ruta</strong>.</>
+                  )}
+                </p>
+              </div>
+              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
+                <button className="pl-btn-cancel" onClick={() => setConfirmar(null)}>Cancelar</button>
+                <button
+                  className="pl-btn-delete"
+                  onClick={() => {
+                    if (esBuddy) actualizar(c.id, { buddy: null })
+                    else desasignarRuta(c)
+                    setConfirmar(null)
+                  }}
+                >
+                  Desasignar
+                </button>
               </div>
             </div>
           </div>

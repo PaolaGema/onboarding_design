@@ -33,14 +33,16 @@ export function buildEventosDelMes(year, month) {
     eventosPorDia[dia].push(evento)
   }
 
-  colaboradores.forEach(c => {
+  // Quien ya causó baja no celebra cumpleaños ni aniversario en la agenda de la empresa.
+  colaboradores.filter(c => !c.fechaBaja).forEach(c => {
     const cumple = parseFechaDMY(c.fechaNacimiento)
     if (cumple.m === month + 1) {
       addEvento(cumple.d, { kind: 'persona', titulo: c.nombre, subtitulo: `${c.area} · ${c.cargo}`, tipo: 'Cumpleaños', color: '#ec4899' })
     }
     const ingreso = parseFechaDMY(c.fechaIngreso)
-    if (ingreso.m === month + 1) {
-      const anios = year - ingreso.y
+    const anios = year - ingreso.y
+    // Un ingreso del año en curso todavía no cumple un aniversario.
+    if (ingreso.m === month + 1 && anios >= 1) {
       addEvento(ingreso.d, { kind: 'persona', titulo: c.nombre, subtitulo: `${c.area} · ${c.cargo}`, tipo: `Aniversario · ${anios} ${anios === 1 ? 'año' : 'años'}`, color: 'var(--green)' })
     }
   })

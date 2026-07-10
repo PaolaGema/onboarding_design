@@ -9,11 +9,21 @@ const pageHeaders = {
   '/inicio/mi-dia': { title: 'Mi día' },
   '/onboarding/plantillas': { title: 'Rutas de Onboarding' },
   '/onboarding/asignaciones': { title: 'Seguimiento' },
+  '/onboarding/acompanados': { title: 'Mis acompañados' },
   '/onboarding/conocimiento': { title: 'Recursos corporativos' },
   '/onboarding/configuracion': { title: 'Configuración avanzada' },
   '/personas/colaboradores': { title: 'Colaboradores' },
   '/calendario': { title: 'Mi calendario' },
 }
+
+// El selector de rol aparece dos veces en este archivo (barra fija y barra flotante).
+const gruposDeRol = [
+  { label: 'Administrador', filter: u => u.role === 'admin' },
+  { label: 'Jefe de área', filter: u => u.role === 'manager' },
+  { label: 'Auxiliar', filter: u => u.role === 'auxiliar' },
+  { label: 'Buddy', filter: u => u.role === 'buddy' },
+  { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
+]
 
 export default function Header({ floating }) {
   const [showSwitcher, setShowSwitcher] = useState(false)
@@ -90,12 +100,7 @@ export default function Header({ floating }) {
             overflow: 'hidden', zIndex: 50, animation: 'fadeInDown .15s ease-out',
           }}>
             <div style={{ padding: '8px 6px' }}>
-              {[
-                { label: 'Administrador', filter: u => u.role === 'admin' },
-                { label: 'Jefe de área', filter: u => u.role === 'manager' },
-                { label: 'Auxiliar', filter: u => u.role === 'auxiliar' },
-                { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
-              ].map((group, gi) => {
+              {gruposDeRol.map((group, gi) => {
                 const groupUsers = users.filter(group.filter)
                 if (groupUsers.length === 0) return null
                 return (
@@ -368,12 +373,7 @@ export default function Header({ floating }) {
               }}
             >
               <div style={{ padding: '8px 6px' }}>
-                {[
-                  { label: 'Administrador', filter: u => u.role === 'admin' },
-                  { label: 'Jefe de área', filter: u => u.role === 'manager' },
-                  { label: 'Auxiliar', filter: u => u.role === 'auxiliar' },
-                  { label: 'Colaboradores', filter: u => u.role === 'colaborador' },
-                ].map((group, gi) => {
+                {gruposDeRol.map((group, gi) => {
                   const groupUsers = users.filter(group.filter)
                   if (groupUsers.length === 0) return null
                   return (

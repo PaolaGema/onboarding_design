@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { X, Search, Check, UserCheck } from 'lucide-react'
-import { colaboradoresData } from '../../pages/personas/Colaboradores'
+import { colaboradoresData, BUDDY_ELEGIBLE } from '../../pages/personas/colaboradoresData'
 
 export default function AsignarBuddyModal({ colaborador, onClose, onConfirm }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
 
+  // Solo se ofrece a quien ya terminó su propio onboarding: nadie guía un camino que
+  // todavía está recorriendo.
   const candidatos = colaboradoresData.filter(c =>
     c.status === 'activo' &&
+    BUDDY_ELEGIBLE.includes(c.onb) &&
     c.name !== colaborador.nombre &&
     (c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.cargo.toLowerCase().includes(search.toLowerCase()) ||

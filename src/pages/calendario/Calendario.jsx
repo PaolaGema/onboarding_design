@@ -30,7 +30,7 @@ export default function Calendario() {
 
   return (
     <div className="content-scroll">
-      <div className="two-col">
+      <div className="two-col" style={{ alignItems: 'start' }}>
 
         {/* CALENDARIO */}
         <div className="sec-card">
@@ -96,7 +96,7 @@ export default function Calendario() {
           <div className="sc-hd">
             <h3>{activeDay} de {MESES[month]}{isTodaySelected ? ' · Hoy' : ''} <span className="sc-hd-count">{eventosDelDia.length}</span></h3>
           </div>
-          <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
+          <div className="sc-body" style={{ padding: '8px 22px 18px', maxHeight: '70vh', overflowY: 'auto', overflowX: 'hidden' }}>
             {eventosDelDia.length > 0 ? eventosDelDia.map((e, i) => (
               <div key={i} className="upcoming-item">
                 <div className="ui-date">
