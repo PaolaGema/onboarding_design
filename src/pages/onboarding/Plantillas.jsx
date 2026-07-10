@@ -574,11 +574,11 @@ export default function Plantillas() {
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
                         {(p._isSouly ? [
-                          { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                          { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
                         ] : [
                           ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                          { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                          { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                           ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
@@ -923,11 +923,11 @@ export default function Plantillas() {
                           animation: 'plSlideUp .12s',
                         }}>
                           {(p._isSouly ? [
-                            { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                            { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
                           ] : [
                             ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                            { icon: Eye, label: 'Vista previa', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
+                            { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                             ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),

@@ -4,8 +4,9 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
   ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, CheckCircle2, Check,
-  Send, MessageCircle, Bell, Circle,
-  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle
+  Send, MessageCircle, Bell,
+  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle,
+  BookOpen, Link2, Award
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
@@ -34,9 +35,12 @@ const tiposRuta = ['Onboarding', 'Reboarding']
 
 const tareaIconMap = {
   video: Video, audio: Headphones, documento: FileText, quiz: HelpCircle,
-  'completar-perfil': ClipboardList, subida: Upload, 'tarea-otro': UserCheck,
-  recorrido: MapPin, pulso: Smile,
+  'completar-perfil': ClipboardList, 'form-custom': ClipboardList, subida: Upload,
+  'tarea-otro': UserCheck, recorrido: MapPin, pulso: Smile,
+  lectura: BookOpen, enlace: Link2, confirmacion: Award,
 }
+// Respaldo para cualquier tipo no mapeado: mejor un icono genérico que un nodo en blanco.
+const TAREA_ICON_FALLBACK = FileText
 
 // Estadísticas de reproducción del video — derivadas de forma estable a partir del id de la tarea
 function videoStats(taskId, done) {
@@ -828,44 +832,90 @@ export default function Asignaciones() {
                     <div className="pr-fill" style={{ width: `${detalle.pct}%`, background: barColor(detalle.status, detalle.pct) }} />
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {etapasDetalle.map((etapa, i) => (
-                    <div key={i} style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{etapa.name}</div>
-                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{etapa.days}</div>
+                {/* Recorrido como nodos, igual que la vista previa de la ruta, pero cada
+                    nodo se pinta según si el colaborador ya completó esa tarea. */}
+                <div style={{ borderRadius: 12, padding: '20px 0', background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)' }}>
+                  {etapasDetalle.map((etapa, i) => {
+                    const completa = etapa.doneLocal === etapa.tareas.length && etapa.tareas.length > 0
+                    return (
+                      <div key={i}>
+                        {/* Cabecera de etapa */}
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}>
+                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>{i + 1}</div>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{etapa.name}</span>
+                            <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{etapa.days}</span>
+                            <span style={{ fontSize: 9.5, fontWeight: 700, color: completa ? '#16a34a' : '#64748b', background: completa ? '#f0fdf4' : '#f1f5f9', padding: '1px 8px', borderRadius: 20 }}>{etapa.doneLocal}/{etapa.tareas.length}</span>
+                          </div>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b' }}>{etapa.doneLocal}/{etapa.tareas.length} completadas</span>
+
+                        {/* Nodos del camino */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          {etapa.tareas.map((t, ti) => {
+                            const TIcon = tareaIconMap[t.tipo] || TAREA_ICON_FALLBACK
+                            const offsets = [0, 34, 48, 34, 0, -34, -48, -34]
+                            const xOff = offsets[ti % offsets.length]
+                            const vs = t.tipo === 'video' ? videoStats(t.id, t.done) : null
+                            return (
+                              <div key={t.id}>
+                                {ti > 0 && (
+                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <div style={{ width: 2, height: 14, background: '#cbd5e1', borderRadius: 1 }} />
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translateX(${xOff}px)`, transition: 'transform .2s' }}>
+                                  <div style={{ position: 'relative' }}>
+                                    <div style={{
+                                      width: 44, height: 44, borderRadius: '50%',
+                                      background: t.done ? '#00E091' : '#fff',
+                                      border: t.done ? 'none' : '2px solid #e2e8f0',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      boxShadow: t.done ? '0 2px 8px rgba(0,224,145,.3)' : '0 1px 4px rgba(0,0,0,.06)',
+                                    }}>
+                                      {TIcon && <TIcon size={17} style={{ color: t.done ? '#fff' : '#94a3b8' }} />}
+                                    </div>
+                                    {t.done && (
+                                      <div style={{ position: 'absolute', bottom: -2, right: -3, width: 16, height: 16, borderRadius: '50%', background: '#16a34a', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Check size={9} style={{ color: '#fff' }} />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div style={{
+                                    fontSize: 10, fontWeight: 600, color: t.done ? '#0C2D40' : '#94a3b8',
+                                    marginTop: 5, textAlign: 'center', maxWidth: 120, lineHeight: 1.2,
+                                    overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                  }}>
+                                    {t.name}
+                                  </div>
+                                  {vs && (
+                                    <span style={{
+                                      display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8.5, fontWeight: 700,
+                                      padding: '1px 6px', borderRadius: 20, marginTop: 3,
+                                      background: vs.completo ? '#f0fdf4' : vs.veces > 0 ? '#fef3c7' : '#f1f5f9',
+                                      color: vs.completo ? '#16a34a' : vs.veces > 0 ? '#b45309' : '#94a3b8',
+                                    }}>
+                                      <PlayCircle size={9} />
+                                      {vs.veces === 0 ? 'No visto' : `${vs.veces}×${vs.completo ? ' · completo' : ' · incompleto'}`}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {etapa.tareas.length === 0 && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Sin tareas</div>
+                          )}
+                        </div>
+
+                        {/* Separador entre etapas */}
+                        {i < etapasDetalle.length - 1 && (
+                          <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                            <div style={{ width: 2, height: 24, background: '#cbd5e1', borderRadius: 1 }} />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {etapa.tareas.map(t => {
-                          const TIcon = tareaIconMap[t.tipo]
-                          const vs = t.tipo === 'video' ? videoStats(t.id, t.done) : null
-                          return (
-                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              {t.done
-                                ? <CheckCircle2 size={14} style={{ color: 'var(--green)', flexShrink: 0 }} />
-                                : <Circle size={14} style={{ color: '#cbd5e1', flexShrink: 0 }} />}
-                              {TIcon && <TIcon size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />}
-                              <span style={{ fontSize: 12, color: t.done ? '#0C2D40' : '#94a3b8', flex: 1 }}>{t.name}</span>
-                              {vs && (
-                                <span style={{
-                                  display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600,
-                                  padding: '2px 7px', borderRadius: 20, flexShrink: 0,
-                                  background: vs.completo ? '#f0fdf4' : vs.veces > 0 ? '#fef3c7' : '#f1f5f9',
-                                  color: vs.completo ? '#16a34a' : vs.veces > 0 ? '#b45309' : '#94a3b8',
-                                }}>
-                                  <PlayCircle size={10} />
-                                  {vs.veces === 0 ? 'No visto' : `Visto ${vs.veces} ${vs.veces === 1 ? 'vez' : 'veces'}${vs.completo ? ' · completo' : ' · incompleto'}`}
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
               <div className="pl-modal-footer">
