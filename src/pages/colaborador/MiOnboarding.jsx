@@ -72,7 +72,10 @@ export default function MiOnboarding({ forcePhone = false }) {
   const { asistenteIA } = useConfig()
   const isMobile = forcePhone || currentUser.id === 4
 
-  const ruta = forcePhone ? rutaActiva : (currentUser.role === 'colaborador' ? (currentUser.onbGraduado ? rutaGraduado : rutaActiva) : rutaAdmin)
+  // El buddy es un colaborador que ya se graduó: en "Mi Onboarding" ve su ruta completada,
+  // no la vista de administrador.
+  const esColaboradorOBuddy = currentUser.role === 'colaborador' || currentUser.role === 'buddy'
+  const ruta = forcePhone ? rutaActiva : (esColaboradorOBuddy ? (currentUser.onbGraduado ? rutaGraduado : rutaActiva) : rutaAdmin)
   const isGraduado = ruta?.graduado === true
   const readOnly = isGraduado
 

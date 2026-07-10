@@ -8,12 +8,10 @@ import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 const sectionInfo = {
   'Administración': 'Opciones para administrar el módulo de onboarding.',
   'Mi espacio': 'Tu espacio personal como colaborador.',
-  'Acompañamiento': 'Las personas cuyo onboarding acompañas como buddy.',
 }
 const sectionInfoTitle = {
   'Administración': 'Administración',
   'Mi espacio': 'Mi espacio',
-  'Acompañamiento': 'Acompañamiento',
 }
 
 const inicioAdminNav = [
@@ -99,13 +97,11 @@ const onboardingAuxiliarNav = [
   ]},
 ]
 
-// El buddy conserva su propio espacio y suma una sección para las personas que acompaña.
-// No obtiene el panel de administración: acompaña, no supervisa.
+// El buddy vive todo dentro de "Mi espacio": su propio onboarding y, debajo, las personas
+// que acompaña. No obtiene el panel de administración: acompaña, no supervisa.
 const onboardingBuddyNav = [
   { section: 'Mi espacio', items: [
     { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Rocket },
-  ]},
-  { section: 'Acompañamiento', items: [
     { label: 'Mis acompañados', path: '/onboarding/acompanados', icon: HeartHandshake },
   ]},
 ]
