@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck, ChevronDown } from 'lucide-react'
+import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck, ChevronDown, Layers } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
 
@@ -320,117 +320,138 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
   )
 }
 
+function TareaNodo({ tarea, ti, gamificacion, onSelectTask }) {
+  const tp = tipoMap[tarea.tipo] || tiposTarea[0]
+  const TpIcon = tp.icon
+  const offsets = [0, 40, 60, 40, 0, -40, -60, -40]
+  const xOff = offsets[ti % offsets.length]
+  return (
+    <div>
+      {/* Línea conectora */}
+      {ti > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: 2, height: 16, background: '#cbd5e1', borderRadius: 1 }} />
+        </div>
+      )}
+      <div
+        onClick={() => onSelectTask(tarea)}
+        title="Ver contenido de la tarea"
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          transform: `translateX(${xOff}px)`,
+          transition: 'transform .2s',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ position: 'relative' }}>
+          <div
+            className="jb-preview-node-circle"
+            style={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: '#0C2D40',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+              transition: 'transform .15s, box-shadow .15s',
+            }}
+          >
+            <TpIcon size={18} style={{ color: '#fff' }} />
+          </div>
+          {gamificacion && tarea.puntos > 0 && (
+            <div style={{
+              position: 'absolute', top: -4, right: -8,
+              background: '#00E091', color: '#fff',
+              fontSize: 8, fontWeight: 800, padding: '1px 5px',
+              borderRadius: 8, lineHeight: 1.4,
+            }}>
+              +{tarea.puntos}
+            </div>
+          )}
+        </div>
+        <div style={{
+          fontSize: 10, fontWeight: 600, color: '#0C2D40',
+          marginTop: 4, textAlign: 'center', maxWidth: 100,
+          lineHeight: 1.2, overflow: 'hidden',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        }}>
+          {tarea.name}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function RutaPath({ etapas, gamificacion, onSelectTask }) {
   return (
     <>
-      {etapas.map((et, ei) => {
-        const etTareas = et.actividades.flatMap(a => a.tareas)
-        return (
-          <div key={ei}>
-            {/* Etapa header pill */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+      {etapas.map((et, ei) => (
+        <div key={ei}>
+          {/* Etapa header pill */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '6px 16px', borderRadius: 20,
+              background: '#fff', border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 4px rgba(0,0,0,.06)',
+            }}>
               <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '6px 16px', borderRadius: 20,
-                background: '#fff', border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 4px rgba(0,0,0,.06)',
+                width: 22, height: 22, borderRadius: '50%',
+                background: '#0C2D40', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 800,
+              }}>
+                {ei + 1}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{et.name}</span>
+              <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{et.duracion || 7}d</span>
+            </div>
+          </div>
+
+          {/* Actividades: cada una agrupa sus tareas, igual que en el constructor.
+              Antes se aplanaban todas y se perdía este nivel. */}
+          {et.actividades.map((act, ai) => (
+            <div key={ai} style={{ marginBottom: ai < et.actividades.length - 1 ? 22 : 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
+                  padding: '3px 12px', borderRadius: 8,
+                  background: 'rgba(12,45,64,.05)', border: '1px solid rgba(12,45,64,.08)',
+                }}>
+                  <Layers size={11} style={{ color: '#64748b' }} />
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: '#475569' }}>{act.name || `Actividad ${ai + 1}`}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', background: '#fff', borderRadius: 20, padding: '0 6px' }}>{act.tareas.length}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {act.tareas.map((tarea, ti) => (
+                  <TareaNodo key={tarea.id} tarea={tarea} ti={ti} gamificacion={gamificacion} onSelectTask={onSelectTask} />
+                ))}
+                {act.tareas.length === 0 && (
+                  <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', padding: '4px 0' }}>Sin tareas</div>
+                )}
+              </div>
+            </div>
+          ))}
+          {et.actividades.length === 0 && (
+            <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>Sin actividades</div>
+          )}
+
+          {/* Separador entre etapas */}
+          {ei < etapas.length - 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+              <div style={{
+                width: 2, height: 24, background: '#cbd5e1',
+                borderRadius: 1, position: 'relative',
               }}>
                 <div style={{
-                  width: 22, height: 22, borderRadius: '50%',
-                  background: '#0C2D40', color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 800,
-                }}>
-                  {ei + 1}
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{et.name}</span>
-                <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{et.duracion || 7}d</span>
+                  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  width: 8, height: 8, borderRadius: '50%', background: '#cbd5e1',
+                }} />
               </div>
             </div>
-
-            {/* Nodos del camino */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-              {etTareas.map((tarea, ti) => {
-                const tp = tipoMap[tarea.tipo] || tiposTarea[0]
-                const TpIcon = tp.icon
-                const offsets = [0, 40, 60, 40, 0, -40, -60, -40]
-                const xOff = offsets[ti % offsets.length]
-                return (
-                  <div key={tarea.id}>
-                    {/* Línea conectora */}
-                    {ti > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ width: 2, height: 16, background: '#cbd5e1', borderRadius: 1 }} />
-                      </div>
-                    )}
-                    <div
-                      onClick={() => onSelectTask(tarea)}
-                      title="Ver contenido de la tarea"
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        transform: `translateX(${xOff}px)`,
-                        transition: 'transform .2s',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ position: 'relative' }}>
-                        <div
-                          className="jb-preview-node-circle"
-                          style={{
-                            width: 48, height: 48, borderRadius: '50%',
-                            background: '#0C2D40',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 8px rgba(12,45,64,.2)',
-                            transition: 'transform .15s, box-shadow .15s',
-                          }}
-                        >
-                          <TpIcon size={18} style={{ color: '#fff' }} />
-                        </div>
-                        {gamificacion && tarea.puntos > 0 && (
-                          <div style={{
-                            position: 'absolute', top: -4, right: -8,
-                            background: '#00E091', color: '#fff',
-                            fontSize: 8, fontWeight: 800, padding: '1px 5px',
-                            borderRadius: 8, lineHeight: 1.4,
-                          }}>
-                            +{tarea.puntos}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{
-                        fontSize: 10, fontWeight: 600, color: '#0C2D40',
-                        marginTop: 4, textAlign: 'center', maxWidth: 100,
-                        lineHeight: 1.2, overflow: 'hidden',
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                      }}>
-                        {tarea.name}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-              {etTareas.length === 0 && (
-                <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>Sin tareas</div>
-              )}
-            </div>
-
-            {/* Separador entre etapas */}
-            {ei < etapas.length - 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
-                <div style={{
-                  width: 2, height: 24, background: '#cbd5e1',
-                  borderRadius: 1, position: 'relative',
-                }}>
-                  <div style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    width: 8, height: 8, borderRadius: '50%', background: '#cbd5e1',
-                  }} />
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      })}
+          )}
+        </div>
+      ))}
     </>
   )
 }
@@ -439,6 +460,7 @@ export default function RutaPreviewModal({ name, etapas, onClose, onEditTask }) 
   const { gamificacion } = useConfig()
   const [activeTask, setActiveTask] = useState(null)
   const allTareas = etapas.flatMap(e => e.actividades.flatMap(a => a.tareas))
+  const totalActividades = etapas.reduce((s, e) => s + e.actividades.length, 0)
   const totalPuntos = allTareas.reduce((s, t) => s + (t.puntos || 0), 0)
 
   return (
@@ -483,6 +505,12 @@ export default function RutaPreviewModal({ name, etapas, onClose, onEditTask }) 
                 background: '#f1f5f9', padding: '3px 8px', borderRadius: 6,
               }}>
                 {etapas.length} etapas
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: '#475569',
+                background: '#f1f5f9', padding: '3px 8px', borderRadius: 6,
+              }}>
+                {totalActividades} actividades
               </span>
               <span style={{
                 fontSize: 10, fontWeight: 700, color: '#475569',

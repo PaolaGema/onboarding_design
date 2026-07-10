@@ -5,6 +5,7 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
+import { colaboradoresData } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
@@ -25,6 +26,9 @@ const pulsoPreguntasSugeridas = [
   '¿Hay algo que te esté generando dudas o preocupación?',
   '¿Qué tan a gusto te sientes con el equipo hasta ahora?',
 ]
+
+// Único tipo de respuesta del pulso, por ahora: una escala de 5 caritas.
+const CARITAS_ESCALA = ['😞', '😕', '😐', '🙂', '😄']
 
 const CONTENT_UPLOAD_LABEL = { video: 'Agregar enlace de video', audio: 'Agregar enlace de audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
 const CONTENT_RESOURCE_DESC = { video: 'Elige un enlace de video ya guardado por tu equipo', audio: 'Elige un enlace de audio ya guardado por tu equipo', lectura: 'Elige un documento ya subido por tu equipo', documento: 'Elige un documento ya subido por tu equipo', enlace: 'Elige un recurso ya guardado por tu equipo' }
@@ -138,6 +142,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [deleteInput, setDeleteInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [quizEditorJB, setQuizEditorJB] = useState(null)
+  const [pulsoEditorJB, setPulsoEditorJB] = useState(null)
   const [formEditorJB, setFormEditorJB] = useState(null)
   const [quizPreview, setQuizPreview] = useState(null)
   const [addPickerTarget, setAddPickerTarget] = useState(null)
@@ -406,8 +411,16 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       setSelTarea(null)
       setTareaForm(null)
     } else {
+      // El nodo de prueba enlazado es la fuente de verdad de sus preguntas: si existe,
+      // rehidratamos el formulario desde él para no reabrir con una copia vieja.
+      let form = { ...tarea }
+      if (tarea.pruebaTareaId) {
+        const nodo = rutaState.etapas.flatMap(e => e.actividades).flatMap(a => a.tareas).find(t => t.id === tarea.pruebaTareaId)
+        form.pruebaPreguntas = nodo ? (nodo.quizPreguntas || []) : []
+        if (!nodo) form.pruebaTareaId = null
+      }
       setSelTarea(tarea)
-      setTareaForm({ ...tarea })
+      setTareaForm(form)
       setContentPickerOpen(false)
     }
   }
@@ -418,11 +431,52 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
   function saveTareaForm() {
     if (!tareaForm) return
+    const form = tareaForm
+    const esContenido = ['video', 'audio', 'lectura', 'documento', 'enlace'].includes(form.tipo)
+    // Solo cuentan las preguntas con enunciado: una fila vacía no es una prueba.
+    const preguntasPrueba = esContenido ? (form.pruebaPreguntas || []).filter(p => p.texto?.trim()) : []
+    // Reservamos el id del nodo ahora para guardarlo también en la tarea de contenido y
+    // que ambas queden enlazadas desde el primer guardado.
+    const pruebaId = form.pruebaTareaId || (preguntasPrueba.length > 0 ? `t${++idCounter}` : null)
+
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
+      const formGuardado = { ...form }
+      delete formGuardado.pruebaPreguntas // vive en el nodo enlazado, no duplicado aquí
+      if (esContenido) formGuardado.pruebaTareaId = preguntasPrueba.length > 0 ? pruebaId : null
+
       next.etapas.forEach(e => {
         e.actividades.forEach(a => {
-          a.tareas = a.tareas.map(t => t.id === tareaForm.id ? { ...tareaForm } : t)
+          if (!a.tareas.some(t => t.id === form.id)) return
+
+          // 1. Reemplazar la tarea de contenido por su versión guardada.
+          a.tareas = a.tareas.map(t => t.id === form.id ? formGuardado : t)
+
+          // 2. Quitar el nodo de prueba anterior (si lo había): lo reconstruimos abajo.
+          if (form.pruebaTareaId) {
+            const prevIdx = a.tareas.findIndex(t => t.id === form.pruebaTareaId)
+            if (prevIdx !== -1) a.tareas.splice(prevIdx, 1)
+          }
+
+          // 3. Insertar la prueba justo después de la tarea de contenido.
+          if (preguntasPrueba.length > 0) {
+            const contentIdx = a.tareas.findIndex(t => t.id === form.id)
+            a.tareas.splice(contentIdx + 1, 0, {
+              id: pruebaId,
+              name: `Prueba — ${formGuardado.name || 'tarea'}`,
+              tipo: 'quiz',
+              obligatoria: true,
+              puntos: 10,
+              desc: `Verifica lo aprendido en "${formGuardado.name || 'la tarea anterior'}".`,
+              responsable: ['Colaborador'],
+              fechaRel: formGuardado.fechaRel || 'Día 1',
+              confirmacion: false,
+              done: false,
+              dias: 1,
+              quizPreguntas: preguntasPrueba,
+              pruebaDe: form.id, // marca de nodo generado: se edita desde su tarea de origen
+            })
+          }
         })
       })
       return next
@@ -573,22 +627,37 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           <span className="jb-bc-current">{plantilla.name}</span>
         </div>
         <div className="jb-topbar-actions">
-          <button className="jb-btn-outline" onClick={() => setShowConfig(true)}>
+          {/* Herramientas de la vista (no modifican la ruta) */}
+          <button className="jb-btn-outline jb-btn-icon" onClick={() => setShowConfig(true)} title="Configuración de la ruta">
             <Settings2 size={14} />
           </button>
           <button className="jb-btn-outline" onClick={() => setShowPreview(true)}>
             <Eye size={14} />
             Vista previa
           </button>
+
+          <span className="jb-topbar-divider" />
+
+          {/* Estado de guardado + acciones de guardado, agrupadas a la derecha */}
           {hasUnsavedChanges ? (
-            <span style={{ fontSize: 10.5, color: '#b45309', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
-              <Info size={12} /> Cambios sin guardar
+            <span className="jb-save-state jb-save-state--dirty">
+              <span className="jb-save-dot" /> Sin guardar
             </span>
-          ) : draftSavedAt && (
-            <span style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+          ) : draftSavedAt ? (
+            <span className="jb-save-state jb-save-state--saved">
               <CheckCircle2 size={12} /> Guardado
             </span>
-          )}
+          ) : null}
+          {/* Guarda el avance en la plantilla sin publicar la ruta ni salir del editor.
+              No toca el estado: una ruta activa sigue activa; una nueva sigue en borrador. */}
+          <button
+            className="jb-btn-outline"
+            disabled={!hasUnsavedChanges}
+            onClick={saveDraft}
+            title={hasUnsavedChanges ? 'Guarda tu avance sin publicar la ruta' : 'No hay cambios sin guardar'}
+          >
+            Guardar borrador
+          </button>
           <button className="jb-btn-primary" onClick={() => {
             const etapasPropias = rutaState.etapas.filter(e => !e.locked)
             activarRuta(rutaState.etapas, { nombre: plantilla.name, area: plantilla.area })
@@ -1431,64 +1500,40 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
                 {tareaForm.tipo === 'pulso' && (() => {
                   const preguntas = tareaForm.pulsoPreguntas || []
-                  function togglePregunta(texto) {
-                    const next = preguntas.includes(texto) ? preguntas.filter(p => p !== texto) : [...preguntas, texto]
-                    updateForm('pulsoPreguntas', next)
-                  }
-                  function addCustom() {
-                    const texto = (tareaForm._pulsoCustom || '').trim()
-                    if (!texto) return
-                    updateForm('pulsoPreguntas', [...preguntas, texto])
-                    updateForm('_pulsoCustom', '')
-                  }
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>Preguntas sugeridas</div>
-                        {pulsoPreguntasSugeridas.map(p => {
-                          const checked = preguntas.includes(p)
-                          return (
-                            <div key={p} onClick={() => togglePregunta(p)} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                              <div style={{
-                                width: 15, height: 15, borderRadius: 4, marginTop: 1, flexShrink: 0,
-                                border: checked ? '2px solid #f472b6' : '1.5px solid #d1d5db',
-                                background: checked ? '#f472b6' : '#fff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              }}>
-                                {checked && <Check size={9} style={{ color: '#fff' }} />}
-                              </div>
-                              <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.4 }}>{p}</span>
-                            </div>
-                          )
-                        })}
+                    <div style={{ background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: preguntas.length > 0 ? '#fce7f3' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Smile size={16} style={{ color: preguntas.length > 0 ? '#db2777' : '#94a3b8' }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
+                            {preguntas.length === 0 ? 'Sin preguntas aún' : `${preguntas.length} pregunta${preguntas.length !== 1 ? 's' : ''}`}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            Se responden con caritas
+                            <span style={{ fontSize: 11 }}>{CARITAS_ESCALA.join('')}</span>
+                          </div>
+                        </div>
                       </div>
-                      <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                        Agregar pregunta personalizada
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <input
-                            type="text" className="pl-input" placeholder="Escribe tu propia pregunta"
-                            value={tareaForm._pulsoCustom || ''}
-                            onChange={e => updateForm('_pulsoCustom', e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
-                          />
-                          <button type="button" onClick={addCustom} style={{ padding: '0 14px', borderRadius: 8, border: 'none', background: '#0C2D40', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                            Agregar
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {preguntas.length > 0 && (
+                          <button
+                            onClick={() => setPreviewTask({ ...tareaForm })}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 1 }}
+                          >
+                            <Eye size={11} />
+                            Previsualizar
                           </button>
-                        </div>
-                      </label>
-                      {preguntas.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {preguntas.map((p, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 6, background: '#fdf2f8' }}>
-                              <Smile size={11} style={{ color: '#f472b6', flexShrink: 0 }} />
-                              <span style={{ fontSize: 11, color: '#334155', flex: 1 }}>{p}</span>
-                              <button onClick={() => updateForm('pulsoPreguntas', preguntas.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        )}
+                        <button
+                          onClick={() => setPulsoEditorJB({ preguntas: preguntas.map((texto, i) => ({ id: i, texto })) })}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#0C2D40', color: '#fff', border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 1 }}
+                        >
+                          <Pencil size={11} />
+                          {preguntas.length === 0 ? 'Crear preguntas' : 'Editar preguntas'}
+                        </button>
+                      </div>
                     </div>
                   )
                 })()}
@@ -1542,10 +1587,80 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           Agregar parada
                         </button>
                       </div>
-                      <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                        Guía / Acompañante
-                        <input type="text" className="pl-input" placeholder="Nombre del guía" value={tareaForm.guia || ''} onChange={e => updateForm('guia', e.target.value)} />
-                      </label>
+                      {/* Guía / Acompañante — el guía siempre es alguien que ya trabaja en
+                          la empresa, así que se elige del directorio, no se escribe a mano.
+                          Guardamos solo el nombre (string) por compatibilidad con la vista
+                          previa; el cargo y el avatar se resuelven por nombre al mostrar. */}
+                      <div className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
+                        <span>Guía / Acompañante</span>
+                        {(() => {
+                          const guiaSel = colaboradoresData.find(c => c.name === tareaForm.guia)
+                          if (tareaForm.guia) {
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#f8fafc', marginTop: 4 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: '50%', background: guiaSel?.color || '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 10, fontWeight: 700 }}>
+                                  {guiaSel?.initials || tareaForm.guia.trim().slice(0, 2).toUpperCase()}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tareaForm.guia}</div>
+                                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{guiaSel ? `${guiaSel.cargo} · ${guiaSel.depto}` : 'Ya no figura en el directorio'}</div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => { updateForm('guia', ''); updateForm('_guiaSearch', '') }}
+                                  title="Cambiar guía"
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex', flexShrink: 0 }}
+                                >
+                                  <X size={15} />
+                                </button>
+                              </div>
+                            )
+                          }
+                          const q = (tareaForm._guiaSearch || '').toLowerCase()
+                          const matches = colaboradoresData
+                            .filter(c => c.status === 'activo' && (c.name.toLowerCase().includes(q) || c.cargo.toLowerCase().includes(q) || c.depto.toLowerCase().includes(q)))
+                            .slice(0, 8)
+                          return (
+                            <div style={{ position: 'relative', marginTop: 4 }}>
+                              <div style={{ position: 'relative' }}>
+                                <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                <input
+                                  type="text"
+                                  className="pl-input"
+                                  style={{ margin: 0, paddingLeft: 30 }}
+                                  placeholder="Buscar colaborador por nombre o cargo…"
+                                  value={tareaForm._guiaSearch || ''}
+                                  onChange={e => { updateForm('_guiaSearch', e.target.value); updateForm('_guiaOpen', true) }}
+                                  onFocus={() => updateForm('_guiaOpen', true)}
+                                  onBlur={() => setTimeout(() => updateForm('_guiaOpen', false), 120)}
+                                />
+                              </div>
+                              {tareaForm._guiaOpen && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', zIndex: 30, maxHeight: 220, overflowY: 'auto', animation: 'plSlideUp .12s' }}>
+                                  {matches.length === 0 ? (
+                                    <div style={{ padding: 12, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Sin colaboradores que coincidan</div>
+                                  ) : matches.map(c => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onMouseDown={e => { e.preventDefault(); updateForm('guia', c.name); updateForm('_guiaOpen', false); updateForm('_guiaSearch', '') }}
+                                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 9.5, fontWeight: 700 }}>{c.initials}</div>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                                        <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{c.cargo} · {c.depto}</div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
                     </div>
                   )
                 })()}
@@ -1710,6 +1825,80 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   </div>
 
                 </div>
+
+                {/* PRUEBA DE COMPRENSIÓN — vive en Configuración (no en Contenido) para que
+                    quede visible sin scroll: la columna de contenido crece con la
+                    previsualización y enterraría esta opción. Al guardar se materializa
+                    como un nodo aparte después de la tarea. */}
+                {['video', 'audio', 'lectura', 'documento', 'enlace'].includes(tareaForm.tipo) && (() => {
+                  const preguntas = tareaForm.pruebaPreguntas || []
+                  const hayContenido = tareaForm.enlace || tareaForm._kbItem
+                  const completas = preguntas.filter(p => p.texto.trim() && (p.tipo === 'abierta' || p.opciones?.some(o => o.correcta && o.texto.trim()))).length
+                  const tiene = preguntas.length > 0
+                  return (
+                    <div style={{
+                      background: '#f8fafc', borderRadius: 12, padding: 16,
+                      border: '1px solid #e8ecf0',
+                      display: 'flex', flexDirection: 'column', gap: 12,
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ShieldCheck size={13} style={{ color: '#94a3b8' }} />
+                        Prueba de comprensión
+                      </div>
+
+                      {!hayContenido ? (
+                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>
+                          Carga primero el contenido de la tarea. Después podrás agregar un cuestionario para verificar que el colaborador lo revisó.
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: tiene ? '#fef3c7' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <HelpCircle size={16} style={{ color: tiene ? '#d97706' : '#94a3b8' }} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
+                                {tiene ? `${preguntas.length} pregunta${preguntas.length !== 1 ? 's' : ''}` : '¿Agregar una prueba de esta tarea?'}
+                              </div>
+                              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1, lineHeight: 1.4 }}>
+                                {tiene
+                                  ? `${completas} completa${completas !== 1 ? 's' : ''} · se crea como un nodo después de esta tarea`
+                                  : 'Verifica con un cuestionario si el colaborador revisó el contenido.'}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {tiene && (
+                              <button
+                                onClick={() => setQuizPreview(preguntas)}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 1 }}
+                              >
+                                <Eye size={11} />
+                                Ver
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setQuizEditorJB({ targetField: 'pruebaPreguntas', preguntas: preguntas.length ? JSON.parse(JSON.stringify(preguntas)) : [] })}
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, background: tiene ? '#0C2D40' : '#00E091', color: tiene ? '#fff' : '#0C2D40', border: 'none', fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 1 }}
+                            >
+                              {tiene ? <Pencil size={11} /> : <Plus size={12} />}
+                              {tiene ? 'Editar' : 'Agregar prueba'}
+                            </button>
+                            {tiene && (
+                              <button
+                                onClick={() => updateForm('pruebaPreguntas', [])}
+                                title="Quitar la prueba"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px 10px', borderRadius: 8, background: '#fff', color: '#dc2626', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* TOGGLES */}
 
@@ -2438,7 +2627,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           setQuizEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, opciones: p.opciones.filter((_, j) => j !== oIdx) } : p) }))
         }
         function guardar() {
-          updateForm('quizPreguntas', qe.preguntas.filter(p => p.texto.trim()))
+          // Una tarea "quiz" guarda en quizPreguntas; una tarea de contenido con prueba
+          // adjunta guarda en pruebaPreguntas (que luego se materializa como nodo aparte).
+          updateForm(qe.targetField || 'quizPreguntas', qe.preguntas.filter(p => p.texto.trim()))
           setQuizEditorJB(null)
         }
 
@@ -2552,6 +2743,125 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 <button className="pl-btn-cancel" onClick={() => setQuizEditorJB(null)}>Cancelar</button>
                 <button className="pl-btn-save" disabled={qe.preguntas.length === 0} onClick={guardar}>
                   Guardar prueba
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* EDITOR DE PULSO — mismo patrón que el de prueba, pero la respuesta siempre es la
+          escala de caritas (por ahora el único tipo), así que no hay opciones ni correctas. */}
+      {pulsoEditorJB && (() => {
+        const pe = pulsoEditorJB
+        function updateQ(i, texto) {
+          setPulsoEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.map((p, idx) => idx === i ? { ...p, texto } : p) }))
+        }
+        function deleteQ(i) {
+          setPulsoEditorJB(prev => ({ ...prev, preguntas: prev.preguntas.filter((_, idx) => idx !== i) }))
+        }
+        function addQ(texto = '') {
+          setPulsoEditorJB(prev => ({ ...prev, preguntas: [...prev.preguntas, { id: Date.now(), texto }] }))
+        }
+        function guardar() {
+          updateForm('pulsoPreguntas', pe.preguntas.map(p => p.texto.trim()).filter(Boolean))
+          setPulsoEditorJB(null)
+        }
+        const yaUsadas = pe.preguntas.map(p => p.texto.trim())
+        const sugerenciasLibres = pulsoPreguntasSugeridas.filter(s => !yaUsadas.includes(s))
+
+        return (
+          <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setPulsoEditorJB(null)}>
+            <div className="pl-modal jb-modal" style={{ maxWidth: 560, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Smile size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <h2 style={{ margin: 0 }}>Preguntas del pulso</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setPulsoEditorJB(null)}><X size={18} /></button>
+              </div>
+
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '62vh' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: '#fdf2f8', border: '1px solid #fbcfe8', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    {CARITAS_ESCALA.map((e, i) => <span key={i} style={{ fontSize: 15 }}>{e}</span>)}
+                  </div>
+                  <span style={{ fontSize: 10.5, color: '#9d174d', fontWeight: 600, lineHeight: 1.4 }}>
+                    Cada pregunta se responde con esta escala de caritas.
+                  </span>
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 12 }}>
+                  Preguntas ({pe.preguntas.length})
+                </div>
+
+                {pe.preguntas.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 12px', border: '1.5px dashed #f5d0e0', borderRadius: 10, color: '#9d174d' }}>
+                    <Smile size={20} style={{ color: '#f472b6', marginBottom: 6 }} />
+                    <div style={{ fontSize: 11.5, fontWeight: 600 }}>Aún no hay preguntas</div>
+                    <div style={{ fontSize: 10.5, color: '#be7593', marginTop: 2 }}>Agrega una o usa una sugerida.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {pe.preguntas.map((pregunta, i) => (
+                      <div key={pregunta.id} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ width: 22, height: 22, borderRadius: 6, background: '#db2777', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+                          <input
+                            type="text"
+                            placeholder="Escribe la pregunta..."
+                            value={pregunta.texto}
+                            autoFocus={!pregunta.texto}
+                            onChange={e => updateQ(i, e.target.value)}
+                            style={{ flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', background: '#fff' }}
+                          />
+                          <button onClick={() => deleteQ(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1', flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 30, marginTop: 8 }}>
+                          {CARITAS_ESCALA.map((e, ci) => <span key={ci} style={{ fontSize: 15, opacity: .85 }}>{e}</span>)}
+                          <span style={{ fontSize: 9.5, color: '#94a3b8', marginLeft: 4 }}>respuesta del colaborador</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button onClick={() => addQ()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12, padding: '10px', border: '1.5px dashed #cbd5e1', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit' }}>
+                  <Plus size={13} /> Agregar pregunta
+                </button>
+
+                {sugerenciasLibres.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>
+                      Preguntas sugeridas
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {sugerenciasLibres.map(s => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => addQ(s)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: '1px solid #f5d0e0', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#fdf2f8'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                        >
+                          <Plus size={12} style={{ color: '#db2777', flexShrink: 0 }} />
+                          <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.4 }}>{s}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setPulsoEditorJB(null)}>Cancelar</button>
+                <button className="pl-btn-save" disabled={pe.preguntas.every(p => !p.texto.trim())} onClick={guardar}>
+                  Guardar preguntas
                 </button>
               </div>
             </div>

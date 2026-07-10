@@ -1576,6 +1576,47 @@ select.pl-input:focus {
 
 .jb-btn-outline:hover { background: var(--green-tint); border-color: var(--green); }
 
+.jb-btn-outline:disabled { opacity: .45; cursor: default; }
+.jb-btn-outline:disabled:hover { background: var(--surface-card); border-color: var(--border-soft); }
+
+/* Botón de solo-icono: cuadrado, sin el padding lateral de los que llevan texto. */
+.jb-btn-icon { padding: 7px; }
+
+/* Separa las herramientas de vista de las acciones de guardado. */
+.jb-topbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background: var(--border-soft);
+}
+
+/* Estado de guardado: compacto, se lee por color antes que por texto. */
+.jb-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+.jb-save-state--dirty { color: #b45309; }
+.jb-save-state--saved { color: #16a34a; }
+
+.jb-save-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  animation: pulse-dot 2s infinite;
+}
+@media (prefers-reduced-motion: reduce) { .jb-save-dot { animation: none; } }
+
+/* El breadcrumb cede espacio (trunca) para que las acciones nunca se amontonen. */
+.jb-breadcrumb { min-width: 0; }
+.jb-bc-current { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jb-topbar-actions { flex-shrink: 0; }
+
 .jb-btn-primary {
   display: flex;
   align-items: center;
