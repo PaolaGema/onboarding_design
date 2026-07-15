@@ -7,7 +7,7 @@ export const rutaPlantillas = [
     area: 'Todas las áreas',
     color: '#8b5cf6',
     icon: Globe2,
-    descripcion: 'Cultura, valores y políticas generales. Ideal como ruta base para toda la empresa.',
+    descripcion: 'Cultura, valores y políticas generales. Ideal como ruta general para toda la empresa.',
     etapasData: [
       {
         name: 'Mi primera semana', locked: false, days: 'Día 1 — Día 5', actividades: [

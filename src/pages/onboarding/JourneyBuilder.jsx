@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
@@ -13,7 +14,7 @@ import {
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2
+  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
@@ -117,8 +118,15 @@ const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key,
 export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, editing }) {
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
-  const { plantillas, setPlantillas, addFeedEntry, recursos, setRecursos } = useOnboardingData()
+  const { plantillas, setPlantillas, asignaciones, setAsignaciones, addFeedEntry, recursos, setRecursos } = useOnboardingData()
+  const { currentUser } = useUser()
   const { dirty: hasUnsavedChanges, setDirty: setHasUnsavedChanges, setSaveHandler, guardNavigate } = useUnsavedChanges()
+
+  // Aviso de "aplicar cambios a quién": se abre al guardar una ruta activa que
+  // ya tiene colaboradores en curso. null = cerrado.
+  const [applyModal, setApplyModal] = useState(null)
+  const [applyScope, setApplyScope] = useState('futuras')
+  const ESTADOS_EN_CURSO = ['pendiente', 'en-curso', 'atrasado', 'en-riesgo', 'pausado']
 
   const [rutaState, setRutaState] = useState(() => {
     const src = empty
@@ -208,6 +216,85 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     ))
     setDraftSavedAt(Date.now())
     setHasUnsavedChanges(false)
+  }
+
+  // Colaboradores en curso de esta ruta (para decidir si preguntamos al guardar).
+  function asignadosEnCurso() {
+    return asignaciones.filter(a =>
+      (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status))
+  }
+
+  // Guardado real de la estructura, con versionado.
+  // - Si la ruta tiene colaboradores asignados: se crea una NUEVA versión (la
+  //   anterior queda congelada para ellos) y, según `scope`, se mueve o no a
+  //   los asignados a la versión nueva.
+  // - Si no tiene asignados: se actualiza la versión actual en su lugar.
+  // scope: 'futuras' | 'no-iniciados' | 'todos'.
+  function commitSave(scope) {
+    const etapasPropias = rutaState.etapas.filter(e => !e.locked)
+    const tareasCount = etapasPropias.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
+    activarRuta(rutaState.etapas, { nombre: plantilla.name, area: plantilla.area })
+
+    // Se versiona si existe cualquier asignación de esta ruta (aunque esté
+    // completada), para no mutar la versión congelada de nadie.
+    const crearVersion = asignaciones.some(a => a.rutaId === plantilla.id || a.ruta === plantilla.name)
+    const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+    setPlantillas(prev => prev.map(p => {
+      if (p.id !== plantilla.id) return p
+      const versiones = (p.versiones && p.versiones.length)
+        ? p.versiones
+        : [{ v: 1, etapasData: p.etapasData || [], etapas: (p.etapasData || []).length, tareas: 0, fecha: p.creadoEl || '—', autor: p.creador || '—' }]
+      const base = { ...p, status: 'activa', etapasData: etapasPropias, etapas: etapasPropias.length, tareas: tareasCount, updated: 'Ahora', config: rutaConfig }
+      if (crearVersion) {
+        const nextV = (p.versionActual || versiones.length || 1) + 1
+        return {
+          ...base,
+          versionActual: nextV,
+          versiones: [...versiones, { v: nextV, etapasData: JSON.parse(JSON.stringify(etapasPropias)), etapas: etapasPropias.length, tareas: tareasCount, fecha: hoy, autor: currentUser.name }],
+        }
+      }
+      // Sin asignados: se actualiza en su lugar la versión actual (no se ramifica).
+      const vActual = p.versionActual || 1
+      return {
+        ...base,
+        versionActual: vActual,
+        versiones: versiones.map(ver => ver.v === vActual
+          ? { ...ver, etapasData: JSON.parse(JSON.stringify(etapasPropias)), etapas: etapasPropias.length, tareas: tareasCount, fecha: hoy, autor: currentUser.name }
+          : ver),
+      }
+    }))
+
+    if (crearVersion && scope !== 'futuras') {
+      const nextV = (plantilla.versionActual || (plantilla.versiones?.length) || 1) + 1
+      setAsignaciones(prev => prev.map(a => {
+        const esDeEstaRuta = (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status)
+        if (!esDeEstaRuta) return a
+        const mover = scope === 'todos' ? true : a.status === 'pendiente'
+        return mover ? { ...a, version: nextV } : a
+      }))
+    }
+
+    const scopeMsg = !crearVersion ? ''
+      : scope === 'todos' ? ' — aplicada a todos los colaboradores en curso'
+      : scope === 'no-iniciados' ? ' — aplicada a los que aún no iniciaron'
+      : ' — solo para nuevas asignaciones'
+    addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}${scopeMsg}`)
+    setHasUnsavedChanges(false)
+    setApplyModal(null)
+    onBack()
+  }
+
+  // Dispara el guardado: si es una ruta activa en edición con gente en curso,
+  // pregunta a quién aplicar; si no, guarda directo (nueva versión para futuras).
+  function handleGuardar() {
+    const enCurso = asignadosEnCurso()
+    if (editing && enCurso.length > 0) {
+      setApplyScope('futuras')
+      setApplyModal({ count: enCurso.length, noIniciados: enCurso.filter(a => a.status === 'pendiente').length })
+    } else {
+      commitSave('futuras')
+    }
   }
 
   // Marca la ruta como "con cambios sin guardar" — el guardado real solo ocurre
@@ -658,24 +745,13 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           >
             Guardar borrador
           </button>
-          <button className="jb-btn-primary" onClick={() => {
-            const etapasPropias = rutaState.etapas.filter(e => !e.locked)
-            activarRuta(rutaState.etapas, { nombre: plantilla.name, area: plantilla.area })
-            setPlantillas(prev => prev.map(p =>
-              p.id === plantilla.id
-                ? {
-                    ...p, status: 'activa', etapasData: etapasPropias,
-                    etapas: etapasPropias.length,
-                    tareas: etapasPropias.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0),
-                    updated: 'Ahora',
-                    config: rutaConfig,
-                  }
-                : p
-            ))
-            addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}`)
-            setHasUnsavedChanges(false)
-            onBack()
-          }}>
+          <button
+            className="jb-btn-primary"
+            onClick={handleGuardar}
+            disabled={!hasUnsavedChanges}
+            style={!hasUnsavedChanges ? { opacity: 0.45, cursor: 'default' } : undefined}
+            title={hasUnsavedChanges ? '' : (editing ? 'No hay cambios que guardar' : 'Agrega contenido a la ruta para guardarla')}
+          >
             <Save size={14} />
             {editing ? 'Guardar cambios' : 'Guardar ruta'}
           </button>
@@ -2423,6 +2499,55 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           onClose={closePreview}
           onEditTask={(t) => { selectTarea(t); setShowPreview(false) }}
         />
+      )}
+
+      {/* MODAL: ¿A QUIÉNES APLICAN LOS CAMBIOS? */}
+      {applyModal && (
+        <div className="pl-overlay" onClick={() => setApplyModal(null)}>
+          <div className="pl-modal" style={{ maxWidth: 470 }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <UserCheck size={15} style={{ color: '#fff' }} />
+                </div>
+                <h2>Aplicar cambios</h2>
+              </div>
+              <button className="pl-modal-close" onClick={() => setApplyModal(null)}><X size={18} /></button>
+            </div>
+            <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                Esta ruta ya está asignada a <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador' : 'colaboradores'}. Se creará una <strong>versión nueva</strong>. ¿Cómo deseas aplicar los cambios?
+              </p>
+              {[
+                { key: 'futuras', title: 'Solo para nuevas asignaciones', desc: 'Los que están en curso mantienen su versión. Recomendado.' },
+                { key: 'no-iniciados', title: 'También a los que aún no iniciaron', desc: `Seguro: ${applyModal.noIniciados} ${applyModal.noIniciados === 1 ? 'colaborador está' : 'colaboradores están'} en día 0, no pierden avance.` },
+                { key: 'todos', title: 'A todos los que están en curso', desc: 'Actualiza la ruta de todos ahora. Puede alterar su progreso.', warn: true },
+              ].map(opt => {
+                const sel = applyScope === opt.key
+                return (
+                  <button key={opt.key} type="button" onClick={() => setApplyScope(opt.key)} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left', width: '100%',
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                    border: sel ? '1.5px solid #0C2D40' : '1px solid var(--border-soft)',
+                    background: sel ? '#f8fafc' : '#fff', transition: 'all .12s',
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, marginTop: 1, border: sel ? '5px solid #0C2D40' : '2px solid #cbd5e1', transition: 'all .12s' }} />
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40' }}>{opt.title}</div>
+                      <div style={{ fontSize: 11, color: opt.warn ? '#b45309' : 'var(--text-muted)', lineHeight: 1.5, marginTop: 2 }}>
+                        {opt.warn && <Info size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />}{opt.desc}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="pl-modal-footer">
+              <button className="pl-btn-cancel" onClick={() => setApplyModal(null)}>Cancelar</button>
+              <button className="pl-btn-save" onClick={() => commitSave(applyScope)}>Aplicar</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL EDITAR ETAPA */}

@@ -4,7 +4,7 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle,
   LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye, History
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewModal'
@@ -28,6 +28,7 @@ const cargosPorArea = {
   'Legal': ['Abogado Corporativo', 'Paralegal', 'Director Legal'],
 }
 const areas = Object.keys(cargosPorArea)
+const sucursales = ['La Paz', 'Cochabamba', 'Santa Cruz (Central)', 'Tarija']
 const tiposRuta = ['Onboarding', 'Reboarding']
 
 
@@ -40,7 +41,7 @@ export default function Plantillas() {
 
   const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, asignaciones, setAsignaciones, addFeedEntry } = useOnboardingData()
   const isAdmin = !isAreaRole
-  const rutasGlobales = allPlantillas.filter(p => p.esGlobal).sort((a, b) => (a.ordenGlobal ?? 0) - (b.ordenGlobal ?? 0))
+  const rutaGeneral = allPlantillas.find(p => p.esGlobal) || null
   const plantillas = isAreaRole ? allPlantillas.filter(p => p.area === managerArea) : allPlantillas
   function setPlantillas(next) {
     if (!isAreaRole) { setAllPlantillas(next); return }
@@ -52,10 +53,13 @@ export default function Plantillas() {
   const [filterTipo, setFilterTipo] = useState('todos')
   const [filterArea, setFilterArea] = useState('todas')
   const [filterCargo, setFilterCargo] = useState('todos')
-  const [filterOrigen, setFilterOrigen] = useState('todas')
   const [rfDropStatus, setRfDropStatus] = useState(false)
   const [rfDropTipo, setRfDropTipo] = useState(false)
-  const [rfDropOrigen, setRfDropOrigen] = useState(false)
+  const [createChooser, setCreateChooser] = useState(false)
+  const [tplGallery, setTplGallery] = useState(false)
+  const [tplSearch, setTplSearch] = useState('')
+  const [tplArea, setTplArea] = useState('todas')
+  const [tplAreaOpen, setTplAreaOpen] = useState(false)
   const [statusHeaderPos, setStatusHeaderPos] = useState(null)
   const [tipoHeaderPos, setTipoHeaderPos] = useState(null)
   const [mfDropArea, setMfDropArea] = useState(false)
@@ -65,7 +69,7 @@ export default function Plantillas() {
   useEffect(() => {
     function closeDrops(e) {
       if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
-        setRfDropOrigen(false); setMfDropArea(false); setMfDropCargo(false)
+        setMfDropArea(false); setMfDropCargo(false)
       }
       if (!e.target.closest('[data-th-filter]')) {
         setRfDropStatus(false); setRfDropTipo(false)
@@ -76,7 +80,6 @@ export default function Plantillas() {
   }, [])
   const [viewMode, setViewMode] = useState('list')
   const [cardMenu, setCardMenu] = useState(null)
-  const [descTip, setDescTip] = useState(null)
   const [rowMenuPos, setRowMenuPos] = useState(null)
   const [asignarModal, setAsignarModal] = useState(null)
 
@@ -90,10 +93,11 @@ export default function Plantillas() {
   const [etapasModal, setEtapasModal] = useState(null)
   const [tareasModal, setTareasModal] = useState(null)
 
-  const [form, setForm] = useState({ name: '', descripcion: '', tipo: 'Onboarding', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
-  const [rutaBaseConfirm, setRutaBaseConfirm] = useState(null)
-  const [globalesExpanded, setGlobalesExpanded] = useState(false)
+  const [form, setForm] = useState({ name: '', descripcion: '', tipo: 'Onboarding', sucursal: 'Todas las sucursales', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
+  const [rutaGeneralConfirm, setRutaGeneralConfirm] = useState(null)
+  const [historialRuta, setHistorialRuta] = useState(null)
   const [dropTipo, setDropTipo] = useState(false)
+  const [dropSucursal, setDropSucursal] = useState(false)
   const [dropArea, setDropArea] = useState(false)
   const [dropCargo, setDropCargo] = useState(false)
   const [areaSearch, setAreaSearch] = useState('')
@@ -154,8 +158,8 @@ export default function Plantillas() {
   }))
   function applyTemplate(p) { chooseTpl(p._tpl) }
 
-  const hasRutaFilters = filterStatus !== 'todas' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos' || filterOrigen !== 'todas'
-  const fuenteRutas = filterOrigen === 'soulyhr' ? soulyRows : filterOrigen === 'mias' ? plantillas : [...plantillas, ...soulyRows]
+  const hasRutaFilters = filterStatus !== 'todas' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos'
+  const fuenteRutas = plantillas
   const cargosDeArea = [...new Set(fuenteRutas.filter(p => filterArea === 'todas' || p.area === filterArea).map(p => p.cargo).filter(Boolean))]
   const filtered = fuenteRutas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -165,44 +169,43 @@ export default function Plantillas() {
     const matchArea = filterArea === 'todas' || p.area === filterArea
     const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
     return matchSearch && matchStatus && matchTipo && matchArea && matchCargo
-  })
-  function clearRutaFilters() { setFilterStatus('todas'); setFilterTipo('todos'); setFilterArea('todas'); setFilterCargo('todos'); setFilterOrigen('todas'); setPage(1) }
+  }).sort((a, b) => (b.esGlobal ? 1 : 0) - (a.esGlobal ? 1 : 0))
+  function clearRutaFilters() { setFilterStatus('todas'); setFilterTipo('todos'); setFilterArea('todas'); setFilterCargo('todos'); setPage(1) }
 
   const [page, setPage] = useState(1)
   const perPage = 8
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((page - 1) * perPage, page * perPage)
 
-  const totalTareas = plantillas.reduce((s, p) => s + p.tareas, 0)
   const totalActivas = plantillas.filter(p => p.status === 'activa').length
   const totalBorrador = plantillas.filter(p => p.status === 'borrador').length
   const totalArchivadas = plantillas.filter(p => p.status === 'archivada').length
 
-  function nextOrdenGlobal() {
-    return rutasGlobales.length ? Math.max(...rutasGlobales.map(p => p.ordenGlobal ?? 0)) + 1 : 0
-  }
-
   function openCreate() {
-    chooseTpl(null)
+    setCreateChooser(true)
   }
 
   function chooseTpl(tpl) {
+    setCreateChooser(false)
+    setTplGallery(false)
     setSelectedTpl(tpl)
     setForm({
       name: tpl ? '' : '',
       descripcion: tpl?.descripcion || '',
       tipo: 'Onboarding',
+      sucursal: tpl?.sucursal || 'Todas las sucursales',
       area: tpl?.area === 'Todas las áreas' ? 'Todas las áreas' : (tpl?.area || 'Ventas'),
       cargo: '',
     })
     setDropTipo(false)
+    setDropSucursal(false)
     setDropArea(false)
     setDropCargo(false)
     setModal('crear')
   }
 
   function openEdit(p) {
-    setForm({ name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', area: p.area, cargo: p.cargo || '', id: p.id })
+    setForm({ name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', id: p.id })
     setModal('editar')
   }
 
@@ -218,6 +221,7 @@ export default function Plantillas() {
         name: form.name.trim(),
         descripcion: form.descripcion?.trim() || '',
         tipo: form.tipo,
+        sucursal: form.sucursal || 'Todas las sucursales',
         area: form.area,
         cargo: form.cargo || '',
         etapas: etapasData?.length || 0,
@@ -232,6 +236,15 @@ export default function Plantillas() {
         creador: currentUser.name,
         creadorRole: currentUser.roleLabel,
         creadoEl: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        versionActual: 1,
+        versiones: [{
+          v: 1,
+          etapasData: etapasData || [],
+          etapas: etapasData?.length || 0,
+          tareas: etapasData ? etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0) : 0,
+          fecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          autor: currentUser.name,
+        }],
         ...(etapasData ? { etapasData } : {}),
       }
       setPlantillas([...plantillas, newPlantilla])
@@ -242,7 +255,7 @@ export default function Plantillas() {
       setPlantillas(plantillas.map(p => {
         if (p.id !== form.id) return p
         return {
-          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, area: form.area, updated: 'Ahora',
+          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, sucursal: form.sucursal, area: form.area, updated: 'Ahora',
           updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         }
       }))
@@ -253,22 +266,10 @@ export default function Plantillas() {
   function toggleGlobal(p) {
     const willBeGlobal = !p.esGlobal
     setPlantillas(prev => prev.map(x => x.id === p.id
-      ? { ...x, esGlobal: willBeGlobal, ordenGlobal: willBeGlobal ? nextOrdenGlobal() : null }
+      ? { ...x, esGlobal: willBeGlobal, ordenGlobal: willBeGlobal ? 0 : null }
       : x))
     setCardMenu(null)
-    setRutaBaseConfirm(null)
-  }
-
-  function moveGlobalOrder(p, direction) {
-    const idx = rutasGlobales.findIndex(x => x.id === p.id)
-    const swapIdx = idx + direction
-    if (swapIdx < 0 || swapIdx >= rutasGlobales.length) return
-    const other = rutasGlobales[swapIdx]
-    setPlantillas(prev => prev.map(x => {
-      if (x.id === p.id) return { ...x, ordenGlobal: other.ordenGlobal }
-      if (x.id === other.id) return { ...x, ordenGlobal: p.ordenGlobal }
-      return x
-    }))
+    setRutaGeneralConfirm(null)
   }
 
   function handleDuplicate(p) {
@@ -299,6 +300,11 @@ export default function Plantillas() {
       nombre: c.name,
       area: c.depto || 'Sin asignar',
       ruta: ruta.name,
+      rutaId: ruta.id,
+      // Se fija la versión actual de la ruta; el contenido se resuelve desde
+      // ruta.versiones[version]. El snapshot queda como respaldo.
+      version: ruta.versionActual || 1,
+      etapasData: JSON.parse(JSON.stringify(ruta.etapasData || [])),
       dia: 0,
       totalDias: 30,
       pct: 0,
@@ -360,71 +366,18 @@ export default function Plantillas() {
           <div className="kpi-val">{totalArchivadas}</div>
           <div className="kpi-lbl">Fuera de uso</div>
         </div>
-        <div className="kpi-card" style={{ '--kpi-accent': 'var(--purple)' }}>
-          <div className="kpi-title" style={{ color: 'var(--purple)' }}>Tareas en total</div>
-          <div className="kpi-val">{totalTareas}</div>
-          <div className="kpi-lbl">Distribuidas en todas las rutas</div>
+        <div className="kpi-card" style={{ '--kpi-accent': rutaGeneral ? '#0C2D40' : 'var(--yellow)' }}>
+          <div className="kpi-title" style={{ color: rutaGeneral ? '#0C2D40' : 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <ShieldCheck size={12} style={{ flexShrink: 0 }} /> Ruta general
+          </div>
+          <div className="kpi-val" style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rutaGeneral ? rutaGeneral.name : undefined}>
+            {rutaGeneral ? rutaGeneral.name : 'Sin definir'}
+          </div>
+          <div className="kpi-lbl">
+            {!rutaGeneral ? 'Ninguna ruta se aplica a todas' : rutaGeneral.status === 'activa' ? 'Se antepone a todas las rutas' : 'No propaga (está inactiva)'}
+          </div>
         </div>
       </div>
-
-      {/* RUTAS BASE */}
-      {isAdmin && rutasGlobales.length > 0 && (
-        <div style={{
-          background: 'var(--surface-card)', border: '1px solid var(--border-soft)', borderRadius: 14,
-          boxShadow: 'var(--shadow-card)', padding: '12px 18px', marginBottom: 18,
-        }}>
-          <button
-            onClick={() => setGlobalesExpanded(!globalesExpanded)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-              border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
-              fontFamily: 'inherit', textAlign: 'left',
-            }}
-          >
-            <ShieldCheck size={14} style={{ color: '#0C2D40', flexShrink: 0 }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>
-              {rutasGlobales.length} {rutasGlobales.length === 1 ? 'ruta base' : 'rutas base'}
-            </span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              — se aplican, en este orden, a todas las demás rutas{!globalesExpanded && `: ${rutasGlobales.map(p => p.name).join(', ')}`}
-            </span>
-            {globalesExpanded ? <ChevronUp size={15} style={{ color: '#64748b', flexShrink: 0 }} /> : <ChevronDown size={15} style={{ color: '#64748b', flexShrink: 0 }} />}
-          </button>
-          {globalesExpanded && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
-            {rutasGlobales.map((p, i) => (
-              <div key={p.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                borderRadius: 10, background: 'var(--bg-secondary)',
-              }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', width: 16 }}>{i + 1}</span>
-                <Lock size={12} style={{ color: '#0C2D40', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', flex: 1 }}>{p.name}</span>
-                <span style={{
-                  fontSize: 9, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                  background: p.status === 'activa' ? '#f0fdf4' : '#fef3c7',
-                  color: p.status === 'activa' ? '#16a34a' : '#b45309',
-                }}>
-                  {p.status === 'activa' ? 'Activa' : 'No propaga (no está activa)'}
-                </span>
-                <div style={{ display: 'flex', gap: 2 }}>
-                  <button
-                    onClick={() => moveGlobalOrder(p, -1)}
-                    disabled={i === 0}
-                    style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
-                  ><ChevronUp size={14} /></button>
-                  <button
-                    onClick={() => moveGlobalOrder(p, 1)}
-                    disabled={i === rutasGlobales.length - 1}
-                    style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', cursor: i === rutasGlobales.length - 1 ? 'default' : 'pointer', opacity: i === rutasGlobales.length - 1 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
-                  ><ChevronDown size={14} /></button>
-                </div>
-              </div>
-            ))}
-          </div>
-          )}
-        </div>
-      )}
 
       {/* SEARCH & FILTERS */}
       <div className="pl-toolbar">
@@ -439,27 +392,9 @@ export default function Plantillas() {
           />
         </div>
         <div ref={filterBarRef} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {/* ORIGEN: SoulyHR / mías */}
-          <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${rfDropOrigen ? ' open' : ''}${filterOrigen === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setRfDropOrigen(!rfDropOrigen); setRfDropStatus(false) }}>
-              <span style={{ whiteSpace: 'nowrap' }}>{{ todas: 'Todas las rutas', soulyhr: 'Rutas de SoulyHR', mias: 'Mis rutas' }[filterOrigen]}</span>
-              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-            </button>
-            {rfDropOrigen && (
-              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
-                {[{ key: 'todas', label: 'Todas las rutas' }, { key: 'soulyhr', label: 'Rutas de SoulyHR' }, { key: 'mias', label: 'Mis rutas' }].map(f => (
-                  <button key={f.key} type="button" className={`pl-dropdown-item${filterOrigen === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterOrigen(f.key); setRfDropOrigen(false); setPage(1) }}>
-                    <span>{f.label}</span>
-                    {filterOrigen === f.key && <Check size={13} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* ÁREA */}
           <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${mfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setMfDropArea(!mfDropArea); setMfDropCargo(false); setRfDropOrigen(false) }}>
+            <button type="button" className={`pl-dropdown-trigger${mfDropArea ? ' open' : ''}${filterArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setMfDropArea(!mfDropArea); setMfDropCargo(false) }}>
               <span style={{ whiteSpace: 'nowrap' }}>{filterArea === 'todas' ? 'Todas las áreas' : filterArea}</span>
               <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
             </button>
@@ -477,7 +412,7 @@ export default function Plantillas() {
 
           {/* CARGO */}
           <div className="pl-dropdown-wrap" style={{ width: 'auto' }}>
-            <button type="button" className={`pl-dropdown-trigger${mfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setMfDropCargo(!mfDropCargo); setMfDropArea(false); setRfDropOrigen(false) }}>
+            <button type="button" className={`pl-dropdown-trigger${mfDropCargo ? ' open' : ''}${filterCargo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setMfDropCargo(!mfDropCargo); setMfDropArea(false) }}>
               <span style={{ whiteSpace: 'nowrap' }}>{filterCargo === 'todos' ? 'Todos los cargos' : filterCargo}</span>
               <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
             </button>
@@ -528,32 +463,33 @@ export default function Plantillas() {
       {viewMode === 'grid' && (
       <div className="pl-grid">
         {paginated.map((p) => (
-          <div key={p.id} className="pl-card" style={{ overflow: 'visible', position: 'relative', padding: 0 }}>
+          <div key={p.id} className="pl-card" style={{ overflow: 'visible', position: 'relative', padding: 0, ...(p.esGlobal ? { border: '1.5px solid #0C2D40', boxShadow: '0 0 0 3px rgba(12,45,64,0.06)' } : {}) }}>
             {/* HEADER */}
-            <div style={{ padding: '14px 16px 12px', background: '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
+            <div style={{ padding: '14px 16px 12px', background: p.esGlobal ? '#EAF3FB' : '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                  background: 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: p.esGlobal ? 'rgba(12,45,64,0.1)' : 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Route size={16} style={{ color: 'var(--green)' }} />
+                  <Route size={16} style={{ color: p.esGlobal ? '#0C2D40' : 'var(--green)' }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    {p.esGlobal && <Lock size={12} style={{ color: '#0C2D40', flexShrink: 0 }} title="Aplica a todas las rutas" />}
+                    {p.esGlobal && (
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#0C2D40', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
+                        <ShieldCheck size={9} /> General
+                      </span>
+                    )}
+                    {p.versiones?.length > 1 && (
+                      <span title={`Versión actual ${p.versionActual} · ${p.versiones.length} versiones`} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'var(--surface-hover)', color: 'var(--text-muted)', flexShrink: 0 }}>v{p.versionActual}</span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  {p._isSouly ? (
-                    <span className="pl-status" style={{ background: '#f5f3ff', color: '#6d28d9', display: 'inline-flex', alignItems: 'center' }}>
-                      SoulyHR
-                    </span>
-                  ) : (
-                    <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
-                      {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
-                    </span>
-                  )}
+                  <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
+                    {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                  </span>
                   <div style={{ position: 'relative' }}>
                     <button
                       onClick={e => { e.stopPropagation(); setCardMenu(cardMenu === p.id ? null : p.id) }}
@@ -573,15 +509,13 @@ export default function Plantillas() {
                         boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid #e2e8f0',
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
-                        {(p._isSouly ? [
-                          { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                          { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
-                        ] : [
+                        {([
                           ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                           { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
-                          ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
+                          { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
+                          ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
                           { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
                           { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
                         ]).map(a => {
@@ -752,10 +686,9 @@ export default function Plantillas() {
           <table className="as-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: '18%' }}>Nombre de la ruta</th>
-                <th style={{ width: '18%' }}>Descripción</th>
-                <th style={{ width: '14%' }}>Área / Cargo</th>
-                <th style={{ width: '10%' }} data-th-filter>
+                <th style={{ width: '30%' }}>Nombre de la ruta</th>
+                <th style={{ width: '17%' }}>Área / Cargo</th>
+                <th style={{ width: '11%' }} data-th-filter>
                   <button
                     type="button"
                     onClick={e => {
@@ -788,7 +721,7 @@ export default function Plantillas() {
                   )}
                 </th>
                 <th style={{ width: '7%' }}>Etapas</th>
-                <th style={{ width: '10%' }}>Colaboradores</th>
+                <th style={{ width: '12%' }}>Colaboradores</th>
                 <th style={{ width: '15%' }} data-th-filter>
                   <button
                     type="button"
@@ -826,42 +759,24 @@ export default function Plantillas() {
             </thead>
             <tbody>
               {paginated.map(p => (
-                <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => openRuta(p)}>
+                <tr key={p.id} style={{ cursor: 'pointer', ...(p.esGlobal ? { background: '#EAF3FB' } : {}) }} onClick={() => openRuta(p)}>
                   <td>
-                    <div className="as-name" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div className="as-name" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
                       {p.name}
-                      {p.esGlobal && <Lock size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} title="Aplica a todas las rutas" />}
+                      {p.esGlobal && (
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#0C2D40', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
+                          <ShieldCheck size={9} /> General
+                        </span>
+                      )}
+                      {p.versiones?.length > 1 && (
+                        <span title={`Versión actual ${p.versionActual} · ${p.versiones.length} versiones`} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'var(--bg-secondary)', color: 'var(--text-muted)', flexShrink: 0 }}>v{p.versionActual}</span>
+                      )}
                     </div>
                   </td>
                   <td>
-                    <span
-                      onMouseEnter={e => {
-                        if (!p.descripcion) return
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setDescTip({ id: p.id, top: rect.bottom + 6, left: rect.left, width: Math.max(rect.width, 200), text: p.descripcion })
-                      }}
-                      onMouseLeave={() => setDescTip(null)}
-                      style={{
-                        fontSize: 11.5, color: 'var(--text-muted)',
-                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden', lineHeight: 1.4,
-                      }}
-                    >
-                      {p.descripcion || '—'}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="6" y="10" width="12" height="12" rx="2" ry="2"/></svg>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.area}</span>
-                      </div>
-                      {p.cargo && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.cargo}</span>
-                        </div>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{p.area}</span>
+                      {p.cargo && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.cargo}</span>}
                     </div>
                   </td>
                   <td>
@@ -870,25 +785,15 @@ export default function Plantillas() {
                     </span>
                   </td>
                   <td><span className="as-dia">{p.etapas}</span></td>
-                  <td><span className="as-dia">{p._isSouly ? '—' : p.asignados}</span></td>
+                  <td><span className="as-dia">{p.asignados}</span></td>
                   <td>
-                    {p._isSouly ? (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: '#f5f3ff', color: '#6d28d9', whiteSpace: 'nowrap',
-                        display: 'inline-flex', alignItems: 'center',
-                      }}>
-                        Plantilla SoulyHR
-                      </span>
-                    ) : (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                        background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
-                        color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
-                      }}>
-                        {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
-                      </span>
-                    )}
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                      background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
+                      color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
+                    }}>
+                      {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                    </span>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ position: 'relative' }}>
@@ -896,7 +801,7 @@ export default function Plantillas() {
                         onClick={(e) => {
                           if (cardMenu === p.id) { setCardMenu(null); return }
                           const rect = e.currentTarget.getBoundingClientRect()
-                          const itemCount = p._isSouly ? 2 : (4 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0))
+                          const itemCount = 5 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0)
                           const menuH = itemCount * 34 + 8
                           const margin = 10
                           const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
@@ -922,15 +827,13 @@ export default function Plantillas() {
                           zIndex: 20, minWidth: 180, maxHeight: 'calc(100vh - 20px)', overflowY: 'auto',
                           animation: 'plSlideUp .12s',
                         }}>
-                          {(p._isSouly ? [
-                            { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                            { icon: Plus, label: 'Usar esta plantilla', color: 'var(--green)', fn: () => { applyTemplate(p); setCardMenu(null) } },
-                          ] : [
+                          {([
                             ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                             { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
-                            ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta base' : 'Establecer como ruta base', color: 'var(--text-muted)', fn: () => { setRutaBaseConfirm(p); setCardMenu(null) } }] : []),
+                          { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
+                            ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
                             { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
                             { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
                           ]).map(a => {
@@ -961,17 +864,6 @@ export default function Plantillas() {
               ))}
             </tbody>
           </table>
-
-          {descTip && (
-            <div style={{
-              position: 'fixed', top: descTip.top, left: descTip.left, width: descTip.width, maxWidth: 320,
-              background: '#0C2D40', color: '#fff', borderRadius: 10, padding: '10px 13px',
-              fontSize: 11.5, lineHeight: 1.5, zIndex: 9999,
-              boxShadow: '0 12px 32px rgba(0,0,0,.18)', pointerEvents: 'none',
-            }}>
-              {descTip.text}
-            </div>
-          )}
 
           {totalPages > 1 && (
             <div style={{
@@ -1110,10 +1002,133 @@ export default function Plantillas() {
 
       <div style={{ height: '8px' }} />
 
+      {/* MODAL SELECTOR: DESDE CERO / PLANTILLA */}
+      {createChooser && (
+        <div className="pl-overlay" onClick={() => setCreateChooser(false)}>
+          <div className="pl-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <div className="pl-modal-header">
+              <h2>Nueva ruta</h2>
+              <button className="pl-modal-close" onClick={() => setCreateChooser(false)}><X size={18} /></button>
+            </div>
+            <div className="pl-modal-body">
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>¿Cómo quieres empezar?</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { key: 'cero', icon: Route, title: 'Desde cero', desc: 'Arma la ruta etapa por etapa, en blanco.', onClick: () => chooseTpl(null) },
+                  { key: 'tpl', icon: Copy, title: 'Usar una plantilla', desc: 'Parte de una base lista y edítala a tu gusto.', onClick: () => { setCreateChooser(false); setTplSearch(''); setTplArea('todas'); setTplGallery(true) } },
+                ].map(opt => {
+                  const OIcon = opt.icon
+                  return (
+                    <button key={opt.key} onClick={opt.onClick} style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
+                      padding: '18px 16px', borderRadius: 12, border: '1px solid var(--border-soft)',
+                      background: 'var(--surface-card)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                      transition: 'all .12s',
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = '#f8fafc' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.background = 'var(--surface-card)' }}
+                    >
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(12,45,64,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <OIcon size={20} style={{ color: '#0C2D40' }} />
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>{opt.title}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.desc}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GALERÍA DE PLANTILLAS */}
+      {tplGallery && (() => {
+        const tplAreas = ['todas', ...new Set(soulyRows.map(t => t.area).filter(a => a !== 'Todas las áreas'))]
+        const tplList = soulyRows
+          .filter(t =>
+            (t.name.toLowerCase().includes(tplSearch.toLowerCase()) || t.area.toLowerCase().includes(tplSearch.toLowerCase())) &&
+            (tplArea === 'todas' || t.area === tplArea))
+          .sort((a, b) => isManager ? ((b.area === managerArea ? 1 : 0) - (a.area === managerArea ? 1 : 0)) : 0)
+        return (
+          <div className="pl-overlay" onClick={() => setTplGallery(false)}>
+            <div className="pl-modal" style={{ maxWidth: 760, width: '92vw', display: 'flex', flexDirection: 'column', height: '86vh', padding: 0 }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button onClick={() => { setTplGallery(false); setCreateChooser(true) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text-muted)', padding: 0 }} title="Volver">
+                    <ChevronLeft size={18} />
+                  </button>
+                  <h2 style={{ margin: 0 }}>Elegir una plantilla</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setTplGallery(false)}><X size={18} /></button>
+              </div>
+              <div style={{ display: 'flex', gap: 8, padding: '12px 20px', borderBottom: '1px solid var(--border-soft)', flexShrink: 0 }}>
+                <div className="pl-search-wrap" style={{ flex: 1 }}>
+                  <Search size={13} className="pl-search-ico" />
+                  <input type="text" className="pl-search" placeholder="Buscar por nombre o área…" value={tplSearch} onChange={e => setTplSearch(e.target.value)} autoFocus />
+                </div>
+                <div className="pl-dropdown-wrap" style={{ width: 'auto', position: 'relative' }}>
+                  <button type="button" className={`pl-dropdown-trigger${tplAreaOpen ? ' open' : ''}${tplArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', gap: 6 }} onClick={e => { e.stopPropagation(); setTplAreaOpen(!tplAreaOpen) }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>{tplArea === 'todas' ? 'Todas las áreas' : tplArea}</span>
+                    <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+                  </button>
+                  {tplAreaOpen && (
+                    <div className="pl-dropdown-menu" style={{ minWidth: 160, maxHeight: 220, overflowY: 'auto' }} onMouseLeave={() => setTplAreaOpen(false)}>
+                      {tplAreas.map(a => (
+                        <button key={a} type="button" className={`pl-dropdown-item${tplArea === a ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setTplArea(a); setTplAreaOpen(false) }}>
+                          <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
+                          {tplArea === a && <Check size={13} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+                {tplList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>No se encontraron plantillas con ese criterio.</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
+                    {tplList.map(t => (
+                        <div key={t.id} style={{ border: '1px solid var(--border-soft)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--surface-card)' }}>
+                          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Route size={15} style={{ color: 'var(--green)' }} />
+                              </div>
+                              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40', lineHeight: 1.25 }}>{t.name}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                              <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>{t.area}</span>
+                              <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>{t.etapas} etapas · {t.tareas} tareas</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.descripcion}</p>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border-soft)' }}>
+                            <button
+                              onClick={() => setPreviewRuta(t)}
+                              style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid var(--border-soft)', background: '#fff', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, color: '#0C2D40', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', transition: 'all .12s' }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#0C2D40' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = 'var(--border-soft)' }}
+                            >
+                              <Eye size={13} /> Vista previa
+                            </button>
+                            <button onClick={() => chooseTpl(t._tpl)} className="pl-btn-save" style={{ flex: '0 0 auto', minWidth: 68, height: 34, fontSize: 11.5, padding: '0 16px' }}>Usar</button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* MODAL CREAR / EDITAR */}
       {(modal === 'crear' || modal === 'editar') && (
         <div className="pl-overlay" onClick={() => setModal(null)}>
-          <div className="pl-modal" onClick={e => e.stopPropagation()}>
+          <div className="pl-modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <h2>{modal === 'crear' ? 'Nueva ruta' : 'Editar ruta'}</h2>
@@ -1189,6 +1204,37 @@ export default function Plantillas() {
                 </div>
 
                 <div className="pl-label">
+                  <span>Sucursal <span style={{ color: '#ef4444' }}>*</span></span>
+                  <div className="pl-dropdown-wrap">
+                    <button
+                      type="button"
+                      className={`pl-dropdown-trigger${dropSucursal ? ' open' : ''}`}
+                      onClick={() => { setDropSucursal(!dropSucursal); setDropTipo(false); setDropArea(false); setDropCargo(false) }}
+                    >
+                      <span>{form.sucursal}</span>
+                      <ChevronDown size={14} className="pl-dropdown-chevron" />
+                    </button>
+                    {dropSucursal && (
+                      <div className="pl-dropdown-menu" style={{ maxHeight: 220, overflowY: 'auto' }}>
+                        {['Todas las sucursales', ...sucursales].map(s => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={`pl-dropdown-item${form.sucursal === s ? ' selected' : ''}`}
+                            onClick={() => { setForm({ ...form, sucursal: s }); setDropSucursal(false) }}
+                          >
+                            <span>{s}</span>
+                            {form.sucursal === s && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="pl-label">
                   <span>Área <span style={{ color: '#ef4444' }}>*</span></span>
                   <div className="pl-dropdown-wrap">
                     <input
@@ -1196,7 +1242,7 @@ export default function Plantillas() {
                       className="pl-input"
                       placeholder="Buscar área…"
                       value={dropArea ? areaSearch : form.area}
-                      onFocus={() => { setAreaSearch(''); setDropArea(true); setDropTipo(false); setDropCargo(false) }}
+                      onFocus={() => { setAreaSearch(''); setDropArea(true); setDropTipo(false); setDropSucursal(false); setDropCargo(false) }}
                       onChange={e => { setAreaSearch(e.target.value); if (!dropArea) setDropArea(true) }}
                       onBlur={() => setDropArea(false)}
                     />
@@ -1220,40 +1266,40 @@ export default function Plantillas() {
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="pl-label">
-                <span>Cargo <span style={{ color: '#ef4444' }}>*</span></span>
-                <div className="pl-dropdown-wrap">
-                  <input
-                    type="text"
-                    className="pl-input"
-                    placeholder={form.area === 'Todas las áreas' ? 'Todos los cargos' : 'Buscar cargo…'}
-                    disabled={form.area === 'Todas las áreas'}
-                    value={dropCargo ? cargoSearch : form.cargo}
-                    onFocus={() => { setCargoSearch(''); setDropCargo(true); setDropArea(false); setDropTipo(false) }}
-                    onChange={e => { setCargoSearch(e.target.value); if (!dropCargo) setDropCargo(true) }}
-                    onBlur={() => setDropCargo(false)}
-                    style={form.area === 'Todas las áreas' ? { opacity: 0.5, cursor: 'default' } : undefined}
-                  />
-                  {dropCargo && form.area !== 'Todas las áreas' && (
-                    <div className="pl-dropdown-menu" onMouseDown={e => e.preventDefault()}>
-                      {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).map(c => (
-                        <button
-                          key={c}
-                          type="button"
-                          className={`pl-dropdown-item${form.cargo === c ? ' selected' : ''}`}
-                          onClick={() => { setForm({ ...form, cargo: c }); setCargoSearch(''); setDropCargo(false) }}
-                        >
-                          <span>{c}</span>
-                          {form.cargo === c && <Check size={14} />}
-                        </button>
-                      ))}
-                      {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).length === 0 && (
-                        <div style={{ padding: '8px 9px', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin resultados</div>
-                      )}
-                    </div>
-                  )}
+                <div className="pl-label">
+                  <span>Cargo <span style={{ color: '#ef4444' }}>*</span></span>
+                  <div className="pl-dropdown-wrap">
+                    <input
+                      type="text"
+                      className="pl-input"
+                      placeholder={form.area === 'Todas las áreas' ? 'Todos los cargos' : 'Buscar cargo…'}
+                      disabled={form.area === 'Todas las áreas'}
+                      value={dropCargo ? cargoSearch : form.cargo}
+                      onFocus={() => { setCargoSearch(''); setDropCargo(true); setDropArea(false); setDropTipo(false); setDropSucursal(false) }}
+                      onChange={e => { setCargoSearch(e.target.value); if (!dropCargo) setDropCargo(true) }}
+                      onBlur={() => setDropCargo(false)}
+                      style={form.area === 'Todas las áreas' ? { opacity: 0.5, cursor: 'default' } : undefined}
+                    />
+                    {dropCargo && form.area !== 'Todas las áreas' && (
+                      <div className="pl-dropdown-menu" onMouseDown={e => e.preventDefault()}>
+                        {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`pl-dropdown-item${form.cargo === c ? ' selected' : ''}`}
+                            onClick={() => { setForm({ ...form, cargo: c }); setCargoSearch(''); setDropCargo(false) }}
+                          >
+                            <span>{c}</span>
+                            {form.cargo === c && <Check size={14} />}
+                          </button>
+                        ))}
+                        {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).length === 0 && (
+                          <div style={{ padding: '8px 9px', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin resultados</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1264,7 +1310,7 @@ export default function Plantillas() {
                 }}>
                   <Info size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
                   <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta base</strong> desde el menú de acciones si quieres que se aplique a todas las demás rutas.
+                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta general</strong> desde el menú de acciones si quieres que sus etapas se antepongan a todas las demás rutas.
                   </span>
                 </div>
               )}
@@ -1299,10 +1345,59 @@ export default function Plantillas() {
           onAddPersona={(persona) => addResponsable(previewRuta.id, persona)}
           onRemovePersona={(name) => removeResponsable(previewRuta.id, name)}
           onClose={() => setPreviewRuta(null)}
-          canEdit={canEditRuta(previewRuta)}
-          onEdit={() => { setActiveJourney({ ...previewRuta, isEditingExisting: true }); setPreviewRuta(null) }}
+          canEdit={previewRuta._versionPreview ? false : canEditRuta(previewRuta)}
+          onEdit={previewRuta._versionPreview ? undefined : () => { setActiveJourney({ ...previewRuta, isEditingExisting: true }); setPreviewRuta(null) }}
         />
       ))}
+
+      {/* MODAL HISTORIAL DE VERSIONES */}
+      {historialRuta && (() => {
+        const versiones = [...(historialRuta.versiones || [])].sort((a, b) => b.v - a.v)
+        const countFor = (v) => asignaciones.filter(a => (a.rutaId === historialRuta.id || a.ruta === historialRuta.name) && a.version === v).length
+        return (
+          <div className="pl-overlay" onClick={() => setHistorialRuta(null)}>
+            <div className="pl-modal" style={{ maxWidth: 520, maxHeight: '82vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <History size={15} color="#fff" />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 15 }}>Historial de versiones</h2>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)' }}>{historialRuta.name}</div>
+                  </div>
+                </div>
+                <button className="pl-modal-close" onClick={() => setHistorialRuta(null)}><X size={18} /></button>
+              </div>
+              <div className="pl-modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {versiones.map(ver => {
+                  const actual = ver.v === historialRuta.versionActual
+                  const n = countFor(ver.v)
+                  return (
+                    <div key={ver.v} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: actual ? '1.5px solid #0C2D40' : '1px solid var(--border-soft)', background: actual ? '#f8fafc' : '#fff' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#0C2D40' }}>v{ver.v}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40' }}>Versión {ver.v}</span>
+                          {actual && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 20, background: '#0C2D40', color: '#fff' }}>Actual</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{ver.fecha} · {ver.autor} · {ver.etapas} etapas · {ver.tareas} tareas</div>
+                        <div style={{ fontSize: 10.5, color: n > 0 ? '#0C2D40' : 'var(--text-muted)', fontWeight: n > 0 ? 600 : 400, marginTop: 2 }}>{n} {n === 1 ? 'colaborador' : 'colaboradores'} en esta versión</div>
+                      </div>
+                      <button onClick={() => setPreviewRuta({ ...historialRuta, name: `${historialRuta.name} — v${ver.v}`, etapasData: ver.etapasData, _versionPreview: true })} style={{ height: 30, padding: '0 14px', borderRadius: 8, border: '1px solid var(--border-soft)', background: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#0C2D40', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}><Eye size={12} /> Ver</button>
+                    </div>
+                  )
+                })}
+                {versiones.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, padding: 20 }}>Sin versiones registradas.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* MODAL ASIGNAR RUTA */}
       {asignarModal && (
@@ -1313,47 +1408,73 @@ export default function Plantillas() {
         />
       )}
 
-      {/* MODAL CONFIRMAR RUTA BASE */}
-      {rutaBaseConfirm && (() => {
-        const willBeGlobal = !rutaBaseConfirm.esGlobal
+      {/* MODAL CONFIRMAR RUTA GENERAL */}
+      {rutaGeneralConfirm && (() => {
+        const willBeGlobal = !rutaGeneralConfirm.esGlobal
+        const anteriorGeneral = willBeGlobal && rutaGeneral && rutaGeneral.id !== rutaGeneralConfirm.id ? rutaGeneral : null
         return (
-          <div className="pl-overlay" onClick={() => setRutaBaseConfirm(null)}>
+          <div className="pl-overlay" onClick={() => setRutaGeneralConfirm(null)}>
             <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
               <div className="pl-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <ShieldCheck size={15} color="#fff" />
                   </div>
-                  <h2 style={{ margin: 0, fontSize: 15 }}>{willBeGlobal ? 'Establecer como ruta base' : 'Quitar como ruta base'}</h2>
+                  <h2 style={{ margin: 0, fontSize: 15 }}>{anteriorGeneral ? 'Ya hay una ruta general' : willBeGlobal ? 'Establecer como ruta general' : 'Quitar como ruta general'}</h2>
                 </div>
-                <button className="pl-modal-close" onClick={() => setRutaBaseConfirm(null)}><X size={18} /></button>
+                <button className="pl-modal-close" onClick={() => setRutaGeneralConfirm(null)}><X size={18} /></button>
               </div>
-              <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
-                  {willBeGlobal
-                    ? <>Estás por convertir <strong>"{rutaBaseConfirm.name}"</strong> en una ruta base.</>
-                    : <><strong>"{rutaBaseConfirm.name}"</strong> dejará de ser una ruta base.</>}
-                </p>
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10,
-                  padding: '12px 14px', borderRadius: 10,
-                  background: willBeGlobal ? '#f0f9ff' : 'var(--bg-secondary)',
-                  border: willBeGlobal ? '1px solid #dbeafe' : '1px solid var(--border-soft)',
-                }}>
-                  <Info size={15} style={{ color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
-                  <p style={{ margin: 0, fontSize: 11.5, color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', lineHeight: 1.6 }}>
-                    {willBeGlobal
-                      ? <><strong>¿Qué es una ruta base?</strong> Sus etapas se insertan, protegidas, al inicio de <strong>todas</strong> las demás rutas activas. Todo colaborador que reciba cualquier ruta también recibirá primero estas etapas — ideal para contenido obligatorio para toda la empresa, como cultura o políticas generales.</>
-                      : <>Sus etapas dejarán de insertarse automáticamente en las demás rutas. Las rutas que ya las incluían mantendrán su contenido actual hasta que las edites.</>}
-                  </p>
-                </div>
-              </div>
-              <div className="pl-modal-footer">
-                <button className="pl-btn-cancel" onClick={() => setRutaBaseConfirm(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={() => toggleGlobal(rutaBaseConfirm)}>
-                  {willBeGlobal ? 'Establecer como ruta base' : 'Quitar como ruta base'}
-                </button>
-              </div>
+              {anteriorGeneral ? (
+                <>
+                  <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                      Solo puede haber <strong>una</strong> ruta general a la vez, y actualmente lo es <strong>"{anteriorGeneral.name}"</strong>.
+                    </p>
+                    <div style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      padding: '12px 14px', borderRadius: 10,
+                      background: '#fffbeb', border: '1px solid #fde68a',
+                    }}>
+                      <Info size={15} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+                      <p style={{ margin: 0, fontSize: 11.5, color: '#b45309', lineHeight: 1.6 }}>
+                        Para establecer <strong>"{rutaGeneralConfirm.name}"</strong> como ruta general, primero ve a la fila de <strong>"{anteriorGeneral.name}"</strong> y quítala como ruta general desde su menú de acciones.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-modal-footer">
+                    <button className="pl-btn-save" onClick={() => setRutaGeneralConfirm(null)}>Entendido</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                      {willBeGlobal
+                        ? <>Estás por convertir <strong>"{rutaGeneralConfirm.name}"</strong> en la ruta general.</>
+                        : <><strong>"{rutaGeneralConfirm.name}"</strong> dejará de ser la ruta general.</>}
+                    </p>
+                    <div style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      padding: '12px 14px', borderRadius: 10,
+                      background: willBeGlobal ? '#f0f9ff' : 'var(--bg-secondary)',
+                      border: willBeGlobal ? '1px solid #dbeafe' : '1px solid var(--border-soft)',
+                    }}>
+                      <Info size={15} style={{ color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
+                      <p style={{ margin: 0, fontSize: 11.5, color: willBeGlobal ? '#1e40af' : 'var(--text-muted)', lineHeight: 1.6 }}>
+                        {willBeGlobal
+                          ? <><strong>¿Qué es la ruta general?</strong> Sus etapas se insertan, protegidas, al inicio de <strong>todas</strong> las demás rutas activas. Todo colaborador que reciba cualquier ruta también recibirá primero estas etapas — ideal para contenido obligatorio para toda la empresa, como cultura, bienvenida o políticas generales.</>
+                          : <>Sus etapas dejarán de insertarse automáticamente en las demás rutas. Las rutas que ya las incluían mantendrán su contenido actual hasta que las edites.</>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-modal-footer">
+                    <button className="pl-btn-cancel" onClick={() => setRutaGeneralConfirm(null)}>Cancelar</button>
+                    <button className="pl-btn-save" onClick={() => toggleGlobal(rutaGeneralConfirm)}>
+                      {willBeGlobal ? 'Establecer como ruta general' : 'Quitar como ruta general'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )

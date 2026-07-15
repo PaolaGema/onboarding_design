@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect } from 'react'
 import { useLocalStorage, clearAllDemoData } from '../hooks/useLocalStorage'
+import { rutasSeedEtapas } from '../data/rutasSeedEtapas'
 
 const OnboardingDataContext = createContext()
 
@@ -27,7 +28,7 @@ const sampleRecursos = [
   },
 ]
 
-const samplePlantillas = [
+const samplePlantillasBase = [
   { id: 1, name: 'Onboarding Ventas — Pasante', area: 'Ventas', cargo: 'Pasante Comercial', tipo: 'Onboarding', etapas: 12, tareas: 34, asignados: 8, status: 'activa', updated: 'Hace 2 días', updatedFecha: '29/06/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '02/03/2026', color: '#3b82f6' },
   { id: 2, name: 'Onboarding Comercial — Ejecutivo', area: 'Comercial', cargo: 'Ejecutivo Comercial', tipo: 'Onboarding', etapas: 10, tareas: 28, asignados: 5, status: 'activa', updated: 'Hace 5 días', updatedFecha: '26/06/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '15/02/2026', color: '#10b981' },
   { id: 3, name: 'Onboarding Liderazgo', area: 'Dirección', cargo: 'Director de Área', tipo: 'Onboarding', etapas: 8, tareas: 22, asignados: 2, status: 'activa', updated: 'Hace 1 semana', updatedFecha: '24/06/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '10/01/2026', color: '#8b5cf6' },
@@ -39,6 +40,15 @@ const samplePlantillas = [
   { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', cargo: 'Content Creator', tipo: 'Onboarding', etapas: 10, tareas: 26, asignados: 1, status: 'activa', updated: 'Hace 6 días', updatedFecha: '25/06/2026', creador: 'Ana Martínez Ruiz', creadorRole: 'Líder de Área — Marketing', creadoEl: '20/04/2026', color: '#d946ef' },
   { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', tipo: 'Onboarding', etapas: 5, tareas: 12, asignados: 0, status: 'archivada', updated: 'Hace 3 meses', updatedFecha: '01/04/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '15/11/2025', color: '#64748b' },
 ]
+
+// Adjunta las etapas de ejemplo a las rutas que las tienen y recalcula sus
+// contadores de etapas/tareas para que cuadren con el contenido real.
+const samplePlantillas = samplePlantillasBase.map(p => {
+  const etapasData = rutasSeedEtapas[p.id]
+  if (!etapasData) return p
+  const tareas = etapasData.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)
+  return { ...p, etapasData, etapas: etapasData.length, tareas }
+})
 
 const sampleAsignaciones = [
   { id: 1, nombre: 'Diego Morales', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 68, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
@@ -127,6 +137,61 @@ export function OnboardingDataProvider({ children }) {
       }]
     })
   }, [tronco, setPlantillas])
+
+  // Backfill de rutas: (1) rellena etapas de ejemplo del seed que falten y
+  // (2) inicializa el historial de versiones (v1) si la ruta aún no lo tiene.
+  useEffect(() => {
+    setPlantillas(prev => {
+      let changed = false
+      const next = prev.map(p => {
+        let np = p
+        const seed = rutasSeedEtapas[p.id]
+        if (seed && !(np.etapasData && np.etapasData.length)) {
+          const tareas = seed.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)
+          np = { ...np, etapasData: seed, etapas: seed.length, tareas }
+          changed = true
+        }
+        if (!np.versiones || !np.versiones.length) {
+          const etapasData = np.etapasData || []
+          const tareas = etapasData.reduce((s, e) => s + e.actividades.reduce((s2, a) => s2 + a.tareas.length, 0), 0)
+          np = {
+            ...np,
+            versionActual: 1,
+            versiones: [{ v: 1, etapasData, etapas: etapasData.length, tareas, fecha: np.creadoEl || np.updatedFecha || '—', autor: np.creador || '—' }],
+          }
+          changed = true
+        }
+        return np
+      })
+      return changed ? next : prev
+    })
+  }, [setPlantillas])
+
+  // Backfill de asignaciones: las que no tienen versión se fijan a la v1 de su
+  // ruta (más un snapshot de respaldo del contenido), para que ediciones
+  // posteriores a la plantilla no alteren a quien ya está en curso.
+  useEffect(() => {
+    if (!plantillas.length) return
+    setAsignaciones(prev => {
+      let changed = false
+      const next = prev.map(a => {
+        let na = a
+        if (!(na.etapasData && na.etapasData.length)) {
+          const ruta = plantillas.find(p => p.id === na.rutaId || p.name === na.ruta)
+          if (ruta && ruta.etapasData && ruta.etapasData.length) {
+            na = { ...na, rutaId: ruta.id, etapasData: JSON.parse(JSON.stringify(ruta.etapasData)) }
+            changed = true
+          }
+        }
+        if (na.version == null) {
+          na = { ...na, version: 1 }
+          changed = true
+        }
+        return na
+      })
+      return changed ? next : prev
+    })
+  }, [plantillas, setAsignaciones])
 
   const addFeedEntry = useCallback((text) => {
     setFeed(prev => [{ text, time: 'Ahora' }, ...prev].slice(0, 20))

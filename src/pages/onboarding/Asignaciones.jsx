@@ -142,6 +142,9 @@ export default function Asignaciones() {
       area: c.depto || 'Sin asignar',
       cargo: c.cargo || '',
       ruta: ruta.name,
+      rutaId: ruta.id,
+      version: ruta.versionActual || 1,
+      etapasData: JSON.parse(JSON.stringify(ruta.etapasData || [])),
       dia: 0,
       totalDias: 30,
       pct: 0,
@@ -173,7 +176,16 @@ export default function Asignaciones() {
   }
 
   function buildDetalleEtapas(a) {
-    const fuente = rutasData[1].etapas
+    // El contenido del colaborador se resuelve por su versión fijada
+    // (ruta.versiones[version]); si no, cae al snapshot, luego a la ruta viva.
+    const ruta = allPlantillas.find(p => p.id === a.rutaId || p.name === a.ruta)
+    const porVersion = ruta?.versiones && a.version != null
+      ? ruta.versiones.find(v => v.v === a.version)?.etapasData
+      : null
+    const fuente = porVersion
+      || (a.etapasData && a.etapasData.length ? a.etapasData : null)
+      || ruta?.etapasData
+      || rutasData[1].etapas
     const flat = fuente.flatMap(e => e.actividades.flatMap(act => act.tareas))
     const doneCount = Math.round(flat.length * a.pct / 100)
     let seen = 0
@@ -185,7 +197,7 @@ export default function Asignaciones() {
       })
       return {
         name: etapa.name,
-        days: etapa.days,
+        days: etapa.days || (etapa.duracion ? `${etapa.duracion} días` : ''),
         tareas,
         doneLocal: tareas.filter(t => t.done).length,
       }

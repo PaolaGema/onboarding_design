@@ -81,7 +81,19 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
               borderRight: '1px solid #e2e8f0',
             }}>
               <div style={{ overflowY: 'auto', flex: 1, padding: '24px 0' }}>
-                <RutaPath etapas={etapas} gamificacion={gamificacion} onSelectTask={setActiveTask} />
+                {etapas.length === 0 ? (
+                  <div style={{ minHeight: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 30px', gap: 12 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(12,45,64,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Pencil size={22} style={{ color: '#94a3b8' }} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Esta ruta aún no tiene etapas</div>
+                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, maxWidth: 300 }}>
+                      Ábrela en el editor para diseñar sus etapas y tareas. Aquí verás la vista previa en cuanto agregues contenido.
+                    </div>
+                  </div>
+                ) : (
+                  <RutaPath etapas={etapas} gamificacion={gamificacion} onSelectTask={setActiveTask} />
+                )}
               </div>
             </div>
 
