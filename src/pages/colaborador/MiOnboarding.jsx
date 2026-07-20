@@ -2312,26 +2312,37 @@ export default function MiOnboarding({ forcePhone = false }) {
     <div className={isMobile ? 'jb-mobile' : 'jb'}>
       {/* BARRA SUPERIOR */}
       {isMobile ? (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 4px', marginBottom: 4,
-        }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#0C2D40' }}>Mi Onboarding</span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={() => navigate('/personas/organigrama')} style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff', border: '1px solid #e2e8f0', padding: '3px 6px', borderRadius: 5, cursor: 'pointer' }}>
-              <Network size={8} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#0C2D40' }}>Ver organigrama</span>
+        <div style={{ marginBottom: 8 }}>
+          {/* Fila 1: título + organigrama */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 2px 6px' }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#0C2D40' }}>Mi Onboarding</span>
+            <button onClick={() => navigate('/personas/organigrama')} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: '#fff', border: '1px solid #e2e8f0', padding: '4px 9px', borderRadius: 14,
+              cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 3px rgba(12,45,64,.06)',
+            }}>
+              <Network size={9} style={{ color: '#0C2D40' }} />
+              <span style={{ fontSize: 8, fontWeight: 700, color: '#0C2D40' }}>Organigrama</span>
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fef3c7', padding: '3px 6px', borderRadius: 5 }}>
-              <Star size={8} style={{ color: '#d97706' }} />
-              <span style={{ fontSize: 7, fontWeight: 800, color: '#92400e' }}>{totalPuntos}</span>
+          </div>
+          {/* Fila 2: tarjeta de progreso */}
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '9px 11px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#0C2D40' }}>{totalDone} de {totalAll} tareas</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#00E091' }}>{pct}%</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#f0fdf4', padding: '3px 6px', borderRadius: 5 }}>
-              <Trophy size={8} style={{ color: '#16a34a' }} />
-              <span style={{ fontSize: 7, fontWeight: 800, color: '#166534' }}>{totalDone}/{totalAll}</span>
+            <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: '#00E091', borderRadius: 99, transition: 'width .4s' }} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#f1f5f9', padding: '3px 6px', borderRadius: 5 }}>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#475569' }}>{pct}%</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', padding: '3px 8px', borderRadius: 12 }}>
+                <Star size={8} style={{ color: '#d97706' }} />
+                <span style={{ fontSize: 7.5, fontWeight: 800, color: '#92400e' }}>{totalPuntos} pts</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#f0fdf4', padding: '3px 8px', borderRadius: 12 }}>
+                <Trophy size={8} style={{ color: '#16a34a' }} />
+                <span style={{ fontSize: 7.5, fontWeight: 800, color: '#166534' }}>{totalDone}/{totalAll} listas</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2684,7 +2695,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           {/* BURBUJA FLOTANTE */}
           {!chatOpen && (
             <button onClick={() => setChatOpen(true)} style={{
-              position: 'fixed', bottom: isMobile ? 16 : 24, right: isMobile ? 16 : 24,
+              position: isMobile ? 'absolute' : 'fixed', bottom: isMobile ? 54 : 24, right: isMobile ? 12 : 24,
               width: isMobile ? 48 : 56, height: isMobile ? 48 : 56, borderRadius: '50%',
               background: '#0C2D40', border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2701,7 +2712,7 @@ export default function MiOnboarding({ forcePhone = false }) {
           {/* VENTANA DE CHAT */}
           {chatOpen && (
             <div style={{
-              position: 'fixed', bottom: isMobile ? 0 : 24, right: isMobile ? 0 : 24,
+              position: isMobile ? 'absolute' : 'fixed', bottom: isMobile ? 0 : 24, right: isMobile ? 0 : 24,
               width: isMobile ? '100%' : 370, height: isMobile ? '100%' : 480,
               background: '#fff', borderRadius: isMobile ? 0 : 16,
               boxShadow: '0 8px 40px rgba(0,0,0,.18)', zIndex: 50,

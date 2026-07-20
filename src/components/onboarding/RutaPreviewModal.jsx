@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck, ChevronDown, Layers } from 'lucide-react'
+import { Eye, X, Pencil, HelpCircle, Info, Video, Headphones, FileText, Upload, UserCheck, ChevronDown, Layers, Check, CheckCircle2, Lock } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
 
@@ -72,6 +72,7 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
   const tipo = tipoMap[task.tipo] || tiposTarea[0]
   const TpIcon = tipo.icon
   const hasQuiz = task.verificarQuiz !== false
+  const [checkedSteps, setCheckedSteps] = useState({})
 
   function renderContenido() {
     switch (task.tipo) {
@@ -247,18 +248,53 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
             <p style={{ fontSize: 10.5, color: '#be185d', margin: 0 }}>o haz clic para seleccionar{task.formatos ? ` — ${task.formatos}` : ''}</p>
           </div>
         )
-      case 'tarea-otro':
+      case 'tarea-otro': {
+        const pasos = (task.checklist || []).filter(i => i.text?.trim())
+        const doneCount = pasos.filter(i => checkedSteps[i.id]).length
+        const todo = pasos.length > 0 && doneCount === pasos.length
         return (
           <div style={{ border: '1px solid #fecaca', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', background: '#fef2f2', display: 'flex', alignItems: 'center', gap: 8 }}>
               <UserCheck size={15} style={{ color: '#dc2626' }} />
               <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b' }}>Tarea supervisada</span>
             </div>
-            <div style={{ padding: 16, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-              {task.desc || 'Requiere validación del responsable asignado.'}
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {task.desc && <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>{task.desc}</div>}
+              {pasos.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Tareas a completar</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: todo ? '#16a34a' : '#94a3b8' }}>{doneCount}/{pasos.length}</span>
+                  </div>
+                  {pasos.map(it => {
+                    const on = !!checkedSteps[it.id]
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onClick={() => setCheckedSteps(s => ({ ...s, [it.id]: !s[it.id] }))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 9, border: '1px solid #e2e8f0', background: on ? '#f0fdf4' : '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all .12s' }}
+                      >
+                        <div style={{ width: 18, height: 18, borderRadius: 6, flexShrink: 0, background: on ? '#16a34a' : '#fff', border: on ? 'none' : '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {on && <Check size={12} style={{ color: '#fff' }} />}
+                        </div>
+                        <span style={{ fontSize: 12, color: on ? '#94a3b8' : '#334155', textDecoration: on ? 'line-through' : 'none' }}>{it.text}</span>
+                      </button>
+                    )
+                  })}
+                  {todo && (
+                    <div style={{ fontSize: 10.5, color: '#16a34a', fontWeight: 700, marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <CheckCircle2 size={12} /> ¡Todas las tareas completadas!
+                    </div>
+                  )}
+                </div>
+              ) : (!task.desc && (
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>Requiere validación del responsable asignado.</div>
+              ))}
             </div>
           </div>
         )
+      }
       default:
         return null
     }
@@ -320,7 +356,7 @@ export function TaskPreviewModal({ task, onClose, onEdit }) {
   )
 }
 
-function TareaNodo({ tarea, ti, gamificacion, onSelectTask }) {
+function TareaNodo({ tarea, ti, gamificacion, onSelectTask, locked }) {
   const tp = tipoMap[tarea.tipo] || tiposTarea[0]
   const TpIcon = tp.icon
   const offsets = [0, 40, 60, 40, 0, -40, -60, -40]
@@ -348,9 +384,9 @@ function TareaNodo({ tarea, ti, gamificacion, onSelectTask }) {
             className="jb-preview-node-circle"
             style={{
               width: 48, height: 48, borderRadius: '50%',
-              background: '#0C2D40',
+              background: locked ? '#64748b' : '#0C2D40',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(12,45,64,.2)',
+              boxShadow: locked ? '0 2px 8px rgba(100,116,139,.25)' : '0 2px 8px rgba(12,45,64,.2)',
               transition: 'transform .15s, box-shadow .15s',
             }}
           >
@@ -390,7 +426,8 @@ export function RutaPath({ etapas, gamificacion, onSelectTask }) {
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '6px 16px', borderRadius: 20,
-              background: '#fff', border: '1px solid #e2e8f0',
+              background: et.locked ? '#EEF1F5' : '#fff',
+              border: et.locked ? '1px solid #cdd5df' : '1px solid #e2e8f0',
               boxShadow: '0 1px 4px rgba(0,0,0,.06)',
             }}>
               <div style={{
@@ -399,10 +436,13 @@ export function RutaPath({ etapas, gamificacion, onSelectTask }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 10, fontWeight: 800,
               }}>
-                {ei + 1}
+                {et.locked ? <Lock size={11} /> : ei + 1}
               </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{et.name}</span>
               <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{et.duracion || 7}d</span>
+              {et.locked && (
+                <span style={{ fontSize: 8.5, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#475569', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>Ruta general</span>
+              )}
             </div>
           </div>
 
@@ -424,7 +464,7 @@ export function RutaPath({ etapas, gamificacion, onSelectTask }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 {act.tareas.map((tarea, ti) => (
-                  <TareaNodo key={tarea.id} tarea={tarea} ti={ti} gamificacion={gamificacion} onSelectTask={onSelectTask} />
+                  <TareaNodo key={tarea.id} tarea={tarea} ti={ti} gamificacion={gamificacion} onSelectTask={onSelectTask} locked={et.locked} />
                 ))}
                 {act.tareas.length === 0 && (
                   <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', padding: '4px 0' }}>Sin tareas</div>

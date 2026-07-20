@@ -1244,9 +1244,13 @@ select.pl-input:focus {
 .pl-modal-footer {
   display: flex;
   gap: 10px;
+  align-items: center;
   justify-content: flex-end;
-  padding: 16px 26px 22px;
+  padding: 15px 26px;
   flex-shrink: 0;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  border-radius: 0 0 16px 16px;
 }
 
 .pl-btn-cancel {
@@ -1579,6 +1583,25 @@ select.pl-input:focus {
 .jb-btn-outline:disabled { opacity: .45; cursor: default; }
 .jb-btn-outline:disabled:hover { background: var(--surface-card); border-color: var(--border-soft); }
 
+/* Botón fantasma: acción secundaria discreta (sin borde ni fondo). */
+.jb-btn-ghost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.jb-btn-ghost:hover { background: var(--surface-hover); color: var(--text-heading); }
+.jb-btn-ghost:disabled:hover { background: transparent; color: var(--text-muted); }
+
 /* Botón de solo-icono: cuadrado, sin el padding lateral de los que llevan texto. */
 .jb-btn-icon { padding: 7px; }
 
@@ -1712,15 +1735,15 @@ select.pl-input:focus {
   line-height: 1.3;
 }
 
-.jb-sb-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 0; }
+.jb-sb-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1; min-height: 0; }
 
 .jb-sb-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: none;
-  background: transparent;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  background: var(--bg-secondary);
   border-radius: 8px;
   cursor: pointer;
   transition: all .12s;
@@ -1730,9 +1753,14 @@ select.pl-input:focus {
 }
 
 .jb-sb-item:hover {
-  background: var(--surface-hover);
+  background: var(--green-tint);
 }
 .jb-sb-item:hover .jb-sb-menu-btn { opacity: 1; }
+
+/* Etapas heredadas de la ruta general: tinte azul cielo para identificarlas. */
+.jb-sb-item.locked { background: #EEF1F5; }
+.jb-sb-item.locked:hover { background: #e3e8ef; }
+.jb-sb-item.locked .jb-sb-dot { background: #475569; color: #fff; }
 
 .jb-sb-menu-btn {
   opacity: 0;
@@ -1767,8 +1795,8 @@ select.pl-input:focus {
 .jb-sb-item.active .jb-sb-dot.dot-progress { background: #3b82f6; }
 
 .jb-sb-dot {
-  width: 22px;
-  height: 22px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
   background: #e9edf2;
   display: flex;
@@ -1792,15 +1820,69 @@ select.pl-input:focus {
 .jb-sb-info { flex: 1; min-width: 0; }
 
 .jb-sb-name {
-  font-size: 12.5px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-heading);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.jb-sb-days { font-size: 8px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Subtítulos: actividades dentro de cada etapa (índice tipo tabla de contenidos) */
+.jb-sb-actividades {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 1px 0 3px 27px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-soft);
+}
+.jb-sb-act-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  transition: background .12s;
+}
+.jb-sb-act-item:hover { background: var(--surface-hover); }
+.jb-sb-act-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.jb-sb-act-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.jb-sb-days { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.jb-sb-act-count {
+  font-size: 7.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border-radius: 8px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+.jb-sb-act-item:hover .jb-sb-act-count { background: var(--surface-card); }
 
 .jb-sb-add {
   display: flex;
@@ -1925,7 +2007,7 @@ select.pl-input:focus {
   flex-shrink: 0;
 }
 
-.jb-etapa-num.locked { background: #64748b; }
+.jb-etapa-num.locked { background: #475569; }
 
 .jb-etapa-name { font-size: 17px; font-weight: 700; color: var(--text-heading); }
 
@@ -1970,8 +2052,8 @@ select.pl-input:focus {
 .jb-etapa-badge {
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--text-muted);
-  background: var(--surface-hover);
+  color: #334155;
+  background: #e2e8f0;
   padding: 4px 12px;
   border-radius: 20px;
 }
@@ -1986,6 +2068,28 @@ select.pl-input:focus {
   border: 2px dashed transparent;
   border-radius: 16px;
   transition: border-color .15s, background .15s;
+}
+
+/* LIENZO CONTINUO: cada etapa es un bloque apilado */
+.jb-etapa-block {
+  position: relative;
+  border-radius: 18px;
+  padding: 4px 8px 8px;
+  margin-bottom: 12px;
+  transition: background .2s;
+  scroll-margin-top: 12px;
+}
+.jb-etapa-block:not(:last-of-type) {
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+/* Dentro del bloque el path no necesita el enorme espacio inferior de la vista de una sola etapa */
+.jb-etapa-block .jb-duo-path { padding: 16px 0 24px; }
+.jb-etapa-block .jb-etapa-header { margin-bottom: 12px; }
+/* Etapa activa: anillo verde en su cabecera (destino de "agregar" y del panel de tareas) */
+.jb-etapa-block.active .jb-etapa-header {
+  box-shadow: var(--shadow-card), inset 0 0 0 2px var(--green);
 }
 
 /* DROP ZONES */
@@ -2533,12 +2637,13 @@ select.pl-input:focus {
 
 /* Locked */
 .jb-duo-node.locked {
-  opacity: .55;
   cursor: default;
+  animation: none;
 }
 .jb-duo-node.locked .jb-duo-circle {
-  background: var(--surface-hover);
-  color: var(--text-muted);
+  background: #64748b;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(100, 116, 139, .3);
 }
 .jb-duo-node.locked:hover { transform: none; }
 

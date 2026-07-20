@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check } from 'lucide-react'
+import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
@@ -92,7 +92,19 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                     </div>
                   </div>
                 ) : (
-                  <RutaPath etapas={etapas} gamificacion={gamificacion} onSelectTask={setActiveTask} />
+                  <>
+                    {etapas.some(e => e.locked) && (
+                      <div style={{ display: 'flex', justifyContent: 'center', margin: '0 20px 18px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, padding: '8px 13px', borderRadius: 10, background: '#EEF1F5', border: '1px solid #cdd5df', maxWidth: 460 }}>
+                          <Lock size={13} style={{ color: '#475569', flexShrink: 0, marginTop: 1 }} />
+                          <span style={{ fontSize: 11, color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>
+                            Las etapas en <strong>gris</strong> vienen de la <strong>ruta general</strong>: comunes a todos los colaboradores y solo editables desde ahí.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <RutaPath etapas={etapas} gamificacion={gamificacion} onSelectTask={setActiveTask} />
+                  </>
                 )}
               </div>
             </div>

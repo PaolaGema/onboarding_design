@@ -12,6 +12,7 @@ import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewM
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import EmptyState from '../../components/layout/EmptyState'
 import { rutaPlantillas } from '../../data/rutaPlantillas'
+import { getGlobalEtapas } from '../../utils/globalEtapas'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
@@ -42,6 +43,11 @@ export default function Plantillas() {
   const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, asignaciones, setAsignaciones, addFeedEntry } = useOnboardingData()
   const isAdmin = !isAreaRole
   const rutaGeneral = allPlantillas.find(p => p.esGlobal) || null
+  // Alcance de la ruta general: como se antepone a todas las rutas, aplica a todos los
+  // colaboradores en onboarding. Total real = suma de asignados de las rutas activas (no generales).
+  const alcanceGeneral = allPlantillas
+    .filter(p => !p.esGlobal && p.status === 'activa')
+    .reduce((s, p) => s + (p.asignados || 0), 0)
   const plantillas = isAreaRole ? allPlantillas.filter(p => p.area === managerArea) : allPlantillas
   function setPlantillas(next) {
     if (!isAreaRole) { setAllPlantillas(next); return }
@@ -94,6 +100,7 @@ export default function Plantillas() {
   const [tareasModal, setTareasModal] = useState(null)
 
   const [form, setForm] = useState({ name: '', descripcion: '', tipo: 'Onboarding', sucursal: 'Todas las sucursales', area: isManager ? managerArea : 'Ventas', cargo: '', status: 'borrador' })
+  const [originalForm, setOriginalForm] = useState(null)
   const [rutaGeneralConfirm, setRutaGeneralConfirm] = useState(null)
   const [historialRuta, setHistorialRuta] = useState(null)
   const [dropTipo, setDropTipo] = useState(false)
@@ -205,7 +212,9 @@ export default function Plantillas() {
   }
 
   function openEdit(p) {
-    setForm({ name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', id: p.id })
+    const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', id: p.id }
+    setForm(initial)
+    setOriginalForm(initial)
     setModal('editar')
   }
 
@@ -261,6 +270,24 @@ export default function Plantillas() {
       }))
       setModal(null)
     }
+  }
+
+  // Desde el modal de editar: guarda los metadatos (si son válidos) y abre el diseñador de etapas/tareas
+  function handleEditDesign() {
+    const target = plantillas.find(pl => pl.id === form.id)
+    if (!target) return
+    const updated = {
+      ...target,
+      name: form.name.trim() || target.name,
+      descripcion: form.descripcion?.trim() || '',
+      tipo: form.tipo,
+      sucursal: form.sucursal,
+      area: form.area,
+      cargo: form.cargo || '',
+    }
+    setPlantillas(plantillas.map(pl => pl.id === form.id ? updated : pl))
+    setModal(null)
+    setActiveJourney({ ...updated, isEditingExisting: true })
   }
 
   function toggleGlobal(p) {
@@ -322,6 +349,21 @@ export default function Plantillas() {
     setDeleteTarget(null)
   }
 
+  // Archiva / desarchiva una ruta. Al archivar recuerda el estado previo; al
+  // desarchivar lo restaura (Activa si tuvo asignados, si no Borrador — como
+  // respaldo para datos sin `statusPrevio`).
+  function toggleArchivar(p) {
+    setPlantillas(prev => prev.map(x => {
+      if (x.id !== p.id) return x
+      if (x.status === 'archivada') {
+        const restore = x.statusPrevio || (asignaciones.some(a => a.rutaId === x.id || a.ruta === x.name) ? 'activa' : 'borrador')
+        const { statusPrevio, ...rest } = x
+        return { ...rest, status: restore }
+      }
+      return { ...x, statusPrevio: x.status, status: 'archivada' }
+    }))
+  }
+
   if (activeJourney) {
     return (
       <JourneyBuilder
@@ -366,8 +408,8 @@ export default function Plantillas() {
           <div className="kpi-val">{totalArchivadas}</div>
           <div className="kpi-lbl">Fuera de uso</div>
         </div>
-        <div className="kpi-card" style={{ '--kpi-accent': rutaGeneral ? '#0C2D40' : 'var(--yellow)' }}>
-          <div className="kpi-title" style={{ color: rutaGeneral ? '#0C2D40' : 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div className="kpi-card" style={{ '--kpi-accent': rutaGeneral ? '#475569' : 'var(--yellow)' }}>
+          <div className="kpi-title" style={{ color: rutaGeneral ? '#475569' : 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 5 }}>
             <ShieldCheck size={12} style={{ flexShrink: 0 }} /> Ruta general
           </div>
           <div className="kpi-val" style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rutaGeneral ? rutaGeneral.name : undefined}>
@@ -465,7 +507,7 @@ export default function Plantillas() {
         {paginated.map((p) => (
           <div key={p.id} className="pl-card" style={{ overflow: 'visible', position: 'relative', padding: 0, ...(p.esGlobal ? { border: '1.5px solid #0C2D40', boxShadow: '0 0 0 3px rgba(12,45,64,0.06)' } : {}) }}>
             {/* HEADER */}
-            <div style={{ padding: '14px 16px 12px', background: p.esGlobal ? '#EAF3FB' : '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
+            <div style={{ padding: '14px 16px 12px', background: p.esGlobal ? '#EEF1F5' : '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
@@ -477,7 +519,7 @@ export default function Plantillas() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                     {p.esGlobal && (
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#0C2D40', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#475569', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
                         <ShieldCheck size={9} /> General
                       </span>
                     )}
@@ -510,14 +552,14 @@ export default function Plantillas() {
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
                         {([
-                          ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                          ...(p.status === 'activa' && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                           { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                           ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                           { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                           { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
                           ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
-                          { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
-                          { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
+                          { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { toggleArchivar(p); setCardMenu(null) } },
+                          ...(p.status === 'borrador' ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } }] : []),
                         ]).map(a => {
                           const AIcon = a.icon
                           return (
@@ -569,11 +611,23 @@ export default function Plantillas() {
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>Tareas</div>
               </div>
               <div style={{ width: 1, background: 'var(--surface-hover)' }} />
-              <div style={{ cursor: p.asignados > 0 ? 'pointer' : 'default' }} onClick={() => p.asignados > 0 && setAsignadosModal(p)}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: p.asignados > 0 ? '#0C2D40' : '#cbd5e1' }}>{p.asignados}</div>
-                <div style={{ fontSize: 9, color: p.asignados > 0 ? '#3b82f6' : '#94a3b8', fontWeight: 600 }}>Asignados</div>
-              </div>
+              {p.esGlobal ? (
+                <div title="Se incluye en todas las rutas de onboarding" style={{ cursor: 'default' }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{alcanceGeneral}</div>
+                  <div style={{ fontSize: 9, color: '#0C2D40', fontWeight: 600 }}>Alcance</div>
+                </div>
+              ) : (
+                <div style={{ cursor: p.asignados > 0 ? 'pointer' : 'default' }} onClick={() => p.asignados > 0 && setAsignadosModal(p)}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: p.asignados > 0 ? '#0C2D40' : '#cbd5e1' }}>{p.asignados}</div>
+                  <div style={{ fontSize: 9, color: p.asignados > 0 ? '#3b82f6' : '#94a3b8', fontWeight: 600 }}>Asignados</div>
+                </div>
+              )}
             </div>
+            {p.esGlobal && (
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', marginTop: 6, lineHeight: 1.4 }}>
+                Se incluye en todas las rutas
+              </div>
+            )}
 
             {/* RESPONSABLES — solo visible para manager */}
             {isManager && (
@@ -759,12 +813,12 @@ export default function Plantillas() {
             </thead>
             <tbody>
               {paginated.map(p => (
-                <tr key={p.id} style={{ cursor: 'pointer', ...(p.esGlobal ? { background: '#EAF3FB' } : {}) }} onClick={() => openRuta(p)}>
+                <tr key={p.id} style={{ cursor: 'pointer', ...(p.esGlobal ? { background: '#EEF1F5' } : {}) }} onClick={() => openRuta(p)}>
                   <td>
                     <div className="as-name" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}>
                       {p.name}
                       {p.esGlobal && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#0C2D40', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#475569', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
                           <ShieldCheck size={9} /> General
                         </span>
                       )}
@@ -785,7 +839,13 @@ export default function Plantillas() {
                     </span>
                   </td>
                   <td><span className="as-dia">{p.etapas}</span></td>
-                  <td><span className="as-dia">{p.asignados}</span></td>
+                  <td>
+                    {p.esGlobal ? (
+                      <span className="as-dia" title="Alcance: se incluye en todas las rutas de onboarding" style={{ color: '#0C2D40' }}>{alcanceGeneral}</span>
+                    ) : (
+                      <span className="as-dia">{p.asignados}</span>
+                    )}
+                  </td>
                   <td>
                     <span style={{
                       fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
@@ -801,7 +861,7 @@ export default function Plantillas() {
                         onClick={(e) => {
                           if (cardMenu === p.id) { setCardMenu(null); return }
                           const rect = e.currentTarget.getBoundingClientRect()
-                          const itemCount = 5 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0)
+                          const itemCount = 4 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0) + (p.status === 'borrador' ? 1 : 0)
                           const menuH = itemCount * 34 + 8
                           const margin = 10
                           const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
@@ -828,14 +888,14 @@ export default function Plantillas() {
                           animation: 'plSlideUp .12s',
                         }}>
                           {([
-                            ...(p.status === 'activa' ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
+                            ...(p.status === 'activa' && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
                             { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
                             ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
                             { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
                           { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
                             ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
-                            { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { setPlantillas(prev => prev.map(x => x.id === p.id ? { ...x, status: x.status === 'archivada' ? 'borrador' : 'archivada' } : x)); setCardMenu(null) } },
-                            { icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } },
+                            { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { toggleArchivar(p); setCardMenu(null) } },
+                            ...(p.status === 'borrador' ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } }] : []),
                           ]).map(a => {
                             const AIcon = a.icon
                             return (
@@ -1316,15 +1376,45 @@ export default function Plantillas() {
               )}
             </div>
 
-            <div className="pl-modal-footer">
+            <div className="pl-modal-footer" style={modal === 'editar' ? { justifyContent: 'space-between' } : undefined}>
+              {modal === 'editar' && (
+                <button
+                  type="button"
+                  onClick={handleEditDesign}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '9px 18px', borderRadius: 10, cursor: 'pointer',
+                    border: '1.5px solid var(--green)', background: 'var(--green-tint)',
+                    color: '#0C2D40', fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                    transition: 'all .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--green)'; e.currentTarget.style.color = '#fff' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--green-tint)'; e.currentTarget.style.color = '#0C2D40' }}
+                >
+                  <Route size={15} style={{ color: 'currentColor' }} />
+                  Editar etapas y tareas
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
               <button className="pl-btn-cancel" onClick={() => setModal(null)}>Cancelar</button>
               <button
                 className="pl-btn-save"
                 onClick={handleSave}
-                disabled={!form.name.trim() || !form.tipo || !form.area || (form.area !== 'Todas las áreas' && !form.cargo)}
+                disabled={
+                  !form.name.trim() || !form.tipo || !form.area ||
+                  (form.area !== 'Todas las áreas' && !form.cargo) ||
+                  (modal === 'editar' && originalForm &&
+                    form.name === originalForm.name &&
+                    form.descripcion === originalForm.descripcion &&
+                    form.tipo === originalForm.tipo &&
+                    form.sucursal === originalForm.sucursal &&
+                    form.area === originalForm.area &&
+                    form.cargo === originalForm.cargo)
+                }
               >
                 {modal === 'crear' ? 'Crear y diseñar ruta' : 'Guardar cambios'}
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1339,7 +1429,10 @@ export default function Plantillas() {
         />
       ) : (
         <RutaFullPreviewModal
-          plantilla={previewRuta}
+          plantilla={(() => {
+            const globales = (previewRuta.esGlobal || previewRuta._versionPreview) ? [] : getGlobalEtapas(allPlantillas, previewRuta.id)
+            return globales.length ? { ...previewRuta, etapasData: [...globales, ...(previewRuta.etapasData || [])] } : previewRuta
+          })()}
           responsables={responsables[previewRuta.id] || []}
           canManage={isAdmin || isManager}
           onAddPersona={(persona) => addResponsable(previewRuta.id, persona)}
@@ -1481,25 +1574,33 @@ export default function Plantillas() {
       })()}
 
       {/* MODAL ELIMINAR */}
-      {deleteTarget && (
-        <div className="pl-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-              <div className="pl-del-icon">
-                <AlertTriangle size={28} />
+      {deleteTarget && (() => {
+        const asignadosCount = asignaciones.filter(a => a.rutaId === deleteTarget.id || a.ruta === deleteTarget.name).length
+        const bloqueada = asignadosCount > 0
+        return (
+          <div className="pl-overlay" onClick={() => setDeleteTarget(null)}>
+            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
+                <div className="pl-del-icon" style={bloqueada ? { background: '#fffbeb', color: '#b45309' } : undefined}>
+                  {bloqueada ? <Archive size={26} /> : <AlertTriangle size={28} />}
+                </div>
+                <h2 className="pl-del-title">{bloqueada ? 'No se puede eliminar' : 'Eliminar ruta'}</h2>
+                <p className="pl-del-desc">
+                  {bloqueada
+                    ? <>Esta ruta ya forma parte del historial del sistema. Al estar asignada a <strong>{asignadosCount}</strong> {asignadosCount === 1 ? 'colaborador' : 'colaboradores'}, no puede eliminarse. Puedes <strong>archivarla</strong> para que deje de estar disponible para nuevas asignaciones.</>
+                    : <>¿Estás seguro de eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.</>}
+                </p>
               </div>
-              <h2 className="pl-del-title">Eliminar ruta</h2>
-              <p className="pl-del-desc">
-                ¿Estás seguro de eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.
-              </p>
-            </div>
-            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-              <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-              <button className="pl-btn-delete" onClick={handleDelete}>Eliminar</button>
+              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
+                <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
+                {bloqueada
+                  ? <button className="pl-btn-save" onClick={() => { setPlantillas(prev => prev.map(x => x.id === deleteTarget.id ? { ...x, statusPrevio: x.status, status: 'archivada' } : x)); addFeedEntry(`Ruta "${deleteTarget.name}" archivada`); setDeleteTarget(null) }}>Archivar ruta</button>
+                  : <button className="pl-btn-delete" onClick={handleDelete}>Eliminar</button>}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* MODAL ETAPAS */}
       {etapasModal && (() => {

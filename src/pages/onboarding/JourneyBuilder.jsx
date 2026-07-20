@@ -6,15 +6,15 @@ import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
-import { colaboradoresData } from '../personas/colaboradoresData'
+import { colaboradoresData, departamentos } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
-  UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle
+  UserCheck, Users, Calendar, ExternalLink,
+  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, HeartHandshake
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
@@ -126,6 +126,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // ya tiene colaboradores en curso. null = cerrado.
   const [applyModal, setApplyModal] = useState(null)
   const [applyScope, setApplyScope] = useState('futuras')
+  const [showGralInfo, setShowGralInfo] = useState(false)
+  const [lockedMsg, setLockedMsg] = useState(null)
   const ESTADOS_EN_CURSO = ['pendiente', 'en-curso', 'atrasado', 'en-riesgo', 'pausado']
 
   const [rutaState, setRutaState] = useState(() => {
@@ -166,6 +168,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [saveLinkConfirm, setSaveLinkConfirm] = useState(null)
   const [saveLinkDone, setSaveLinkDone] = useState(null)
   const [previewTask, setPreviewTask] = useState(null)
+  // Snapshot del formulario de tarea al abrirlo, para saber si hubo cambios (habilita "Guardar cambios").
+  const [originalTareaForm, setOriginalTareaForm] = useState(null)
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState(null)
   const [dragNode, setDragNode] = useState(null)
   const [editingActividad, setEditingActividad] = useState(null)
@@ -181,8 +185,33 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [showPreview, setShowPreview] = useState(false)
   const [draftSavedAt, setDraftSavedAt] = useState(null)
   const canvasRef = useRef(null)
+  const etapaRefs = useRef({})
+  const actividadRefs = useRef({})
   const scrollInterval = useRef(null)
+
+  // Lleva el lienzo al inicio de la etapa y la marca como activa (etapa activa =
+  // destino del panel de tareas y de "agregar"). Con el lienzo continuo, el clic
+  // en el sidebar navega en vez de filtrar.
+  function goToEtapa(i) {
+    setSelEtapa(i)
+    setSelTarea(null)
+    const el = etapaRefs.current[i]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Navega a una actividad concreta dentro de una etapa (desde el índice del sidebar).
+  function goToActividad(ei, ai) {
+    setSelEtapa(ei)
+    setSelTarea(null)
+    const el = actividadRefs.current[`${ei}:${ai}`]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    else etapaRefs.current[ei]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const initialRutaSnapshot = useRef({ rutaState, rutaConfig })
+  // Baseline de "lo publicado" (versión vigente). El botón de publicar se
+  // habilita solo cuando el borrador difiere de esto — guardar borrador NO lo
+  // modifica, así que publicar sigue disponible tras guardar un borrador.
+  const publishedBaseline = useRef(JSON.stringify(rutaState.etapas.filter(e => !e.locked)))
   const [floatLeftOffset, setFloatLeftOffset] = useState(320)
 
   // El panel "Etapas" es position:fixed (para quedar visible al scrollear el canvas),
@@ -280,6 +309,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       : scope === 'no-iniciados' ? ' — aplicada a los que aún no iniciaron'
       : ' — solo para nuevas asignaciones'
     addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}${scopeMsg}`)
+    publishedBaseline.current = JSON.stringify(etapasPropias)
     setHasUnsavedChanges(false)
     setApplyModal(null)
     onBack()
@@ -307,6 +337,13 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     if (rutaState === initialRutaSnapshot.current.rutaState && rutaConfig === initialRutaSnapshot.current.rutaConfig) return
     setHasUnsavedChanges(true)
   }, [rutaState, rutaConfig])
+
+  // Al abrir (o cambiar de) tarea, guarda el estado inicial del formulario para
+  // habilitar "Guardar cambios" solo cuando realmente hay modificaciones.
+  useEffect(() => {
+    setOriginalTareaForm(selTarea && tareaForm ? JSON.stringify(tareaForm) : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selTarea?.id])
 
   // Deja el guardado de esta ruta disponible para el aviso global de "cambios
   // sin guardar" (se dispara también al navegar desde el sidebar o el menú del
@@ -388,11 +425,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     })
   }
 
-  function reorderTarea(fromIdx, toIdx) {
+  function reorderTarea(fromIdx, toIdx, etapaIdx = selEtapa) {
     if (fromIdx === toIdx) return
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      const acts = next.etapas[selEtapa].actividades
+      const acts = next.etapas[etapaIdx].actividades
 
       function locate(flatIdx) {
         let count = 0
@@ -425,31 +462,31 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     })
   }
 
-  function addActividad() {
+  function addActividad(etapaIdx = selEtapa) {
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      next.etapas[selEtapa].actividades.push({
-        name: `Nueva actividad ${next.etapas[selEtapa].actividades.length + 1}`,
+      next.etapas[etapaIdx].actividades.push({
+        name: `Nueva actividad ${next.etapas[etapaIdx].actividades.length + 1}`,
         tareas: [],
       })
       return next
     })
   }
 
-  function renameActividad(ai, newName) {
+  function renameActividad(ai, newName, etapaIdx = selEtapa) {
     if (!newName.trim()) return
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      next.etapas[selEtapa].actividades[ai].name = newName.trim()
+      next.etapas[etapaIdx].actividades[ai].name = newName.trim()
       return next
     })
     setEditingActividad(null)
   }
 
-  function deleteActividad(ai) {
+  function deleteActividad(ai, etapaIdx = selEtapa) {
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      const acts = next.etapas[selEtapa].actividades
+      const acts = next.etapas[etapaIdx].actividades
       const tareasHuerfanas = acts[ai].tareas
       acts.splice(ai, 1)
       if (tareasHuerfanas.length > 0 && acts.length > 0) {
@@ -494,6 +531,13 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   }
 
   function selectTarea(tarea) {
+    // Las tareas de la ruta general (etapa bloqueada) son de solo lectura desde otra ruta.
+    // Ojo: los ids de tarea NO son únicos entre rutas (la ruta general clona sus ids), así que
+    // solo bloqueamos si el id vive EXCLUSIVAMENTE en etapas bloqueadas; si también existe en una
+    // etapa editable, el usuario está editando esa (evita falsos positivos por colisión de id).
+    const inLocked = rutaState.etapas.some(e => e.locked && e.actividades.some(a => a.tareas.some(t => t.id === tarea.id)))
+    const inEditable = rutaState.etapas.some(e => !e.locked && e.actividades.some(a => a.tareas.some(t => t.id === tarea.id)))
+    if (inLocked && !inEditable) return
     if (selTarea?.id === tarea.id) {
       setSelTarea(null)
       setTareaForm(null)
@@ -530,6 +574,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       const next = JSON.parse(JSON.stringify(prev))
       const formGuardado = { ...form }
       delete formGuardado.pruebaPreguntas // vive en el nodo enlazado, no duplicado aquí
+      // En "Otra tarea" el responsable de la tarea es siempre el Colaborador;
+      // los demás roles se involucran por la contraparte de cada línea.
+      if (form.tipo === 'tarea-otro') formGuardado.responsable = ['Colaborador']
       if (esContenido) formGuardado.pruebaTareaId = preguntasPrueba.length > 0 ? pruebaId : null
 
       next.etapas.forEach(e => {
@@ -610,9 +657,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     stopAutoScroll()
   }
 
-  function createTarea(tipoKey, flatIdx, actividadIdx) {
+  function createTarea(tipoKey, flatIdx, actividadIdx, etapaIdx = selEtapa) {
     const tipo = tipoMap[tipoKey]
-    if (!tipo || !etapa || etapa.actividades.length === 0) return
+    const etapaTarget = rutaState.etapas[etapaIdx]
+    if (!tipo || !etapaTarget || etapaTarget.locked || etapaTarget.actividades.length === 0) return
 
     const newTarea = {
       id: `t${++idCounter}`,
@@ -622,7 +670,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       puntos: 10,
       desc: '',
       responsable: [tipo.resp],
-      fechaRel: etapa.days.split('—')[0]?.trim() || 'Día 1',
+      fechaRel: etapaTarget.days.split('—')[0]?.trim() || 'Día 1',
       confirmacion: false,
       done: false,
       dias: 1,
@@ -630,7 +678,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
-      const acts = next.etapas[selEtapa].actividades
+      const acts = next.etapas[etapaIdx].actividades
 
       if (actividadIdx !== undefined) {
         acts[actividadIdx].tareas.push(newTarea)
@@ -692,14 +740,21 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     setContextMenu({ id: tareaId, x: left, y: top })
   }
 
-  function handleDropAtIndex(e, flatIdx) {
+  function handleDropAtIndex(e, flatIdx, etapaIdx = selEtapa) {
     e.preventDefault()
     e.stopPropagation()
     setDropTarget(null)
     setIsDragging(false)
     const tipoKey = e.dataTransfer.getData('tipoKey')
-    createTarea(tipoKey, flatIdx)
+    createTarea(tipoKey, flatIdx, undefined, etapaIdx)
   }
+
+  const draftEtapas = rutaState.etapas.filter(e => !e.locked)
+  // ¿El borrador difiere de la versión publicada? (para habilitar "Publicar").
+  const hasUnpublishedChanges = JSON.stringify(draftEtapas) !== publishedBaseline.current
+  // Habilitación del botón primario: al editar existente, cuando hay cambios sin
+  // publicar; al crear una ruta nueva, cuando ya tiene contenido.
+  const primaryDisabled = editing ? !hasUnpublishedChanges : draftEtapas.length === 0
 
   return (
     <div className="jb">
@@ -718,9 +773,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           <button className="jb-btn-outline jb-btn-icon" onClick={() => setShowConfig(true)} title="Configuración de la ruta">
             <Settings2 size={14} />
           </button>
-          <button className="jb-btn-outline" onClick={() => setShowPreview(true)}>
-            <Eye size={14} />
-            Vista previa
+          <button
+            className="jb-btn-outline"
+            onClick={() => setShowPreview(true)}
+            title="Ver como colaborador"
+            aria-label="Ver como colaborador"
+            style={{ padding: 7 }}
+          >
+            <Eye size={16} />
           </button>
 
           <span className="jb-topbar-divider" />
@@ -730,30 +790,35 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             <span className="jb-save-state jb-save-state--dirty">
               <span className="jb-save-dot" /> Sin guardar
             </span>
+          ) : (editing && hasUnpublishedChanges) ? (
+            <span className="jb-save-state" style={{ color: '#b45309' }}>
+              <span className="jb-save-dot" style={{ background: '#f59e0b' }} /> Sin publicar
+            </span>
           ) : draftSavedAt ? (
             <span className="jb-save-state jb-save-state--saved">
               <CheckCircle2 size={12} /> Guardado
             </span>
           ) : null}
-          {/* Guarda el avance en la plantilla sin publicar la ruta ni salir del editor.
-              No toca el estado: una ruta activa sigue activa; una nueva sigue en borrador. */}
+          {/* Guardar borrador: acción secundaria discreta (guarda avance sin publicar). */}
           <button
-            className="jb-btn-outline"
+            className="jb-btn-ghost"
             disabled={!hasUnsavedChanges}
             onClick={saveDraft}
+            style={!hasUnsavedChanges ? { opacity: 0.4, cursor: 'default' } : undefined}
             title={hasUnsavedChanges ? 'Guarda tu avance sin publicar la ruta' : 'No hay cambios sin guardar'}
           >
             Guardar borrador
           </button>
+          {/* Publicar: acción principal. */}
           <button
             className="jb-btn-primary"
             onClick={handleGuardar}
-            disabled={!hasUnsavedChanges}
-            style={!hasUnsavedChanges ? { opacity: 0.45, cursor: 'default' } : undefined}
-            title={hasUnsavedChanges ? '' : (editing ? 'No hay cambios que guardar' : 'Agrega contenido a la ruta para guardarla')}
+            disabled={primaryDisabled}
+            style={primaryDisabled ? { opacity: 0.45, cursor: 'default' } : undefined}
+            title={primaryDisabled ? (editing ? 'No hay cambios sin publicar' : 'Agrega contenido a la ruta para guardarla') : ''}
           >
             <Save size={14} />
-            {editing ? 'Guardar cambios' : 'Guardar ruta'}
+            {editing ? 'Publicar cambios' : 'Guardar ruta'}
           </button>
         </div>
       </div>
@@ -772,7 +837,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               {/* CARD ETAPAS — izquierda */}
               <div className="jb-float-card jb-float-left" style={{ left: floatLeftOffset }}>
                 <div className="jb-sb-title">Etapas <span className="jb-sb-count">{rutaState.etapas.length}</span></div>
-                <p className="jb-sb-hint">Selecciona una etapa para ver sus tareas</p>
+                <p className="jb-sb-hint">Haz clic en una etapa para ir a ella</p>
                 <div className="jb-sb-list">
                   {rutaState.etapas.map((e, i) => {
                     const done = e.actividades.every(a => a.tareas.every(t => t.done))
@@ -816,12 +881,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           </div>
                         ) : (
                           <div
-                            className={`jb-sb-item ${selEtapa === i ? 'active' : ''} ${done ? 'done' : ''}`}
+                            className={`jb-sb-item ${selEtapa === i ? 'active' : ''} ${done ? 'done' : ''} ${e.locked ? 'locked' : ''}`}
                             draggable={canDrag}
                             onDragStart={ev => { ev.dataTransfer.setData('etapaIdx', String(i)); ev.dataTransfer.effectAllowed = 'move'; setDragEtapa(i) }}
                             onDragEnd={() => { setDragEtapa(null); setDropEtapaTarget(null) }}
-                            onClick={() => { setSelEtapa(i); setSelTarea(null) }}
-                            onContextMenu={ev => { ev.preventDefault(); setEtapaMenu({ idx: i, x: ev.clientX, y: ev.clientY }) }}
+                            onClick={() => goToEtapa(i)}
+                            onContextMenu={ev => { ev.preventDefault(); if (!e.locked) setEtapaMenu({ idx: i, x: ev.clientX, y: ev.clientY }) }}
                             style={{ cursor: canDrag ? 'grab' : 'pointer' }}
                           >
                             {canDrag && (
@@ -832,7 +897,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             </div>
                             <div className="jb-sb-info">
                               <div className="jb-sb-name">{e.name}</div>
-                              <div className="jb-sb-days">{e.days}</div>
+                              <div className="jb-sb-days">{e.days.replace(/Día\s*(\d+)\s*—\s*Día\s*(\d+)/, 'Día $1–$2')}</div>
                             </div>
                             {!e.locked && (
                               <button
@@ -842,6 +907,22 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                                 <MoreVertical size={13} />
                               </button>
                             )}
+                          </div>
+                        )}
+                        {editingEtapaSb !== i && e.actividades.length > 0 && (
+                          <div className="jb-sb-actividades">
+                            {e.actividades.map((a, ai) => (
+                              <button
+                                key={ai}
+                                className="jb-sb-act-item"
+                                onClick={() => goToActividad(i, ai)}
+                                title={a.name}
+                              >
+                                <span className="jb-sb-act-dot" />
+                                <span className="jb-sb-act-name">{a.name}</span>
+                                {a.tareas.length > 0 && <span className="jb-sb-act-count">{a.tareas.length}</span>}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -854,8 +935,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 </button>
               </div>
 
-              {/* CARD TIPOS DE TAREA — derecha */}
-              {etapa && etapa.actividades.length > 0 && (
+              {/* CARD TIPOS DE TAREA — derecha (oculto en etapas de la ruta general: son de solo lectura) */}
+              {etapa && !etapa.locked && etapa.actividades.length > 0 && (
               <div className="jb-float-card jb-float-right">
                 <div className="jb-sb-title">Tipos de tarea</div>
                 <p className="jb-sb-hint">Arrastra al lienzo o haz clic para agregar</p>
@@ -886,20 +967,66 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               </div>
               )}
 
-              {etapa ? (<>
-              <div className="jb-etapa-header" style={{ alignItems: 'stretch' }}>
+              {rutaState.etapas.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '60px 20px', height: '100%' }}>
+                  <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                    <Layers size={30} strokeWidth={1.5} style={{ color: 'var(--green)' }} />
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Agrega tu primera etapa</div>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', maxWidth: 280 }}>
+                    Una etapa agrupa las actividades y tareas de un período de la ruta, por ejemplo "Mi primera semana".
+                  </p>
+                </div>
+              ) : rutaState.etapas.map((etapaItem, ei) => {
+                const isLocked = !!etapaItem.locked
+                return (
+                <div
+                  key={ei}
+                  ref={el => { etapaRefs.current[ei] = el }}
+                  className={`jb-etapa-block${selEtapa === ei ? ' active' : ''}`}
+                  onMouseDown={() => { if (selEtapa !== ei) setSelEtapa(ei) }}
+                >
+              <div className="jb-etapa-header" style={{ alignItems: 'stretch', ...(isLocked ? { background: '#EEF1F5', boxShadow: 'inset 0 0 0 1px #cdd5df' } : {}) }}>
                 <img src={imagenEtapa} alt="" style={{ height: 64, width: 'auto', flexShrink: 0 }} />
-                <div className={`jb-etapa-num ${etapa.locked ? 'locked' : ''}`}>
-                  {etapa.locked ? <Lock size={14} /> : selEtapa + 1}
+                <div className={`jb-etapa-num ${isLocked ? 'locked' : ''}`}>
+                  {isLocked ? <Lock size={14} /> : ei + 1}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="jb-etapa-name">{etapa.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="jb-etapa-name">{etapaItem.name}</div>
+                    {isLocked && (
+                      <span className="jb-etapa-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Lock size={9} /> Ruta general
+                        <span
+                          onMouseEnter={() => setShowGralInfo(true)}
+                          onMouseLeave={() => setShowGralInfo(false)}
+                          style={{ display: 'inline-flex', alignItems: 'center', cursor: 'help', marginLeft: 1, position: 'relative' }}
+                        >
+                          <Info size={12} style={{ color: '#0C2D40', opacity: 0.65 }} />
+                          {showGralInfo && (
+                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', paddingTop: 8, zIndex: 50 }}>
+                              <div style={{
+                                width: 244, background: '#EEF1F5', border: '1px solid #cdd5df', borderRadius: 10,
+                                padding: '11px 13px', boxShadow: '0 10px 28px rgba(12,45,64,.14)',
+                                display: 'flex', gap: 8, alignItems: 'flex-start', textAlign: 'left',
+                              }}>
+                                <Info size={14} style={{ color: '#475569', flexShrink: 0, marginTop: 1 }} />
+                                <span style={{ fontSize: 11, color: '#334155', lineHeight: 1.5, fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>
+                                  Estas etapas vienen de la <strong>ruta general</strong>{etapaItem.sourceRouteName ? ` (${etapaItem.sourceRouteName})` : ''} y no pueden modificarse aquí. Para cambiarlas, edita la ruta general.
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </span>
+                      </span>
+                    )}
+                  </div>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     marginTop: 4, fontSize: 12, color: '#94a3b8',
                   }}>
                     <Calendar size={12} />
-                    {etapa.days}
+                    {etapaItem.days}
                   </div>
                 </div>
                 <div style={{
@@ -907,17 +1034,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   padding: '4px 16px', borderLeft: '1px solid #e2e8f0', marginLeft: 8,
                 }}>
                   <span style={{ fontSize: 28, fontWeight: 800, color: '#0C2D40', lineHeight: 1 }}>
-                    {etapa.duracion || 7}
+                    {etapaItem.duracion || 7}
                   </span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 2 }}>
                     días
                   </span>
                 </div>
-                {etapa.locked && (
-                  <div className="jb-etapa-actions">
-                    <span className="jb-etapa-badge">{etapa.sourceRouteName || 'Ruta global'} — protegido</span>
-                  </div>
-                )}
               </div>
 
               <div className={`jb-duo-path ${isDragging ? 'dragging' : ''}`}>
@@ -926,17 +1048,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   const positions = [0, 60, 90, 60, 0, -60, -90, -60]
                   let flatIdx = 0
 
-                  etapa.actividades.forEach((actividad, ai) => {
+                  etapaItem.actividades.forEach((actividad, ai) => {
                     items.push(
-                      <div key={`act-${ai}`} className="jb-actividad-divider">
-                        {editingActividad === ai ? (
+                      <div key={`act-${ai}`} ref={el => { actividadRefs.current[`${ei}:${ai}`] = el }} className="jb-actividad-divider">
+                        {isLocked ? (
+                          <span className="jb-actividad-pill">{actividad.name}</span>
+                        ) : editingActividad === `${ei}:${ai}` ? (
                           <input
                             className="jb-actividad-input"
                             defaultValue={actividad.name}
                             autoFocus
-                            onBlur={ev => renameActividad(ai, ev.target.value)}
+                            onBlur={ev => renameActividad(ai, ev.target.value, ei)}
                             onKeyDown={ev => {
-                              if (ev.key === 'Enter') renameActividad(ai, ev.target.value)
+                              if (ev.key === 'Enter') renameActividad(ai, ev.target.value, ei)
                               if (ev.key === 'Escape') setEditingActividad(null)
                             }}
                             onClick={e => e.stopPropagation()}
@@ -944,8 +1068,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                         ) : (
                           <span
                             className="jb-actividad-pill jb-actividad-pill--admin"
-                            onClick={() => setEditingActividad(ai)}
-                            onContextMenu={e => { e.preventDefault(); setActividadMenu({ ai, x: e.clientX, y: e.clientY }) }}
+                            onClick={() => setEditingActividad(`${ei}:${ai}`)}
+                            onContextMenu={e => { e.preventDefault(); setActividadMenu({ ei, ai, x: e.clientX, y: e.clientY }) }}
                             title="Clic para renombrar · Clic derecho para más opciones"
                           >
                             {actividad.name}
@@ -955,18 +1079,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       </div>
                     )
 
-                    if (actividad.tareas.length === 0) {
+                    if (actividad.tareas.length === 0 && !isLocked) {
                       items.push(
                         <div
                           key={`empty-${ai}`}
-                          className={`jb-actividad-empty ${dropTarget === `act-${ai}` ? 'active' : ''}`}
-                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropTarget(`act-${ai}`) }}
+                          className={`jb-actividad-empty ${dropTarget === `${ei}:act-${ai}` ? 'active' : ''}`}
+                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropTarget(`${ei}:act-${ai}`) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(null) }}
                           onDrop={e => {
                             e.preventDefault(); e.stopPropagation()
                             setDropTarget(null); setIsDragging(false)
                             const tk = e.dataTransfer.getData('tipoKey')
-                            if (tk) createTarea(tk, undefined, ai)
+                            if (tk) createTarea(tk, undefined, ai, ei)
                           }}
                         >
                           <div
@@ -974,7 +1098,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             onClick={e => {
                               e.stopPropagation()
                               const rect = e.currentTarget.getBoundingClientRect()
-                              openAddPicker(rect, tipoKey => createTarea(tipoKey, undefined, ai))
+                              openAddPicker(rect, tipoKey => createTarea(tipoKey, undefined, ai, ei))
                             }}
                           >
                             <Plus size={16} />
@@ -994,44 +1118,47 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       items.push(
                         <div
                           key={`drop-${i}`}
-                          className={`jb-drop-zone ${dropTarget === i ? 'active' : ''}`}
+                          className={`jb-drop-zone ${dropTarget === `${ei}:${i}` ? 'active' : ''}`}
                           style={{ '--x-off': `${xOff}px` }}
-                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = dragNode !== null ? 'move' : 'copy'; setDropTarget(i) }}
+                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = dragNode !== null ? 'move' : 'copy'; setDropTarget(`${ei}:${i}`) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(null) }}
                           onDrop={e => {
                             e.preventDefault(); e.stopPropagation()
                             const from = e.dataTransfer.getData('reorder')
-                            if (from !== '') { reorderTarea(Number(from), i); setIsDragging(false) }
-                            else { handleDropAtIndex(e, i) }
+                            const fromEt = e.dataTransfer.getData('reorderEtapa')
+                            if (from !== '') { if (Number(fromEt) === ei) reorderTarea(Number(from), i, ei); setIsDragging(false) }
+                            else { handleDropAtIndex(e, i, ei) }
                           }}
                         >
+                          {!isLocked && (
                           <div
                             className="jb-drop-indicator"
                             onClick={e => {
                               e.stopPropagation()
                               const rect = e.currentTarget.getBoundingClientRect()
-                              openAddPicker(rect, tipoKey => createTarea(tipoKey, i))
+                              openAddPicker(rect, tipoKey => createTarea(tipoKey, i, undefined, ei))
                             }}
                           >
                             <Plus size={14} />
                           </div>
+                          )}
                         </div>
                       )
 
                       items.push(
                         <div
                           key={tarea.id}
-                          className={`jb-duo-node-wrap ${dragNode === i ? 'dragging-node' : ''}`}
+                          className={`jb-duo-node-wrap ${dragNode === `${ei}:${i}` ? 'dragging-node' : ''}`}
                           style={{ '--x-off': `${xOff}px` }}
-                          draggable
-                          onDragStart={e => { e.dataTransfer.setData('reorder', String(i)); e.dataTransfer.effectAllowed = 'move'; setDragNode(i); setTimeout(() => setIsDragging(true), 0) }}
+                          draggable={!isLocked}
+                          onDragStart={e => { if (isLocked) { e.preventDefault(); return } e.dataTransfer.setData('reorder', String(i)); e.dataTransfer.setData('reorderEtapa', String(ei)); e.dataTransfer.effectAllowed = 'move'; setDragNode(`${ei}:${i}`); setTimeout(() => setIsDragging(true), 0) }}
                           onDragEnd={() => { setDragNode(null); setIsDragging(false); setDropTarget(null) }}
                         >
                           <button
-                            className={`jb-duo-node ${status} ${isSelected ? 'selected' : ''}`}
-                            onClick={e => { e.stopPropagation(); openTaskNodeMenu(e.currentTarget.getBoundingClientRect(), tarea.id) }}
-                            onContextMenu={e => { e.preventDefault(); setContextMenu({ id: tarea.id, x: e.clientX, y: e.clientY }) }}
-                            title={tarea.name}
+                            className={`jb-duo-node ${status} ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
+                            onClick={e => { e.stopPropagation(); isLocked ? setPreviewTask({ ...tarea, _locked: true }) : openTaskNodeMenu(e.currentTarget.getBoundingClientRect(), tarea.id) }}
+                            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (isLocked) setLockedMsg({ x: e.clientX, y: e.clientY }); else setContextMenu({ id: tarea.id, x: e.clientX, y: e.clientY }) }}
+                            title={isLocked ? `${tarea.name} — protegida (ruta general)` : tarea.name}
                           >
                             <span className="jb-duo-num">{i + 1}</span>
                             <div className="jb-duo-circle">
@@ -1039,7 +1166,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             </div>
                             {gamificacion && tarea.puntos > 0 && <span className="jb-duo-puntos">+{tarea.puntos}</span>}
                           </button>
-                          <span className={`jb-duo-label ${status}`}>{tarea.name}</span>
+                          <span className={`jb-duo-label ${status} ${isLocked ? 'locked' : ''}`}>{tarea.name}</span>
                         </div>
                       )
 
@@ -1052,27 +1179,30 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       items.push(
                         <div
                           key={`drop-end-${ai}`}
-                          className={`jb-drop-zone jb-drop-zone-end ${dropTarget === endIdx ? 'active' : ''}`}
+                          className={`jb-drop-zone jb-drop-zone-end ${dropTarget === `${ei}:${endIdx}` ? 'active' : ''}`}
                           style={{ '--x-off': `${endXOff}px` }}
-                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = dragNode !== null ? 'move' : 'copy'; setDropTarget(endIdx) }}
+                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = dragNode !== null ? 'move' : 'copy'; setDropTarget(`${ei}:${endIdx}`) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDropTarget(null) }}
                           onDrop={e => {
                             e.preventDefault(); e.stopPropagation()
                             const from = e.dataTransfer.getData('reorder')
-                            if (from !== '') { reorderTarea(Number(from), endIdx); setIsDragging(false) }
-                            else { handleDropAtIndex(e, endIdx) }
+                            const fromEt = e.dataTransfer.getData('reorderEtapa')
+                            if (from !== '') { if (Number(fromEt) === ei) reorderTarea(Number(from), endIdx, ei); setIsDragging(false) }
+                            else { handleDropAtIndex(e, endIdx, ei) }
                           }}
                         >
+                          {!isLocked && (
                           <div
                             className="jb-drop-indicator"
                             onClick={e => {
                               e.stopPropagation()
                               const rect = e.currentTarget.getBoundingClientRect()
-                              openAddPicker(rect, tipoKey => createTarea(tipoKey, endIdx))
+                              openAddPicker(rect, tipoKey => createTarea(tipoKey, endIdx, undefined, ei))
                             }}
                           >
                             <Plus size={14} />
                           </div>
+                          )}
                         </div>
                       )
                     }
@@ -1081,23 +1211,17 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   return items
                 })()}
 
-                {/* BOTÓN AGREGAR ACTIVIDAD */}
-                <button className="jb-add-actividad-btn" onClick={addActividad}>
-                  <Layers size={14} />
-                  Agregar actividad
-                </button>
+                {/* BOTÓN AGREGAR ACTIVIDAD (oculto en etapas de la ruta general) */}
+                {!isLocked && (
+                  <button className="jb-add-actividad-btn" onClick={() => addActividad(ei)}>
+                    <Layers size={14} />
+                    Agregar actividad
+                  </button>
+                )}
               </div>
-              </>) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '60px 20px', height: '100%' }}>
-                  <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                    <Layers size={30} strokeWidth={1.5} style={{ color: 'var(--green)' }} />
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>Agrega tu primera etapa</div>
-                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', maxWidth: 280 }}>
-                    Una etapa agrupa las actividades y tareas de un período de la ruta, por ejemplo "Mi primera semana".
-                  </p>
                 </div>
-              )}
+                )
+              })}
             </div>
         </div>
       </div>
@@ -1107,6 +1231,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         const tipo = tipoMap[tareaForm.tipo] || tiposTarea[0]
         const responsables = [
           { value: 'Colaborador', icon: UserCheck, color: '#10b981' },
+          { value: 'Buddy', icon: HeartHandshake, color: '#ec4899' },
           { value: 'Líder de área', icon: Star, color: '#f59e0b' },
           { value: 'Manager', icon: ShieldCheck, color: '#3b82f6' },
           { value: 'RR.HH. / Admin', icon: Settings2, color: '#8b5cf6' },
@@ -1175,14 +1300,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                     <textarea
                       className="pl-input" style={{ resize: 'vertical', minHeight: '52px', marginTop: 0 }}
                       value={tareaForm.desc} rows={2}
-                      placeholder="Ej: Mira el video de bienvenida y conoce nuestra cultura."
+                      placeholder={tareaForm.tipo === 'tarea-otro' ? 'Ej: Realiza las siguientes tareas…' : 'Ej: Mira el video de bienvenida y conoce nuestra cultura.'}
                       onChange={e => updateForm('desc', e.target.value)}
                     />
                   </label>
                 </div>
 
                 {/* SECCIÓN: RESPONSABLE */}
-                {tareaForm.tipo === 'video' ? (
+                {(tareaForm.tipo === 'video' || tareaForm.tipo === 'tarea-otro') ? (
                   <div className="pl-label">
                     <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea?</span>
                     <div style={{
@@ -1806,12 +1931,147 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   )
                 })()}
 
-                {tareaForm.tipo === 'tarea-otro' && (
-                  <label className="pl-label" style={{ fontSize: 11, color: '#475569' }}>
-                    Asignado a
-                    <input type="text" className="pl-input" placeholder="Nombre o rol del responsable" value={tareaForm.asignadoA || ''} onChange={e => updateForm('asignadoA', e.target.value)} />
-                  </label>
-                )}
+                {tareaForm.tipo === 'tarea-otro' && (() => {
+                  const pasos = tareaForm.checklist?.length ? tareaForm.checklist : [{ id: 1, text: '', contraAccion: '', contraArea: '', contraPersona: '' }]
+                  const areas = departamentos.filter(d => d !== 'Todos')
+
+                  function updatePasos(next) { updateForm('checklist', next) }
+                  function updatePaso(idx, patch) { updatePasos(pasos.map((p, i) => i === idx ? { ...p, ...patch } : p)) }
+                  function addPaso() { updatePasos([...pasos, { id: Date.now(), text: '', contraAccion: '', contraArea: '', contraPersona: '' }]) }
+                  function removePaso(idx) { updatePasos(pasos.filter((_, i) => i !== idx)) }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Lista de tareas</span>
+                      <div style={{ fontSize: 10, color: '#94a3b8', margin: '-4px 0 2px' }}>
+                        La tarea del colaborador puede tener una contraparte: una acción a cargo de otra área/persona.
+                      </div>
+                      {pasos.map((p, idx) => {
+                        const q = (p._perSearch || '').toLowerCase()
+                        const personas = p.contraArea
+                          ? colaboradoresData.filter(c => c.status === 'activo' && c.depto === p.contraArea && (c.name.toLowerCase().includes(q) || (c.cargo || '').toLowerCase().includes(q))).slice(0, 8)
+                          : []
+                        const personaSel = colaboradoresData.find(c => c.name === p.contraPersona)
+                        return (
+                          <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 10, display: 'flex', flexDirection: 'column', gap: 8, background: '#fff' }}>
+                            {/* Tarea del colaborador */}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <div style={{ width: 24, height: 24, borderRadius: 7, background: '#10b98112', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Tarea del colaborador">
+                                <UserCheck size={13} style={{ color: '#10b981' }} />
+                              </div>
+                              <input
+                                type="text" className="pl-input" style={{ flex: 1, margin: 0 }}
+                                placeholder="Tarea del colaborador — ej: Firmar contrato"
+                                value={p.text}
+                                onChange={e => updatePaso(idx, { text: e.target.value })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePaso(idx)}
+                                disabled={pasos.length === 1}
+                                style={{
+                                  width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0,
+                                  background: '#fff', cursor: pasos.length === 1 ? 'default' : 'pointer',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: pasos.length === 1 ? '#cbd5e1' : '#ef4444',
+                                }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            {/* Contraparte: acción */}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <div style={{ width: 24, height: 24, borderRadius: 7, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Contraparte (otra área)">
+                                <Users size={13} style={{ color: '#2563eb' }} />
+                              </div>
+                              <input
+                                type="text" className="pl-input" style={{ flex: 1, margin: 0, fontSize: 11.5 }}
+                                placeholder="Contraparte (opcional) — ej: Entregar contrato"
+                                value={p.contraAccion || ''}
+                                onChange={e => updatePaso(idx, { contraAccion: e.target.value })}
+                              />
+                            </div>
+                            {/* Contraparte: área → persona filtrada */}
+                            {(p.contraAccion || p.contraArea) && (
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', paddingLeft: 32 }}>
+                                <select
+                                  className="pl-input"
+                                  style={{ margin: 0, width: 130, fontSize: 11, flexShrink: 0, cursor: 'pointer' }}
+                                  value={p.contraArea || ''}
+                                  onChange={e => updatePaso(idx, { contraArea: e.target.value, contraPersona: '', _perSearch: '', _perOpen: false })}
+                                >
+                                  <option value="">Área…</option>
+                                  {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                                </select>
+                                <div style={{ flex: 1, position: 'relative' }}>
+                                  {personaSel || p.contraPersona ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: personaSel?.color || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 8.5, fontWeight: 700 }}>{personaSel?.initials || '?'}</div>
+                                      <span style={{ flex: 1, fontSize: 11.5, fontWeight: 600, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.contraPersona}</span>
+                                      <button type="button" onClick={() => updatePaso(idx, { contraPersona: '', _perSearch: '' })} title="Cambiar persona" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, display: 'flex', flexShrink: 0 }}>
+                                        <X size={13} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                      <input
+                                        type="text"
+                                        className="pl-input"
+                                        style={{ margin: 0, paddingLeft: 28, fontSize: 11.5, opacity: p.contraArea ? 1 : 0.6 }}
+                                        placeholder={p.contraArea ? 'Buscar persona…' : 'Elige un área primero'}
+                                        disabled={!p.contraArea}
+                                        value={p._perSearch || ''}
+                                        onChange={e => updatePaso(idx, { _perSearch: e.target.value, _perOpen: true })}
+                                        onFocus={() => updatePaso(idx, { _perOpen: true })}
+                                        onBlur={() => setTimeout(() => updatePaso(idx, { _perOpen: false }), 150)}
+                                      />
+                                      {p._perOpen && p.contraArea && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', zIndex: 30, maxHeight: 200, overflowY: 'auto' }}>
+                                          {personas.length === 0 ? (
+                                            <div style={{ padding: 10, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Sin personas en {p.contraArea}</div>
+                                          ) : personas.map(c => (
+                                            <button
+                                              key={c.id}
+                                              type="button"
+                                              onMouseDown={e => { e.preventDefault(); updatePaso(idx, { contraPersona: c.name, _perOpen: false, _perSearch: '' }) }}
+                                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '6px 9px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 9, fontWeight: 700 }}>{c.initials}</div>
+                                              <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                                                <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{c.cargo}</div>
+                                              </div>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                      <button
+                        type="button"
+                        onClick={addPaso}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '8px 12px', borderRadius: 8, border: '1.5px dashed #cbd5e1',
+                          background: 'transparent', cursor: 'pointer', alignSelf: 'flex-start',
+                          fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit',
+                        }}
+                      >
+                        <Plus size={13} />
+                        Agregar tarea
+                      </button>
+                    </div>
+                  )
+                })()}
 
                 {tareaForm.tipo === 'completar-perfil' && (() => {
                   const campos = tareaForm.formCampos || []
@@ -1996,7 +2256,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={closeModal}>Cancelar</button>
-                <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || respValues.length === 0} onClick={saveTareaForm}>Guardar cambios</button>
+                <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || respValues.length === 0 || (originalTareaForm !== null && JSON.stringify(tareaForm) === originalTareaForm)} onClick={saveTareaForm}>Guardar cambios</button>
               </div>
             </div>
           </div>
@@ -2390,11 +2650,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       {actividadMenu && (
         <div className="jb-ctx-backdrop" onClick={() => setActividadMenu(null)}>
           <div className="jb-ctx-menu" style={{ left: actividadMenu.x, top: actividadMenu.y }} onClick={e => e.stopPropagation()}>
-            <button className="jb-ctx-item" onClick={() => { setEditingActividad(actividadMenu.ai); setActividadMenu(null) }}>
+            <button className="jb-ctx-item" onClick={() => { setEditingActividad(`${actividadMenu.ei}:${actividadMenu.ai}`); setActividadMenu(null) }}>
               <Pencil size={13} />
               Renombrar actividad
             </button>
-            <button className="jb-ctx-item jb-ctx-danger" onClick={() => deleteActividad(actividadMenu.ai)}>
+            <button className="jb-ctx-item jb-ctx-danger" onClick={() => deleteActividad(actividadMenu.ai, actividadMenu.ei)}>
               <Trash2 size={13} />
               Eliminar actividad
             </button>
@@ -2404,7 +2664,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
       {/* MENÚ CONTEXTUAL NODO */}
       {contextMenu && (() => {
-        const ctxTarea = etapa.actividades.flatMap(a => a.tareas).find(t => t.id === contextMenu.id)
+        const ctxTarea = rutaState.etapas.flatMap(e => e.actividades).flatMap(a => a.tareas).find(t => t.id === contextMenu.id)
         const ctxTipo = tipoMap[ctxTarea?.tipo]
         return (
         <div className="jb-ctx-backdrop" onClick={() => setContextMenu(null)}>
@@ -2487,8 +2747,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         <TaskPreviewModal
           task={previewTask}
           onClose={() => setPreviewTask(null)}
-          onEdit={tipoMap[previewTask.tipo]?.soloVistaPrevia ? undefined : () => { selectTarea(previewTask); setPreviewTask(null) }}
+          onEdit={(previewTask._locked || tipoMap[previewTask.tipo]?.soloVistaPrevia) ? undefined : () => { selectTarea(previewTask); setPreviewTask(null) }}
         />
+      )}
+
+      {/* MENSAJE: tarea protegida de la ruta general (clic derecho) */}
+      {lockedMsg && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setLockedMsg(null)} onContextMenu={e => { e.preventDefault(); setLockedMsg(null) }} />
+          <div style={{
+            position: 'fixed', top: lockedMsg.y + 8, left: Math.min(lockedMsg.x, window.innerWidth - 266), zIndex: 200,
+            width: 250, background: '#EEF1F5', border: '1px solid #cdd5df', borderRadius: 10,
+            padding: '11px 13px', boxShadow: '0 10px 28px rgba(12,45,64,.16)',
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+          }}>
+            <Lock size={14} style={{ color: '#475569', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>
+              No puedes editar esta tarea porque pertenece a la <strong>ruta general</strong>. Para cambiarla, edita la ruta general.
+            </span>
+          </div>
+        </>
       )}
 
       {/* MODAL VISTA PREVIA */}
@@ -2514,30 +2792,40 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               </div>
               <button className="pl-modal-close" onClick={() => setApplyModal(null)}><X size={18} /></button>
             </div>
-            <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ margin: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
-                Esta ruta ya está asignada a <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador' : 'colaboradores'}. Se creará una <strong>versión nueva</strong>. ¿Cómo deseas aplicar los cambios?
-              </p>
+            <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 13px', borderRadius: 10, background: '#f0f9ff', border: '1px solid #dbeafe' }}>
+                <Info size={15} style={{ color: '#1e40af', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ margin: 0, fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
+                  Esta ruta está asignada a <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador' : 'colaboradores'}. Se guardará como una <strong>versión nueva</strong>. Elige a quiénes aplicar los cambios:
+                </p>
+              </div>
               {[
-                { key: 'futuras', title: 'Solo para nuevas asignaciones', desc: 'Los que están en curso mantienen su versión. Recomendado.' },
-                { key: 'no-iniciados', title: 'También a los que aún no iniciaron', desc: `Seguro: ${applyModal.noIniciados} ${applyModal.noIniciados === 1 ? 'colaborador está' : 'colaboradores están'} en día 0, no pierden avance.` },
-                { key: 'todos', title: 'A todos los que están en curso', desc: 'Actualiza la ruta de todos ahora. Puede alterar su progreso.', warn: true },
+                { key: 'futuras', icon: CheckCircle2, title: 'Solo para nuevas asignaciones', badge: 'Recomendado', accent: '#16a34a', desc: 'Los colaboradores en curso conservan su versión. Nadie se ve afectado.' },
+                { key: 'no-iniciados', icon: UserCheck, title: 'También a los que aún no iniciaron', accent: '#0C2D40', desc: applyModal.noIniciados > 0 ? `${applyModal.noIniciados} ${applyModal.noIniciados === 1 ? 'colaborador está' : 'colaboradores están'} en día 0 — es seguro, no pierden avance.` : 'Ahora mismo ninguno está sin iniciar.' },
+                { key: 'todos', icon: AlertTriangle, title: 'A todos los que están en curso', accent: '#b45309', warn: true, desc: 'Actualiza la ruta de todos ahora. Puede alterar su progreso.' },
               ].map(opt => {
                 const sel = applyScope === opt.key
+                const AIcon = opt.icon
                 return (
                   <button key={opt.key} type="button" onClick={() => setApplyScope(opt.key)} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left', width: '100%',
-                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-                    border: sel ? '1.5px solid #0C2D40' : '1px solid var(--border-soft)',
-                    background: sel ? '#f8fafc' : '#fff', transition: 'all .12s',
+                    display: 'flex', alignItems: 'flex-start', gap: 12, textAlign: 'left', width: '100%',
+                    padding: '13px 14px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                    border: sel ? `1.5px solid ${opt.accent}` : '1px solid var(--border-soft)',
+                    background: sel ? `${opt.accent}0f` : '#fff',
+                    boxShadow: sel ? `0 0 0 3px ${opt.accent}1f` : 'none',
+                    transition: 'all .12s',
                   }}>
-                    <div style={{ width: 16, height: 16, borderRadius: '50%', flexShrink: 0, marginTop: 1, border: sel ? '5px solid #0C2D40' : '2px solid #cbd5e1', transition: 'all .12s' }} />
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40' }}>{opt.title}</div>
-                      <div style={{ fontSize: 11, color: opt.warn ? '#b45309' : 'var(--text-muted)', lineHeight: 1.5, marginTop: 2 }}>
-                        {opt.warn && <Info size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />}{opt.desc}
-                      </div>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: `${opt.accent}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AIcon size={17} style={{ color: opt.accent }} />
                     </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>{opt.title}</span>
+                        {opt.badge && <span style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 20, background: '#16a34a', color: '#fff' }}>{opt.badge}</span>}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: opt.warn ? '#b45309' : 'var(--text-muted)', lineHeight: 1.5, marginTop: 3 }}>{opt.desc}</div>
+                    </div>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 8, border: sel ? `6px solid ${opt.accent}` : '2px solid #cbd5e1', transition: 'all .12s' }} />
                   </button>
                 )
               })}
