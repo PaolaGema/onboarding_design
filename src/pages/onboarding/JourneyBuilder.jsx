@@ -115,6 +115,17 @@ const rutaConfigOpciones = [
 ]
 const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key, true]))
 
+/* Los datos vienen de localStorage y pueden traer etapas guardadas por versiones anteriores
+   del editor, sin `actividades` o con actividades sin `tareas`. El editor recorre esas listas
+   sin protección al dibujar, así que una sola etapa incompleta tumbaba la pantalla entera.
+   Se normaliza al entrar: mejor una etapa vacía que un editor en blanco. */
+function normalizarEtapas(etapas) {
+  return (etapas || []).map(e => ({
+    ...e,
+    actividades: (e.actividades || []).map(a => ({ ...a, tareas: a.tareas || [] })),
+  }))
+}
+
 export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, editing }) {
   const { activarRuta } = useRutaActiva()
   const { gamificacion } = useConfig()
@@ -139,6 +150,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       const globalEtapas = getGlobalEtapas(plantillas, plantilla.id)
       data.etapas = [...globalEtapas, ...data.etapas.filter(e => !e.locked)]
     }
+    data.etapas = normalizarEtapas(data.etapas)
     return data
   })
   const [rutaConfig, setRutaConfig] = useState(() => ({ ...defaultRutaConfig, ...(plantilla.config || {}) }))
