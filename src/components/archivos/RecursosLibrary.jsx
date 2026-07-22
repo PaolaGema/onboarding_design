@@ -10,6 +10,9 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import EmptyState from '../layout/EmptyState'
 import ConfirmarAccionModal from '../layout/ConfirmarAccionModal'
+import { ACCEPT_TODOS, tipoDeArchivo, pesoLegible } from '../../utils/tareaTipos'
+import { nuevaClaveArchivo, guardarArchivo } from '../../utils/archivosLocales'
+import { useArchivoLocal } from '../../hooks/useArchivoLocal'
 
 const estadoConfig = {
   procesado: { label: 'Procesado', color: '#00E091', bg: '#f0fdf4', icon: FileCheck },
@@ -97,6 +100,10 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
   const [bfDropTipo, setBfDropTipo] = useState(false)
   const [bfDropEstado, setBfDropEstado] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  /* Se pide acá arriba y no dentro del modal porque el modal se dibuja desde una función
+     condicional, y un hook adentro cambiaría de orden entre renders. Con la clave en null
+     el hook no hace nada. */
+  const archivoUrl = useArchivoLocal(previewDoc?.archivo)
   const [bfDropGeneral, setBfDropGeneral] = useState(false)
   const [linkForm, setLinkForm] = useState({ name: '', url: '', tipo: 'video' })
   const [dragOverMain, setDragOverMain] = useState(false)
@@ -142,17 +149,25 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
   }
 
   function handleFiles(files, targetCatIdx = selCat) {
-    const newDocs = Array.from(files).map(file => ({
-      id: ++docIdCounter,
-      name: file.name,
-      size: file.size < 1024 * 1024
-        ? `${(file.size / 1024).toFixed(0)} KB`
-        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      estado: 'procesando',
-      fecha: 'Ahora',
-      general: false,
-      subidoPor: currentUser?.name || null,
-    }))
+    /* El `tipo` se deduce del archivo y no se asume "documento": desde que se pueden subir
+       videos y audios, es lo que decide el ícono, la etiqueta de la tarjeta y si la tarea de
+       video puede elegirlo. Sin esto un MP4 entraría a la biblioteca disfrazado de PDF. */
+    const newDocs = Array.from(files).map(file => {
+      // El binario se guarda aparte, en IndexedDB; el recurso solo lleva su clave.
+      const archivo = nuevaClaveArchivo()
+      guardarArchivo(archivo, file)
+      return {
+        id: ++docIdCounter,
+        name: file.name,
+        size: pesoLegible(file.size),
+        tipo: tipoDeArchivo(file),
+        archivo,
+        estado: 'procesando',
+        fecha: 'Ahora',
+        general: false,
+        subidoPor: currentUser?.name || null,
+      }
+    })
     setCategorias(prev => prev.map((c, i) => {
       if (i !== targetCatIdx) return c
       return { ...c, docs: [...newDocs, ...c.docs], updatedAt: Date.now() }
@@ -280,7 +295,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
         ref={fileInputRef}
         type="file"
         multiple
-        accept="application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx"
+        accept={ACCEPT_TODOS}
         style={{ display: 'none' }}
         onChange={e => { if (e.target.files.length) handleFiles(e.target.files); e.target.value = '' }}
       />
@@ -1814,12 +1829,40 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                   </div>
                 ) : isLink ? (
                   <iframe src={d.url} style={{ width: '100%', height: 480, border: 'none', display: 'block' }} title={d.name} />
+                ) : archivoUrl ? (
+                  /* Archivo subido que sí está guardado en el navegador: se reproduce de verdad.
+                     Es el comportamiento que va a tener el producto cuando el archivo viva en un
+                     servidor, solo que la fuente es local en vez de una URL remota. */
+                  isVideo ? (
+                    <video controls src={archivoUrl} style={{ width: '100%', maxHeight: 420, background: '#000', display: 'block' }} />
+                  ) : isAudio ? (
+                    <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                      <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Headphones size={32} style={{ color: '#10b981' }} />
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0C2D40' }}>{d.name}</div>
+                      <audio controls src={archivoUrl} style={{ width: '100%', maxWidth: 480 }} />
+                    </div>
+                  ) : (
+                    <iframe src={archivoUrl} style={{ width: '100%', height: 480, border: 'none', display: 'block' }} title={d.name} />
+                  )
                 ) : (
-                  /* archivo subido sin URL — mostrar info del documento */
+                  /* Archivo del que no tenemos el binario: los recursos de ejemplo, o algo subido
+                     en otro navegador. La ficha se pinta según el tipo: un MP4 con la tarjeta azul
+                     de documento hacía dudar de si la subida había funcionado. */
                   <div style={{ padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-                    <div style={{ width: 80, height: 96, borderRadius: 8, background: '#eff6ff', border: '2px solid #bfdbfe', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <FileText size={28} style={{ color: '#3b82f6' }} />
-                      <div style={{ fontSize: 8, fontWeight: 800, color: '#3b82f6', letterSpacing: 1 }}>{ext}</div>
+                    <div style={{
+                      width: 80, height: 96, borderRadius: 8,
+                      background: isVideo ? '#fffbeb' : isAudio ? '#f0fdf4' : '#eff6ff',
+                      border: `2px solid ${isVideo ? '#fde68a' : isAudio ? '#bbf7d0' : '#bfdbfe'}`,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}>
+                      {isVideo
+                        ? <Video size={28} style={{ color: '#f59e0b' }} />
+                        : isAudio
+                          ? <Headphones size={28} style={{ color: '#10b981' }} />
+                          : <FileText size={28} style={{ color: '#3b82f6' }} />}
+                      <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, color: isVideo ? '#f59e0b' : isAudio ? '#10b981' : '#3b82f6' }}>{ext}</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40', marginBottom: 4 }}>{d.name}</div>
@@ -1827,8 +1870,8 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                     </div>
                     <div style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 20px', border: '1px solid #e2e8f0', textAlign: 'center', maxWidth: 360 }}>
                       <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
-                        La vista previa en navegador no está disponible para archivos subidos.<br />
-                        Descarga el archivo para verlo en tu dispositivo.
+                        Este recurso no tiene una copia disponible en este equipo.<br />
+                        Vuelve a subirlo para {isVideo ? 'verlo' : isAudio ? 'escucharlo' : 'previsualizarlo'} desde aquí.
                       </div>
                     </div>
                   </div>

@@ -35,10 +35,9 @@ export default function Layout() {
      Por eso la condición mira el dato del usuario y no su rol. */
   const enOnboarding = !currentUser.onbNA && !currentUser.onbGraduado
 
-  /* El buddy la conserva aunque ya se haya graduado: el atajo deja de apuntar a su ruta y
-     pasa a apuntar a su gente, que es trabajo vivo y de todos los días. Sin esto acompañar
-     no tendría ninguna puerta en el teléfono. */
-  const tabOnboarding = enOnboarding || esBuddy
+  /* El buddy tampoco la tiene: acompañar no es una ruta propia en curso, así que entra por
+     Zona HR como cualquier otro módulo. La regla de la pestaña sigue siendo una sola —
+     tenés incorporación en curso o no — y no se le abre una excepción por rol. */
 
   /* El hub aparece cuando hay más de un destino adentro. El buddy graduado igual lo ve: su
      ruta terminada sigue siendo consultable y la tarjeta lo dice. */
@@ -61,7 +60,12 @@ export default function Layout() {
   /* El banner de Inicio es el atajo al onboarding desde el muro, y cada perfil llega con un
      trabajo distinto: el colaborador sigue su ruta, el líder mira a su área y el buddy va a
      sus tareas. Escrito como un objeto y no con ternarios repetidos en el ícono, el título y
-     el pie: así el día que se agregue un cuarto perfil se toca un solo lugar. */
+     el pie: así el día que se agregue un cuarto perfil se toca un solo lugar.
+
+     Quien no tiene pestaña propia entra por `abrirDesdeHR`, aunque venga del muro: el atajo
+     adelanta pasos, pero deja a la persona parada en el mismo lugar del árbol al que habría
+     llegado por Zona HR. Si entrara por `irAPestana` quedaría en una pantalla sin pestaña
+     encendida y sin salida hacia atrás. */
   const acompanados = esBuddy ? colaboradoresData.filter(c => c.buddy?.name === currentUser.name) : []
   const tareasBuddyPend = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
 
@@ -71,7 +75,7 @@ export default function Layout() {
         titulo: 'Acompañar a mi gente',
         detalle: `${acompanados.length} ${acompanados.length === 1 ? 'persona' : 'personas'}`
           + (tareasBuddyPend > 0 ? ` · ${tareasBuddyPend} ${tareasBuddyPend === 1 ? 'tarea tuya' : 'tareas tuyas'} →` : ' →'),
-        ir: () => irAPestana('acompanados'),
+        ir: () => abrirDesdeHR('acompanados'),
       }
     : esLider
       ? {
@@ -440,7 +444,7 @@ export default function Layout() {
             }}>
               {[
                 { icon: Home, label: 'Inicio', key: 'inicio' },
-                ...(tabOnboarding ? [{ icon: Route, label: 'Onboarding', key: 'onboarding' }] : []),
+                ...(enOnboarding ? [{ icon: Route, label: 'Onboarding', key: 'onboarding' }] : []),
                 { icon: MessageCircle, label: 'Chat', key: 'chat' },
                 { icon: LayoutGrid, label: 'Zona HR', key: 'hr' },
                 { icon: User, label: 'Perfil', key: 'perfil' },

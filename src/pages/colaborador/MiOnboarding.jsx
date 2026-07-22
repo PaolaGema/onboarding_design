@@ -11,6 +11,8 @@ import {
   Play, Download, ChevronRight,
   Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network, IdCard, History
 } from 'lucide-react'
+import { toEmbedUrl } from '../../utils/tareaTipos'
+import { useArchivoLocal } from '../../hooks/useArchivoLocal'
 import HistorialOnboardingModal from '../../components/onboarding/HistorialOnboardingModal'
 import { historialDe } from '../../data/historialIncorporaciones'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
@@ -120,6 +122,9 @@ export default function MiOnboarding({ forcePhone = false }) {
   const [historialAbierto, setHistorialAbierto] = useState(false)
   const [loadedRuta, setLoadedRuta] = useState(null)
   const [selTarea, setSelTarea] = useState(null)
+  /* Copia local del archivo que subió RH, si la hay. Va al tope porque el contenido de la tarea
+     se arma dentro de un switch y ahí un hook cambiaría de orden entre renders. */
+  const archivoTareaUrl = useArchivoLocal(selTarea?._kbItem?.archivo)
   const [recorridoStops, setRecorridoStops] = useState({})
   const [showAlert, setShowAlert] = useState(false)
   const [quizStarted, setQuizStarted] = useState({})
@@ -404,6 +409,52 @@ export default function MiOnboarding({ forcePhone = false }) {
   }
 
   if ((isGraduado || (totalAll > 0 && totalDone === totalAll)) && !started) {
+    /* La versión de celular es la misma de "¡Hola!" con el trofeo: la portada de escritorio
+       se apoya en un hero de dos columnas que a 280 px se sale del marco. Antes no se veía
+       porque en teléfono nadie llegaba graduado — el buddy es el primero. */
+    if (isMobile) {
+      return (
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 8px', textAlign: 'center', minHeight: '100%' }}>
+          {modalHistorial}
+          <div style={{ position: 'absolute', top: 8, right: 8 }}>
+            <AccionesCabecera compact onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
+          </div>
+          <img src={viaTrofeo} alt="Mascota graduada" style={{ width: 60, marginBottom: 10 }} />
+          <h1 style={{ fontSize: 14, fontWeight: 800, color: '#0C2D40', margin: '0 0 4px' }}>¡Felicidades, {firstName}!</h1>
+          <p style={{ fontSize: 8, color: '#64748b', margin: '0 0 12px', lineHeight: 1.4 }}>
+            Completaste todas las etapas de tu ruta. Aquí puedes revisar tu recorrido cuando quieras.
+          </p>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            {[
+              { val: `${totalAll}/${totalAll}`, label: 'tareas', bg: '#00E091' },
+              { val: totalPuntos, label: 'Pts', bg: '#f59e0b' },
+              { val: '100%', label: 'completado', bg: '#0C2D40' },
+            ].map(p => (
+              <div key={p.label} style={{
+                background: p.bg, borderRadius: 8, padding: '6px 10px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 48,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{p.val}</span>
+                <span style={{ fontSize: 6, fontWeight: 600, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>{p.label}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setStarted(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: '#0C2D40', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 16px',
+              fontSize: 9, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <Trophy size={10} />
+            Ver mi ruta completada
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="jb">
         <div className="jb-panels">
@@ -622,8 +673,19 @@ export default function MiOnboarding({ forcePhone = false }) {
     const renderMobileContent = () => {
       switch (selTarea.tipo) {
         case 'video': {
-          const embedUrl = selTarea.videoUrl || 'https://www.youtube.com/embed/WnD2H9rHNec'
-          const videoId = embedUrl.match(/embed\/([a-zA-Z0-9_-]+)/)?.[1] || 'WnD2H9rHNec'
+          /* Tres casos distintos, y antes se atendía uno solo:
+             1. La tarea tiene contenido con URL (enlace pegado o recurso enlazado) → se muestra ESE
+                video. Antes se ignoraba: quien pegaba un link de YouTube en la ruta veía igual el
+                video de ejemplo.
+             2. La tarea apunta a un archivo subido (sin URL, porque el prototipo no lo aloja) → se
+                dice que no se puede reproducir todavía. Mostrar el de ejemplo sería peor que no
+                mostrar nada: el colaborador vería un video ajeno creyendo que es el de su empresa.
+             3. La tarea no tiene contenido configurado (las rutas sembradas de la demo) → se
+                mantiene el video de ejemplo, que es lo que hace demostrable la pantalla. */
+          const contenidoUrl = selTarea.enlace || selTarea._kbItem?.url || selTarea.videoUrl
+          const archivoSubido = !contenidoUrl && !!selTarea._kbItem
+          const embedUrl = contenidoUrl || 'https://www.youtube.com/embed/WnD2H9rHNec'
+          const videoId = toEmbedUrl(embedUrl).match(/embed\/([a-zA-Z0-9_-]+)/)?.[1] || 'WnD2H9rHNec'
           const hasQuiz = selTarea.verificarQuiz !== false
           const quizQuestions = [
             { id: 1, texto: '¿Cuál es el objetivo principal del video?', opciones: ['Aumentar las ventas', 'Dar la bienvenida al equipo', 'Presentar el producto', 'Explicar las políticas'], correcta: 1 },
@@ -638,6 +700,21 @@ export default function MiOnboarding({ forcePhone = false }) {
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {archivoSubido && archivoTareaUrl ? (
+                <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0f172a' }}>
+                  <video controls src={archivoTareaUrl} style={{ width: '100%', display: 'block' }} />
+                </div>
+              ) : archivoSubido ? (
+                <div style={{ borderRadius: 8, background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '18px 14px', textAlign: 'center' }}>
+                  <Video size={22} style={{ color: '#94a3b8', margin: '0 auto 7px', display: 'block' }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#0C2D40' }}>{selTarea._kbItem.name}</div>
+                  {/* Describe el estado y da una salida; no promete cuándo ni explica por qué.
+                      El "por qué" es de la plataforma y al colaborador no le sirve de nada. */}
+                  <div style={{ fontSize: 8.5, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>
+                    Este video aún no está disponible. Avisa a Recursos Humanos si necesitas verlo.
+                  </div>
+                </div>
+              ) : (
               <div style={{ borderRadius: 8, overflow: 'hidden', background: '#0f172a' }}>
                 <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
                   <iframe
@@ -651,6 +728,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   />
                 </div>
               </div>
+              )}
 
               {hasQuiz && !isQuizStarted && !isQuizDone && (
                 <div style={{ border: '1px solid #fde68a', borderRadius: 8, padding: 10, background: '#fffbeb', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -1401,8 +1479,12 @@ export default function MiOnboarding({ forcePhone = false }) {
     const renderContent = () => {
       switch (selTarea.tipo) {
         case 'video': {
-          const embedUrl = selTarea.videoUrl || 'https://www.youtube.com/embed/WnD2H9rHNec'
-          const videoId = embedUrl.match(/embed\/([a-zA-Z0-9_-]+)/)?.[1] || 'WnD2H9rHNec'
+          // Mismas tres ramas que en la vista compacta: video real, archivo subido, o el de
+          // ejemplo cuando la tarea no tiene contenido configurado.
+          const contenidoUrl = selTarea.enlace || selTarea._kbItem?.url || selTarea.videoUrl
+          const archivoSubido = !contenidoUrl && !!selTarea._kbItem
+          const embedUrl = contenidoUrl || 'https://www.youtube.com/embed/WnD2H9rHNec'
+          const videoId = toEmbedUrl(embedUrl).match(/embed\/([a-zA-Z0-9_-]+)/)?.[1] || 'WnD2H9rHNec'
           const hasQuiz = selTarea.verificarQuiz !== false
           const quizQuestions = [
             { id: 1, texto: '¿Cuál es el objetivo principal presentado en el video?', opciones: ['Aumentar las ventas', 'Dar la bienvenida al equipo', 'Presentar el producto', 'Explicar las políticas'], correcta: 1 },
@@ -1426,6 +1508,19 @@ export default function MiOnboarding({ forcePhone = false }) {
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {archivoSubido && archivoTareaUrl ? (
+                <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
+                  <video controls src={archivoTareaUrl} style={{ width: '100%', display: 'block' }} />
+                </div>
+              ) : archivoSubido ? (
+                <div style={{ borderRadius: 12, background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '32px 24px', textAlign: 'center' }}>
+                  <Video size={30} style={{ color: '#94a3b8', margin: '0 auto 10px', display: 'block' }} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>{selTarea._kbItem.name}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, lineHeight: 1.5, maxWidth: 380, margin: '6px auto 0' }}>
+                    Este video aún no está disponible. Avisa a Recursos Humanos si necesitas verlo.
+                  </div>
+                </div>
+              ) : (
               <div style={{ borderRadius: 12, overflow: 'hidden', background: '#0f172a' }}>
                 <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
                   <iframe
@@ -1440,6 +1535,7 @@ export default function MiOnboarding({ forcePhone = false }) {
                   />
                 </div>
               </div>
+              )}
 
               {hasQuiz && !isQuizStarted && !isQuizDone && (
                 <div style={{

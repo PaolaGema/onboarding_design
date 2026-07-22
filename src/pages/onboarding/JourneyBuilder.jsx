@@ -5,7 +5,9 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
-import { tiposTarea, tipoMap, toEmbedUrl } from '../../utils/tareaTipos'
+import { tiposTarea, tipoMap, toEmbedUrl, ACCEPT_POR_TIPO, FORMATOS_LEGIBLES, tipoDeArchivo, pesoLegible } from '../../utils/tareaTipos'
+import { nuevaClaveArchivo, guardarArchivo } from '../../utils/archivosLocales'
+import { useArchivoLocal } from '../../hooks/useArchivoLocal'
 import { colaboradoresData, departamentos } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import {
@@ -31,16 +33,20 @@ const pulsoPreguntasSugeridas = [
 // Único tipo de respuesta del pulso, por ahora: una escala de 5 caritas.
 const CARITAS_ESCALA = ['😞', '😕', '😐', '🙂', '😄']
 
-const CONTENT_UPLOAD_LABEL = { video: 'Agregar enlace de video', audio: 'Agregar enlace de audio', lectura: 'Subir documento', documento: 'Subir documento', enlace: 'Agregar enlace' }
-const CONTENT_RESOURCE_DESC = { video: 'Elige un enlace de video ya guardado por tu equipo', audio: 'Elige un enlace de audio ya guardado por tu equipo', lectura: 'Elige un documento ya subido por tu equipo', documento: 'Elige un documento ya subido por tu equipo', enlace: 'Elige un recurso ya guardado por tu equipo' }
-const CONTENT_LINK_DESC = { video: 'Pega el enlace de un video de YouTube, Vimeo, Google Drive, etc. Todavía no se pueden subir archivos de video directamente.', audio: 'Pega el enlace de un audio o podcast. Todavía no se pueden subir archivos de audio directamente.', lectura: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pega cualquier enlace externo' }
+// "Agregar" y no "Subir": desde que video y audio también se pueden subir, el enlace dejó de
+// ser su único camino y el título del modal no puede prometer solo uno de los tres.
+const CONTENT_UPLOAD_LABEL = { video: 'Agregar video', audio: 'Agregar audio', lectura: 'Agregar documento', documento: 'Agregar documento', enlace: 'Agregar enlace' }
+const CONTENT_RESOURCE_DESC = { video: 'Elige un video ya guardado por tu equipo', audio: 'Elige un audio ya guardado por tu equipo', lectura: 'Elige un documento ya subido por tu equipo', documento: 'Elige un documento ya subido por tu equipo', enlace: 'Elige un recurso ya guardado por tu equipo' }
+const CONTENT_LINK_DESC = { video: 'Pega el enlace de un video de YouTube, Vimeo, Google Drive, etc.', audio: 'Pega el enlace de un audio o podcast (Spotify, Drive, etc.)', lectura: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pega cualquier enlace externo' }
 const CONTENT_LINK_PLACEHOLDER = { video: 'Pega aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pega aquí el link de tu audio o podcast', lectura: 'Pega aquí el link de tu documento (Drive, PDF...)', documento: 'Pega aquí el link de tu documento (Drive, PDF...)', enlace: 'Pega aquí tu enlace' }
 const CONTENT_ITEM_LABEL = { video: 'este video', audio: 'este audio', lectura: 'este documento', documento: 'este documento', enlace: 'este enlace' }
-// Solo documentos se pueden subir desde el equipo; video y audio siguen siendo solo por enlace.
-const TIPOS_SUBIBLES = ['documento', 'lectura']
-// Mismos formatos que acepta Recursos corporativos, para que un doc subido desde la tarea
-// sea idéntico a uno subido en la biblioteca.
-const DOC_UPLOAD_ACCEPT = 'application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx'
+// Tipos de contenido que se pueden subir desde el equipo. Los formatos de cada uno salen de
+// `ACCEPT_POR_TIPO`, la misma lista que usa la biblioteca de Recursos corporativos.
+const TIPOS_SUBIBLES = ['documento', 'lectura', 'video', 'audio']
+/* A partir de acá el desplegable de carpetas trae buscador. El número no es arbitrario: la
+   lista mide 200 px de alto y cada fila unos 34, así que seis es exactamente donde deja de
+   entrar y hay que scrollear. Antes de eso, buscar cuesta más que mirar. */
+const CARPETAS_CON_BUSCADOR = 6
 
 const formTiposCampo = [
   { v: 'texto-corto', l: 'Texto corto' },
@@ -161,6 +167,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [applyScope, setApplyScope] = useState('futuras')
   const [showGralInfo, setShowGralInfo] = useState(false)
   const [lockedMsg, setLockedMsg] = useState(null)
+  const [unicaMsg, setUnicaMsg] = useState(null)
+  /* Tooltip propio de la paleta. Va en estado y con posición fija —no con `title` ni con un
+     ::after— porque la tarjeta de tipos tiene `overflow: hidden` y recortaría cualquier cosa
+     que asome por su borde. El nativo además tarda un segundo en salir y usa la tipografía
+     del sistema operativo, que es justo lo que desentona. */
+  const [tipPaleta, setTipPaleta] = useState(null)
   const ESTADOS_EN_CURSO = ['pendiente', 'en-curso', 'atrasado', 'en-riesgo', 'pausado']
 
   const [rutaState, setRutaState] = useState(() => {
@@ -184,6 +196,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [selEtapa, setSelEtapa] = useState(0)
   const [selTarea, setSelTarea] = useState(null)
   const [tareaForm, setTareaForm] = useState(null)
+  /* Al tope del componente: el panel de contenido se dibuja desde una función condicional y un
+     hook adentro cambiaría de orden entre renders. Sin clave, no hace nada. */
+  const kbItemUrl = useArchivoLocal(tareaForm?._kbItem?.archivo)
   const [dropTarget, setDropTarget] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
@@ -200,6 +215,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // Carpeta destino al subir un documento local desde la tarea (índice en `recursos`).
   const [uploadDestIdx, setUploadDestIdx] = useState(0)
   const [uploadFolderOpen, setUploadFolderOpen] = useState(false)
+  const [uploadFolderSearch, setUploadFolderSearch] = useState('')
   const [contentPickerOpen, setContentPickerOpen] = useState(false)
   const [rpFolder, setRpFolder] = useState(null)
   const [rpSearch, setRpSearch] = useState('')
@@ -683,20 +699,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     setSaveLinkDone(recursos[folderIdx].name)
   }
 
-  /* Sube un documento local desde Propiedades de la tarea. El archivo entra a una carpeta de
-     Recursos corporativos (para que tenga un solo hogar y sea reutilizable) y la tarea lo
-     referencia. Mismo formato de doc y mismo "procesando → procesado" que la biblioteca.
-     PROTOTIPO: el archivo no se sube a ningún servidor, solo se guarda su nombre/peso. */
+  /* Sube un archivo local desde Propiedades de la tarea: documento, video o audio. Entra a una
+     carpeta de Recursos corporativos (para que tenga un solo hogar y sea reutilizable) y la
+     tarea lo referencia. Mismo formato de doc y mismo "procesando → procesado" que la
+     biblioteca.
+     PROTOTIPO: el archivo no se sube a ningún servidor, solo se guarda su nombre/peso/tipo. */
   function handleLocalDocUpload(fileList) {
     const file = fileList[0]
     if (!file) return
-    const size = file.size < 1024 * 1024
-      ? `${(file.size / 1024).toFixed(0)} KB`
-      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+    /* El tipo sale del archivo y no de la tarea: si alguien elige un PDF en una tarea de video,
+       el recurso tiene que quedar registrado como lo que realmente es. */
+    const tipoArchivo = tipoDeArchivo(file)
+    // El binario va a IndexedDB; el recurso y la tarea solo llevan su clave.
+    const claveArchivo = nuevaClaveArchivo()
+    guardarArchivo(claveArchivo, file)
     const newDoc = {
       id: ++localDocSeq,
       name: file.name,
-      size,
+      size: pesoLegible(file.size),
+      tipo: tipoArchivo,
+      archivo: claveArchivo,
       estado: 'procesando',
       fecha: 'Ahora',
       general: false,
@@ -719,7 +741,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       })))
     }, 3000)
     // La tarea referencia el documento recién subido (ya vive en Recursos).
-    updateForm('_kbItem', { name: file.name, tipo: 'documento', cat: destName, url: '' })
+    updateForm('_kbItem', { name: file.name, tipo: tipoArchivo, cat: destName, url: '', archivo: claveArchivo })
     updateForm('enlace', '')
     if (!tareaForm.name || tareaForm.name.startsWith('Nueva tarea')) updateForm('name', file.name)
     addFeedEntry(`Nuevo recurso "${file.name}" subido a ${destName}`)
@@ -739,10 +761,36 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     stopAutoScroll()
   }
 
+  /* Dónde está ya una tarea de este tipo, o null. Recorre TODA la ruta, incluidas las etapas
+     de la ruta general: una copia heredada del tronco común no se puede borrar desde acá, así
+     que agregar otra dejaría la ruta con dos y una de ellas intocable. */
+  function ubicarTareaDeTipo(tipoKey) {
+    for (const etapa of rutaState.etapas) {
+      for (const act of etapa.actividades) {
+        const tarea = act.tareas.find(t => t.tipo === tipoKey)
+        if (tarea) return { tarea, etapa }
+      }
+    }
+    return null
+  }
+
   function createTarea(tipoKey, flatIdx, actividadIdx, etapaIdx = selEtapa) {
     const tipo = tipoMap[tipoKey]
     const etapaTarget = rutaState.etapas[etapaIdx]
     if (!tipo || !etapaTarget || etapaTarget.locked || etapaTarget.actividades.length === 0) return
+
+    /* El candado vive acá y no en los menús porque todos los caminos para agregar —el menú
+       "+", la paleta de la derecha y el arrastre al lienzo— desembocan en esta función. Los
+       menús además la muestran deshabilitada; esto es la red por si algo se cuela. */
+    if (tipo.unicaPorRuta) {
+      const yaEsta = ubicarTareaDeTipo(tipoKey)
+      if (yaEsta) {
+        setUnicaMsg({ tipo, etapa: yaEsta.etapa.name, tarea: yaEsta.tarea, heredada: !!yaEsta.etapa.locked })
+        setAddPickerTarget(null)
+        setContentPickerOpen(false)
+        return
+      }
+    }
 
     const newTarea = {
       id: `t${++idCounter}`,
@@ -1023,22 +1071,38 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 <div className="jb-sb-title">Tipos de tarea</div>
                 <p className="jb-sb-hint">Arrastra al lienzo o haz clic para agregar</p>
                 <div className="jb-sb-palette">
-                  {tiposTarea.map(t => (
+                  {tiposTarea.map(t => {
+                    // Una tarea única ya puesta queda apagada y sin arrastre: no hay dónde soltarla.
+                    const yaEsta = t.unicaPorRuta ? ubicarTareaDeTipo(t.key) : null
+                    return (
                     <div
                       key={t.key}
                       className="jb-palette-item"
-                      title={`Click para agregar o arrastra al camino`}
-                      draggable
-                      onDragStart={e => handleDragStart(e, t.key)}
+                      draggable={!yaEsta}
+                      style={yaEsta ? { opacity: .45, cursor: 'default' } : undefined}
+                      onMouseEnter={e => {
+                        const r = e.currentTarget.getBoundingClientRect()
+                        setTipPaleta({
+                          x: r.left - 10,
+                          y: r.top + r.height / 2,
+                          texto: yaEsta
+                            ? `Ya está en «${yaEsta.etapa.name}» · solo puede ir una vez en la ruta`
+                            : 'Clic para agregar o arrástrala al camino',
+                        })
+                      }}
+                      onMouseLeave={() => setTipPaleta(null)}
+                      onDragStart={e => { setTipPaleta(null); handleDragStart(e, t.key) }}
                       onDragEnd={handleDragEnd}
-                      onClick={() => createTarea(t.key)}
+                      onClick={() => { setTipPaleta(null); createTarea(t.key) }}
                     >
                       <div className="jb-palette-ico" style={{ background: `${t.color}15`, color: t.color }}>
                         <t.icon size={14} />
                       </div>
                       <span className="jb-palette-label">{t.label}</span>
+                      {yaEsta && <Check size={11} style={{ color: '#94a3b8', marginLeft: 'auto', flexShrink: 0 }} />}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e8ecf0', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                   <img src={imagenIdea} alt="" style={{ width: 34, height: 'auto', flexShrink: 0 }} />
@@ -1436,6 +1500,31 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                               <X size={15} />
                             </button>
                           </div>
+                          {/* Archivo subido: se reproduce desde la copia guardada en el navegador.
+                              Si no hay copia —un recurso de ejemplo, o subido en otro equipo— se
+                              dice; antes el panel quedaba mudo y la ausencia se leía como que la
+                              subida había fallado. */}
+                          {!kbItem.url && kbItem.archivo && (
+                            <div style={{ padding: '0 12px 12px' }}>
+                              {kbItemUrl ? (
+                                kbItem.tipo === 'video' ? (
+                                  <video controls src={kbItemUrl} style={{ width: '100%', borderRadius: 8, background: '#000', display: 'block' }} />
+                                ) : kbItem.tipo === 'audio' ? (
+                                  <audio controls src={kbItemUrl} style={{ width: '100%', display: 'block' }} />
+                                ) : (
+                                  <iframe src={kbItemUrl} title={kbItem.name} style={{ width: '100%', height: 220, border: '1px solid #e2e8f0', borderRadius: 8, display: 'block' }} />
+                                )
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 9, padding: '9px 11px' }}>
+                                  <Info size={13} style={{ color: '#94a3b8', flexShrink: 0, marginTop: 1 }} />
+                                  <span style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+                                    El archivo está en <strong style={{ color: '#475569' }}>{kbItem.cat}</strong>, pero no hay
+                                    una copia disponible en este equipo para mostrarlo aquí.
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {kbItem.url && (
                             <div style={{ padding: '0 12px 12px' }}>
                               {kbItem.tipo === 'video' ? (
@@ -1507,6 +1596,24 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           {!tareaForm.enlace && (
                             <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4, lineHeight: 1.4 }}>{linkDesc}</div>
                           )}
+
+                          {/* Volver al selector de origen. Antes la única salida era la X de
+                              "Quitar enlace", que solo existe si ya pegaste algo: quien elegía
+                              "Enlace externo" por error quedaba encerrado en el campo de URL sin
+                              forma de cambiar a subir un archivo o a la biblioteca.
+                              No borra lo escrito: si cancelás el selector, tu enlace sigue ahí. */}
+                          <button
+                            type="button"
+                            onClick={() => { setContentPickerOpen(false); setContentChooserOpen(true) }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 5, marginTop: 8,
+                              border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                              fontFamily: 'inherit', fontSize: 11, fontWeight: 600, color: '#64748b',
+                            }}
+                          >
+                            <ArrowLeft size={12} />
+                            Elegir otra forma de agregar
+                          </button>
 
                           {tareaForm.enlace && (tareaForm.tipo === 'video' || tareaForm.tipo === 'audio') && (
                             <div style={{ marginTop: 8 }}>
@@ -2256,20 +2363,25 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               </div>
 
               <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Subir desde el equipo — solo para documentos (video/audio siguen siendo por enlace).
-                    El archivo entra a Recursos, así tiene un solo hogar y se puede reutilizar. */}
+                {/* Subir desde el equipo: documentos, videos y audios. El archivo entra a
+                    Recursos, así tiene un solo hogar y se puede reutilizar en otras tareas. */}
                 {permiteSubir && (
-                  <div style={{ borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', overflow: 'hidden' }}>
+                  /* Sin `overflow: hidden`: recortaba por completo el desplegable de carpetas
+                     —se abría fuera de la tarjeta y no se veía ni una fila—, así que no había
+                     manera de cambiar el destino. El redondeo pasa a la fila de arriba, que es
+                     lo único que se pintaba encima de las esquinas al hacer hover.
+                     El `zIndex` deja el menú por encima de las tarjetas que vienen debajo. */
+                  <div style={{ borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', position: 'relative', zIndex: 2 }}>
                     <label
                       htmlFor="jb-local-doc-input"
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer', transition: 'background .15s' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer', transition: 'background .15s', borderRadius: '11px 11px 0 0' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
                       onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                     >
                       <input
                         id="jb-local-doc-input"
                         type="file"
-                        accept={DOC_UPLOAD_ACCEPT}
+                        accept={ACCEPT_POR_TIPO[tareaForm.tipo] || ACCEPT_POR_TIPO.documento}
                         style={{ display: 'none' }}
                         onChange={e => { if (e.target.files.length) handleLocalDocUpload(e.target.files); e.target.value = '' }}
                       />
@@ -2278,7 +2390,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Subir desde mi equipo</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>PDF, Word, PowerPoint o TXT</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>
+                          {FORMATOS_LEGIBLES[tareaForm.tipo] || FORMATOS_LEGIBLES.documento}
+                        </div>
                       </div>
                       <ChevronRight size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     </label>
@@ -2287,7 +2401,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       {recursos.length > 0 ? (
                         <button
                           type="button"
-                          onClick={() => setUploadFolderOpen(o => !o)}
+                          onClick={() => { setUploadFolderOpen(o => !o); setUploadFolderSearch('') }}
                           style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 11, color: '#64748b' }}
                         >
                           <FolderOpen size={12} style={{ color: '#94a3b8' }} />
@@ -2300,24 +2414,53 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           Se creará la carpeta <strong style={{ color: '#0C2D40', fontWeight: 700 }}>Documentos de onboarding</strong>
                         </div>
                       )}
-                      {uploadFolderOpen && recursos.length > 0 && (
-                        <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', marginTop: 4, zIndex: 10, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', animation: 'plSlideUp .12s', maxHeight: 200, overflowY: 'auto' }}>
-                          {recursos.map((c, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => { setUploadDestIdx(i); setUploadFolderOpen(false) }}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: i === destIdxSeguro ? '#f8fafc' : 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#0C2D40' }}
-                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                              onMouseLeave={e => { if (i !== destIdxSeguro) e.currentTarget.style.background = 'transparent' }}
-                            >
-                              <FolderOpen size={13} style={{ color: '#64748b' }} />
-                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                              {i === destIdxSeguro && <Check size={13} style={{ color: '#00E091', flexShrink: 0 }} />}
-                            </button>
-                          ))}
+                      {uploadFolderOpen && recursos.length > 0 && (() => {
+                        /* El índice original viaja con cada carpeta: `uploadDestIdx` apunta a
+                           la posición dentro de `recursos`, y al filtrar la lista el índice del
+                           map deja de coincidir. Sin esto, buscar y elegir guardaría en otra. */
+                        const conIndice = recursos.map((c, i) => ({ c, i }))
+                        const q = uploadFolderSearch.trim().toLowerCase()
+                        const visibles = q ? conIndice.filter(({ c }) => c.name.toLowerCase().includes(q)) : conIndice
+                        return (
+                        <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', marginTop: 4, zIndex: 10, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', animation: 'plSlideUp .12s' }}>
+                          {/* El buscador aparece recién cuando la lista deja de entrar y hay que
+                              scrollear. Con tres carpetas robaría una fila para no ahorrar nada. */}
+                          {recursos.length >= CARPETAS_CON_BUSCADOR && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 9px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', margin: '2px 2px 5px' }}>
+                              <Search size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                              <input
+                                type="text"
+                                placeholder="Buscar carpeta..."
+                                value={uploadFolderSearch}
+                                onChange={e => setUploadFolderSearch(e.target.value)}
+                                autoFocus
+                                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12, fontFamily: 'inherit', color: '#0C2D40', width: '100%' }}
+                              />
+                            </div>
+                          )}
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {visibles.length === 0 ? (
+                              <div style={{ padding: '12px 10px', textAlign: 'center', fontSize: 11.5, color: '#94a3b8' }}>
+                                Ninguna carpeta coincide con “{uploadFolderSearch.trim()}”.
+                              </div>
+                            ) : visibles.map(({ c, i }) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => { setUploadDestIdx(i); setUploadFolderOpen(false); setUploadFolderSearch('') }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: i === destIdxSeguro ? '#f8fafc' : 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#0C2D40' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                onMouseLeave={e => { if (i !== destIdxSeguro) e.currentTarget.style.background = 'transparent' }}
+                              >
+                                <FolderOpen size={13} style={{ color: '#64748b' }} />
+                                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                                {i === destIdxSeguro && <Check size={13} style={{ color: '#00E091', flexShrink: 0 }} />}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      )}
+                        )
+                      })()}
                     </div>
                   </div>
                 )}
@@ -2686,10 +2829,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 Editar tarea
               </button>
             )}
-            <button className="jb-ctx-item" onClick={() => { duplicateTarea(contextMenu.id); setContextMenu(null) }}>
-              <Copy size={13} />
-              Duplicar tarea
-            </button>
+            {/* Duplicar es la otra puerta a un duplicado, y hasta ahora el menú lo ofrecía
+                para una tarea que solo puede ir una vez. */}
+            {!ctxTipo?.unicaPorRuta && (
+              <button className="jb-ctx-item" onClick={() => { duplicateTarea(contextMenu.id); setContextMenu(null) }}>
+                <Copy size={13} />
+                Duplicar tarea
+              </button>
+            )}
             <button className="jb-ctx-item jb-ctx-danger" onClick={() => { setDeleteTaskConfirm(contextMenu.id); setContextMenu(null) }}>
               <Trash2 size={13} />
               Eliminar tarea
@@ -2707,18 +2854,41 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             style={{ left: addPickerTarget.x, top: addPickerTarget.y, padding: 4, minWidth: 200 }}
             onClick={e => e.stopPropagation()}
           >
-            {tiposTarea.map(t => (
+            {tiposTarea.map(t => {
+              /* Se muestra igual pero apagada y diciendo dónde está: esconderla dejaría a la
+                 persona buscando en el menú una opción que ayer estaba. */
+              const yaEsta = t.unicaPorRuta ? ubicarTareaDeTipo(t.key) : null
+              return (
               <button
                 key={t.key}
                 className="jb-ctx-item"
-                onClick={() => { addPickerTarget.insert(t.key); setAddPickerTarget(null) }}
+                style={yaEsta ? { opacity: .5, alignItems: 'flex-start' } : undefined}
+                onClick={() => {
+                  /* Apagada pero clicable a propósito: si no hace nada al tocarla, la persona
+                     no sabe si la app la ignoró o si algo se rompió. El aviso explica por qué. */
+                  if (yaEsta) {
+                    setUnicaMsg({ tipo: t, etapa: yaEsta.etapa.name, tarea: yaEsta.tarea, heredada: !!yaEsta.etapa.locked })
+                    setAddPickerTarget(null)
+                    return
+                  }
+                  addPickerTarget.insert(t.key)
+                  setAddPickerTarget(null)
+                }}
               >
                 <div style={{ width: 22, height: 22, borderRadius: 6, background: `${t.color}15`, color: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <t.icon size={12} />
                 </div>
-                {t.label}
+                {yaEsta ? (
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 1, textAlign: 'left' }}>
+                    {t.label}
+                    <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)' }}>
+                      Ya está en «{yaEsta.etapa.name}»
+                    </span>
+                  </span>
+                ) : t.label}
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -2763,6 +2933,70 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             <span style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>
               No puedes editar esta tarea porque pertenece a la <strong>ruta general</strong>. Para cambiarla, edita la ruta general.
             </span>
+          </div>
+        </>
+      )}
+
+      {/* TOOLTIP DE LA PALETA. Sale a la izquierda porque la tarjeta vive pegada al borde
+          derecho: hacia el otro lado se saldría de la pantalla. */}
+      {tipPaleta && (
+        <div style={{
+          position: 'fixed', left: tipPaleta.x, top: tipPaleta.y,
+          transform: 'translate(-100%, -50%)', zIndex: 120, pointerEvents: 'none',
+          maxWidth: 196, background: '#0C2D40', color: '#fff',
+          fontSize: 11, fontWeight: 500, lineHeight: 1.45,
+          padding: '7px 10px', borderRadius: 8,
+          boxShadow: '0 10px 24px rgba(12,45,64,.24)',
+        }}>
+          {tipPaleta.texto}
+          <span style={{
+            position: 'absolute', right: -3, top: '50%',
+            width: 7, height: 7, background: '#0C2D40', borderRadius: 1,
+            transform: 'translateY(-50%) rotate(45deg)',
+          }} />
+        </div>
+      )}
+
+      {/* MENSAJE: tarea que solo puede ir una vez en la ruta. Es la red del arrastre —los dos
+          menús ya la muestran apagada—, así que va centrado: no hay un elemento al que
+          anclarlo cuando se soltó en cualquier punto del lienzo. */}
+      {unicaMsg && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setUnicaMsg(null)} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 200,
+            width: 320, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+            padding: '16px 18px', boxShadow: '0 18px 44px rgba(12,45,64,.2)',
+          }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                background: `${unicaMsg.tipo.color}15`, color: unicaMsg.tipo.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <unicaMsg.tipo.icon size={15} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)' }}>
+                  «{unicaMsg.tipo.label}» solo se puede agregar una vez
+                </div>
+                <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5, margin: '6px 0 0' }}>
+                  Ya está en <strong>{unicaMsg.etapa}</strong>{unicaMsg.heredada && <>, que viene de la <strong>ruta general</strong></>}.
+                  Lo que la marca como hecha son los datos de la ficha del colaborador, así que
+                  una segunda copia mostraría el mismo dato dos veces.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setUnicaMsg(null)}
+              style={{
+                width: '100%', marginTop: 14, padding: '9px 0', borderRadius: 9, border: 'none',
+                background: '#0C2D40', color: '#fff', fontSize: 12.5, fontWeight: 700,
+                fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >
+              Entendido
+            </button>
           </div>
         </>
       )}

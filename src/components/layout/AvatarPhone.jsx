@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { avatarUrl } from '../../utils/calendarEvents'
 
-export const iniciales = n => n.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+const iniciales = n => n.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
 /* Igual que `.ai-av` de escritorio: foto en círculo con borde. Las iniciales quedan debajo
    en vez de ocultarse, así una foto que no carga deja un avatar legible y no un disco vacío.
