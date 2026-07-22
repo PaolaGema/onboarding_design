@@ -9,6 +9,7 @@ import {
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import EmptyState from '../layout/EmptyState'
+import ConfirmarAccionModal from '../layout/ConfirmarAccionModal'
 
 const estadoConfig = {
   procesado: { label: 'Procesado', color: '#00E091', bg: '#f0fdf4', icon: FileCheck },
@@ -82,7 +83,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
   const [catMenu, setCatMenu] = useState(null)
   const [editingCat, setEditingCat] = useState(null)
   const [deleteCatConfirm, setDeleteCatConfirm] = useState(null)
-  const [deleteCatInput, setDeleteCatInput] = useState('')
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState(null)
   const [quizEditor, setQuizEditor] = useState(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [viewMode, setViewMode] = useState('list')
@@ -945,7 +946,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                           </div>
                         </button>
                         <div style={{ height: 1, background: '#f1f5f9', margin: '2px 6px' }} />
-                        <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <button onClick={() => setDeleteDocConfirm(doc)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                           <Trash2 size={12} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
                           <div>
                             <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>Eliminar</div>
@@ -1149,7 +1150,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                                 </div>
                               </button>
                               <div style={{ height: 1, background: '#f1f5f9', margin: '2px 6px' }} />
-                              <button onClick={() => deleteDoc(doc.id)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              <button onClick={() => setDeleteDocConfirm(doc)} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <Trash2 size={12} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
                                 <div>
                                   <div style={{ fontSize: 11, fontWeight: 600, color: '#ef4444' }}>Eliminar</div>
@@ -1259,16 +1260,9 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
               Renombrar
             </button>
             <button
-              onClick={() => {
-                const cat = categorias[catMenu.idx]
-                if (cat.docs.length > 0) {
-                  setDeleteCatConfirm(catMenu.idx)
-                  setDeleteCatInput('')
-                } else {
-                  deleteCategoria(catMenu.idx)
-                }
-                setCatMenu(null)
-              }}
+              /* Antes la carpeta vacía se borraba sin preguntar. Vacía o no, borrarla es
+                 igual de irreversible: lo que cambia es cuánto se pierde, no si se pierde. */
+              onClick={() => { setDeleteCatConfirm(catMenu.idx); setCatMenu(null) }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 12px', border: 'none', borderRadius: 7,
@@ -1366,44 +1360,33 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
         const catDel = categorias[deleteCatConfirm]
         if (!catDel) return null
         return (
-          <div className="pl-overlay" onClick={() => setDeleteCatConfirm(null)}>
-            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '28px 24px 16px' }}>
-                <div className="jb-del-ico">
-                  <Trash2 size={24} />
-                </div>
-                <h2 className="pl-del-title">Eliminar carpeta</h2>
-                <p className="pl-del-desc">
-                  ¿Estás seguro de eliminar <strong>{catDel.name}</strong>?
-                  Esta carpeta tiene <strong>{catDel.docs.length} documento{catDel.docs.length > 1 ? 's' : ''}</strong> que se perderán.
-                </p>
-                <div style={{ marginTop: '14px' }}>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Escribe <strong>eliminar</strong> para confirmar</span>
-                  <input
-                    type="text"
-                    className="pl-input"
-                    placeholder="eliminar"
-                    value={deleteCatInput}
-                    onChange={e => setDeleteCatInput(e.target.value)}
-                    autoFocus
-                    style={{ marginTop: 8 }}
-                  />
-                </div>
-              </div>
-              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-                <button className="pl-btn-cancel" onClick={() => setDeleteCatConfirm(null)}>Cancelar</button>
-                <button
-                  className="pl-btn-delete"
-                  disabled={deleteCatInput.toLowerCase() !== 'eliminar'}
-                  onClick={() => { deleteCategoria(deleteCatConfirm); setDeleteCatConfirm(null) }}
-                >
-                  Eliminar carpeta
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmarAccionModal
+            titulo="Eliminar carpeta"
+            descripcion={<>
+              ¿Estás seguro de eliminar <strong>{catDel.name}</strong>?
+              {catDel.docs.length > 0
+                ? <> Esta carpeta tiene <strong>{catDel.docs.length} documento{catDel.docs.length > 1 ? 's' : ''}</strong> que se perderán.</>
+                : <> Esta acción no se puede deshacer.</>}
+            </>}
+            palabra="eliminar"
+            textoConfirmar="Eliminar carpeta"
+            onConfirmar={() => { deleteCategoria(deleteCatConfirm); setDeleteCatConfirm(null) }}
+            onCancelar={() => setDeleteCatConfirm(null)}
+          />
         )
       })()}
+
+      {/* MODAL CONFIRMAR ELIMINAR DOCUMENTO */}
+      {deleteDocConfirm && (
+        <ConfirmarAccionModal
+          titulo="Eliminar recurso"
+          descripcion={<>¿Estás seguro de eliminar <strong>{deleteDocConfirm.name}</strong>? Esta acción no se puede deshacer.</>}
+          palabra="eliminar"
+          textoConfirmar="Eliminar"
+          onConfirmar={() => { deleteDoc(deleteDocConfirm.id); setDeleteDocConfirm(null) }}
+          onCancelar={() => setDeleteDocConfirm(null)}
+        />
+      )}
 
       {/* MODAL AGREGAR ENLACE */}
       {showLinkModal && (

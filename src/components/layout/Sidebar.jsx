@@ -26,6 +26,11 @@ const bottomItems = [
   { icon: LogOut, label: 'Cerrar sesión', variant: 'logout', path: null },
 ]
 
+/* Un punto arriba de los 14px de ModuleNav, no igual: colapsado el ícono es lo único
+   clicable del rail, así que bajarlo hasta el tamaño de adentro lo dejaba flaco. Los dos
+   estados comparten la medida para que el rail no cambie de peso al expandirse. */
+const TAMANO_ICONO = 17
+
 function NavItem({ icon: Icon, label, active, expanded, variant, onClick }) {
   const isLogout = variant === 'logout'
 
@@ -45,7 +50,7 @@ function NavItem({ icon: Icon, label, active, expanded, variant, onClick }) {
         className={`w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer font-inherit
           transition-colors duration-150 ${base}`}
       >
-        <Icon size={19} strokeWidth={active ? 2.2 : 1.8} color={iconColor} />
+        <Icon size={TAMANO_ICONO} strokeWidth={active ? 2.2 : 1.8} color={iconColor} />
       </button>
     )
   }
@@ -57,8 +62,10 @@ function NavItem({ icon: Icon, label, active, expanded, variant, onClick }) {
       className={`h-10 flex items-center gap-3 rounded-lg w-full cursor-pointer font-inherit
         transition-colors duration-150 ${base}`}
     >
-      <Icon size={19} strokeWidth={active ? 2.2 : 1.8} color={iconColor} className="shrink-0" />
-      <span className={`text-[13px] whitespace-nowrap ${active ? 'font-semibold' : 'font-medium'}`}>
+      <Icon size={TAMANO_ICONO} strokeWidth={active ? 2.2 : 1.8} color={iconColor} className="shrink-0" />
+      {/* 12px, el mismo tamaño que los ítems de ModuleNav: los dos menús se ven juntos
+          al expandir el rail y a 13px el de afuera pesaba más que el de adentro. */}
+      <span className={`text-xs whitespace-nowrap ${active ? 'font-semibold' : 'font-medium'}`}>
         {label}
       </span>
     </button>

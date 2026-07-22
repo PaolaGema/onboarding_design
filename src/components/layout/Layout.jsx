@@ -6,7 +6,18 @@ import ModuleNav from './ModuleNav'
 import MiOnboarding from '../../pages/colaborador/MiOnboarding'
 import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
-import { Home, MessageCircle, Bell, User, Briefcase, Route, Calendar, MapPin, Sun, Gift, Info } from 'lucide-react'
+import { Home, MessageCircle, Bell, User, Users, LayoutGrid, Route, Calendar, MapPin, Sun, Gift, Info, HeartHandshake } from 'lucide-react'
+import { colaboradoresData } from '../../pages/personas/colaboradoresData'
+import { tareasBuddyDe } from '../../data/tareasBuddy'
+import ZonaHRPhone from './ZonaHRPhone'
+import OrganigramaPhone from './OrganigramaPhone'
+import SeguimientoPhone from './SeguimientoPhone'
+import AcompanadosPhone from './AcompanadosPhone'
+import OnboardingHubPhone from './OnboardingHubPhone'
+import BarraVolver from './BarraVolver'
+
+// Destinos que cuelgan de la pestaña Onboarding.
+const SUB_ONBOARDING = ['mi-onboarding', 'seguimiento', 'acompanados']
 
 export default function Layout() {
   const { currentUser } = useUser()
@@ -14,8 +25,71 @@ export default function Layout() {
   const location = useLocation()
   const { exitConfirmOpen, confirmDiscard, confirmSave, cancelExit } = useUnsavedChanges()
 
-  const isMobile = currentUser.id === 4
-  const [mobileTab, setMobileTab] = useState('onboarding')
+  const isMobile = currentUser.mobile === true
+  const esLider = currentUser.role === 'manager'
+  const esBuddy = currentUser.role === 'buddy'
+
+  /* La pestaña "Onboarding" es un atajo, no un lugar: existe solo mientras la persona
+     tiene una incorporación en curso, para que pueda ir a sus tareas de un toque. Quien ya
+     se graduó — o nunca pasó por el módulo, como un líder de siempre — entra por Zona HR.
+     Por eso la condición mira el dato del usuario y no su rol. */
+  const enOnboarding = !currentUser.onbNA && !currentUser.onbGraduado
+
+  /* El buddy la conserva aunque ya se haya graduado: el atajo deja de apuntar a su ruta y
+     pasa a apuntar a su gente, que es trabajo vivo y de todos los días. Sin esto acompañar
+     no tendría ninguna puerta en el teléfono. */
+  const tabOnboarding = enOnboarding || esBuddy
+
+  /* El hub aparece cuando hay más de un destino adentro. El buddy graduado igual lo ve: su
+     ruta terminada sigue siendo consultable y la tarjeta lo dice. */
+  const conHub = esLider || esBuddy
+
+  // Quien está cursando entra por su ruta; el buddy graduado, por Inicio: acompañar es parte
+  // de su día, no lo único que hace.
+  const tabInicial = enOnboarding ? 'onboarding' : 'inicio'
+  const [mobileTab, setMobileTab] = useState(tabInicial)
+
+  /* Un módulo abierto desde Zona HR ocupa la pantalla completa: el lanzador te saca del
+     árbol de pestañas, así que dejar la barra abajo sugiere que seguís dentro de ella.
+     Y la pestaña "Onboarding" es transitoria — cuando la persona se gradúa desaparece y
+     Zona HR queda como única puerta, así que ese camino tiene que verse bien sin barra. */
+  const [origenHR, setOrigenHR] = useState(false)
+  const abrirDesdeHR = key => { setOrigenHR(true); setMobileTab(key) }
+  const volverAHR = () => { setOrigenHR(false); setMobileTab('hr') }
+  const irAPestana = key => { setOrigenHR(false); setMobileTab(key) }
+
+  /* El banner de Inicio es el atajo al onboarding desde el muro, y cada perfil llega con un
+     trabajo distinto: el colaborador sigue su ruta, el líder mira a su área y el buddy va a
+     sus tareas. Escrito como un objeto y no con ternarios repetidos en el ícono, el título y
+     el pie: así el día que se agregue un cuarto perfil se toca un solo lugar. */
+  const acompanados = esBuddy ? colaboradoresData.filter(c => c.buddy?.name === currentUser.name) : []
+  const tareasBuddyPend = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
+
+  const banner = esBuddy
+    ? {
+        icon: HeartHandshake,
+        titulo: 'Acompañar a mi gente',
+        detalle: `${acompanados.length} ${acompanados.length === 1 ? 'persona' : 'personas'}`
+          + (tareasBuddyPend > 0 ? ` · ${tareasBuddyPend} ${tareasBuddyPend === 1 ? 'tarea tuya' : 'tareas tuyas'} →` : ' →'),
+        ir: () => irAPestana('acompanados'),
+      }
+    : esLider
+      ? {
+          icon: Users,
+          titulo: 'Ver el onboarding de mi equipo',
+          detalle: `Tu área: ${currentUser.area} →`,
+          ir: () => abrirDesdeHR('seguimiento'),
+        }
+      : {
+          icon: Route,
+          titulo: 'Continuar mi Onboarding',
+          detalle: 'Tienes tareas pendientes →',
+          ir: () => irAPestana('onboarding'),
+        }
+
+  // Al cambiar de usuario en el simulador se vuelve a la raíz de la pestaña: si no, un
+  // colaborador puede quedar parado en Seguimiento, que no le corresponde.
+  useEffect(() => { setOrigenHR(false); setMobileTab(tabInicial) }, [currentUser.id, tabInicial])
 
   useEffect(() => {
     const isPersonas = location.pathname.startsWith('/personas') && location.pathname !== '/personas/organigrama'
@@ -297,8 +371,10 @@ export default function Layout() {
                 </div>
 
                 {/* ── Banner Onboarding ── */}
+                {/* Ni el líder ni el buddy tienen una ruta propia que continuar: su atajo es
+                    su gente. Y el buddy, además, entra a hacer sus tareas — no a mirar. */}
                 <div
-                  onClick={() => setMobileTab('onboarding')}
+                  onClick={banner.ir}
                   style={{
                     background: '#0C2D40', borderRadius: 10, padding: '10px 12px',
                     marginBottom: 6, cursor: 'pointer',
@@ -310,24 +386,50 @@ export default function Layout() {
                     background: 'rgba(0,224,145,.15)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>
-                    <Route size={11} style={{ color: '#00E091' }} />
+                    <banner.icon size={11} style={{ color: '#00E091' }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 7.5, fontWeight: 700, color: '#fff' }}>Continuar mi Onboarding</div>
-                    <div style={{ fontSize: 5.5, color: 'rgba(255,255,255,.6)', marginTop: 1 }}>Tienes tareas pendientes →</div>
+                    <div style={{ fontSize: 7.5, fontWeight: 700, color: '#fff' }}>
+                      {banner.titulo}
+                    </div>
+                    <div style={{ fontSize: 5.5, color: 'rgba(255,255,255,.6)', marginTop: 1 }}>
+                      {banner.detalle}
+                    </div>
                   </div>
                 </div>
 
               </div>
+            ) : mobileTab === 'hr' ? (
+              <ZonaHRPhone currentUser={currentUser} onNavegar={abrirDesdeHR} />
+            ) : mobileTab === 'organigrama' ? (
+              <OrganigramaPhone onSalir={volverAHR} />
+            ) : mobileTab === 'seguimiento' ? (
+              <SeguimientoPhone currentUser={currentUser} onVolver={() => setMobileTab('onboarding')} />
+            ) : mobileTab === 'acompanados' ? (
+              <AcompanadosPhone currentUser={currentUser} onVolver={() => setMobileTab('onboarding')} />
             ) : (
-              <MiOnboarding forcePhone />
+              <>
+                {/* Abierto desde Zona HR se sale al lanzador; abierto desde la pestaña, al hub. */}
+                {mobileTab === 'onboarding' && origenHR && (
+                  <BarraVolver texto="Zona HR" onVolver={volverAHR} />
+                )}
+                {mobileTab === 'mi-onboarding' && (
+                  <BarraVolver texto="Onboarding" onVolver={() => setMobileTab('onboarding')} />
+                )}
+                {mobileTab === 'onboarding' && conHub
+                  ? <OnboardingHubPhone currentUser={currentUser} onIr={setMobileTab} />
+                  : <MiOnboarding forcePhone />}
+              </>
             )}
           </div>
 
-          {/* Bottom nav — estilo SoulyHR */}
+          {/* Bottom nav — estilo SoulyHR. Los módulos abiertos desde Zona HR van a pantalla
+              completa: dejar las pestañas ahí sugiere que son hermanas de Inicio y te deja
+              sin salida al tocar otra. */}
           <div style={{
             flexShrink: 0,
-            padding: '4px 10px 8px',
+            padding: '4px 10px 0',
+            display: origenHR ? 'none' : 'block',
           }}>
             <div style={{
               background: '#fff',
@@ -338,19 +440,22 @@ export default function Layout() {
             }}>
               {[
                 { icon: Home, label: 'Inicio', key: 'inicio' },
-                { icon: Route, label: 'Onboarding', key: 'onboarding' },
+                ...(tabOnboarding ? [{ icon: Route, label: 'Onboarding', key: 'onboarding' }] : []),
                 { icon: MessageCircle, label: 'Chat', key: 'chat' },
-                { icon: Briefcase, label: 'Mi zona HR', key: 'hr' },
-                { icon: Bell, label: 'Alertas', key: 'alertas' },
+                { icon: LayoutGrid, label: 'Zona HR', key: 'hr' },
                 { icon: User, label: 'Perfil', key: 'perfil' },
               ].map(tab => {
+                // Mi Onboarding y Seguimiento viven dentro de la pestaña Onboarding, así que
+                // la mantienen encendida mientras estás adentro.
                 const active = mobileTab === tab.key
+                  || (tab.key === 'onboarding' && SUB_ONBOARDING.includes(mobileTab))
+                const navegable = ['inicio', 'onboarding', 'hr'].includes(tab.key)
                 return (
                 <div key={tab.label}
-                  onClick={() => (tab.key === 'inicio' || tab.key === 'onboarding') && setMobileTab(tab.key)}
+                  onClick={() => navegable && irAPestana(tab.key)}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: 3, cursor: (tab.key === 'inicio' || tab.key === 'onboarding') ? 'pointer' : 'default',
+                    gap: 3, cursor: navegable ? 'pointer' : 'default',
                     ...(active ? {
                       background: '#0C2D40', borderRadius: 10,
                       padding: '5px 10px',
@@ -366,6 +471,16 @@ export default function Layout() {
                 )
               })}
             </div>
+          </div>
+
+          {/* Franja de gestos del sistema. Va siempre, con o sin barra de pestañas: es el
+              espacio del teléfono, no de la app, y ahí abajo vive la barra de volver/inicio.
+              Dibujarla evita que la navegación de SoulyHR se apoye sobre ella. */}
+          <div style={{
+            flexShrink: 0, height: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{ width: 92, height: 3.5, borderRadius: 99, background: '#cbd5e1' }} />
           </div>
         </div>
       </div>

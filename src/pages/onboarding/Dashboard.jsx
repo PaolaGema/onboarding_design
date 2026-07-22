@@ -1,10 +1,12 @@
 ﻿import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
+import { colaboradoresData, CON_RUTA_ACTIVA, ESTADOS_ONBOARDING } from '../personas/colaboradoresData'
+import { avatarUrl } from '../../utils/calendarEvents'
 import viaSaludando from '../../assets/imagenes/via_saludando.png'
 import {
   CheckCircle2, Check,
-  ClipboardList, Route, UserPlus,
+  Route, UserPlus,
   Star, CalendarHeart, Trophy, Medal,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts'
@@ -42,38 +44,20 @@ const feedData = [
   { text: <><strong>Sofía Ramírez</strong> fue asignada a Onboarding Ventas 2026</>, time: 'Ayer' },
 ]
 
-/* ── DATA MANAGER (Marketing) ───────────────── */
+/* ── DATA MANAGER ───────────────────────────── */
 
-const managerKpis = [
-  { title: 'Mi equipo', value: '4', label: 'Colaboradores en Marketing', accent: 'var(--blue)', alert: false },
-  { title: 'En onboarding', value: '2', label: 'Realizando su ruta', accent: 'var(--green)', alert: false },
-  { title: 'En riesgo', value: '0', label: 'Sin alertas activas', accent: 'var(--yellow)', alert: false },
-  { title: 'Graduados', value: '2', label: 'Onboarding completado', accent: 'var(--purple)', alert: false },
-]
+/* Quién aparece primero en la lista del jefe. Con equipos grandes lo que importa no es
+   el orden alfabético sino a quién hay que mirar hoy: primero lo que está roto. */
+const ORDEN_URGENCIA = { 'en-riesgo': 0, 'sin-ruta': 1, 'sin-iniciar': 2, 'en-curso': 3, 'graduado': 4, 'n-a': 5 }
 
-const managerProgress = [
-  { name: 'Andrea Núñez', route: 'Onboarding Marketing Digital', pct: 55, day: '16 / 30', color: '#06b6d4', progColor: 'var(--blue)' },
-  { name: 'Isabella Mendoza', route: 'Onboarding Marketing Digital', pct: 32, day: '10 / 30', color: '#7c3aed', progColor: 'var(--blue)' },
-]
-
-const managerGraduados = [
-  { name: 'Valeria Rojas', cargo: 'Content Creator', fecha: '12 Feb 2026', color: '#c026d3' },
-  { name: 'Carolina Vega', cargo: 'Analista de Marketing', fecha: '28 Jun 2025', color: '#14b8a6' },
-]
-
-const managerAlerts = [
-  { name: 'Andrea Núñez', sub: 'Tiene 3 tareas pendientes esta semana', color: '#06b6d4', badge: 'Pendiente', badgeCls: 'b-hoy' },
-]
+// Tope de filas por sección: un líder de área puede tener 15 ingresos a la vez y la
+// pantalla tiene que seguir siendo legible. Lo que se corta se declara, no se esconde.
+const TOPE_LISTA = 6
 
 const managerFeed = [
   { text: <><strong>Andrea Núñez</strong> completó la tarea "Manual de marca"</>, time: 'Hace 1 h' },
-  { text: <><strong>Isabella Mendoza</strong> inició su ruta de onboarding</>, time: 'Hace 2 días' },
+  { text: <><strong>Natalia Ferrer</strong> recibió su ruta de onboarding</>, time: 'Hace 2 días' },
   { text: <><strong>Valeria Rojas</strong> se graduó de su onboarding</>, time: 'Hace 1 semana' },
-]
-
-const managerTareasPendientes = [
-  { name: 'Validar recorrido de Andrea Núñez', tipo: 'Supervisar tarea', color: '#f59e0b' },
-  { name: 'Reunión de bienvenida con Isabella', tipo: 'Reunión pendiente', color: '#3b82f6' },
 ]
 
 
@@ -89,7 +73,26 @@ export default function Dashboard() {
   const allStepsDone = step3Done && step4Done
 
   const isManager = currentUser.role === 'manager'
-  const managerArea = 'Marketing'
+
+  /* El equipo del jefe sale de la relación `jefe` del colaborador, no del área: un área
+     puede tener varios líderes y no todos los de un depto reportan al mismo. */
+  const equipo = colaboradoresData.filter(c => c.jefe?.name === currentUser.name)
+  const managerArea = currentUser.area || equipo[0]?.depto || 'tu área'
+
+  const enOnboarding = equipo
+    .filter(c => CON_RUTA_ACTIVA.includes(c.onb))
+    .sort((a, b) => ORDEN_URGENCIA[a.onb] - ORDEN_URGENCIA[b.onb] || (a.onbPct ?? 0) - (b.onbPct ?? 0))
+  const graduados = equipo.filter(c => c.onb === 'graduado')
+  const enRiesgo = equipo.filter(c => c.onb === 'en-riesgo')
+  // "Sin ruta" también es una alerta del jefe: alguien entró y nadie le asignó nada.
+  const alertas = [...enRiesgo, ...equipo.filter(c => c.onb === 'sin-ruta')]
+
+  const managerKpis = [
+    { title: 'Mi equipo', value: equipo.length, label: `Colaboradores en ${managerArea}`, accent: 'var(--blue)', alert: false },
+    { title: 'En onboarding', value: enOnboarding.length, label: 'Realizando su ruta', accent: 'var(--green)', alert: false },
+    { title: 'En riesgo', value: enRiesgo.length, label: enRiesgo.length > 0 ? '+3 días sin actividad' : 'Sin alertas activas', accent: 'var(--yellow)', alert: enRiesgo.length > 0 },
+    { title: 'Graduados', value: graduados.length, label: 'Onboarding completado', accent: 'var(--purple)', alert: false },
+  ]
 
   const firstName = currentUser.name.split(' ')[0]
 
@@ -126,25 +129,38 @@ export default function Dashboard() {
             {/* EQUIPO EN PROGRESO */}
             <div className="sec-card">
               <div className="sc-hd">
-                <h3>Mi equipo en onboarding <span className="sc-hd-count">{managerProgress.length}</span></h3>
+                <h3>Mi equipo en onboarding <span className="sc-hd-count">{enOnboarding.length}</span></h3>
               </div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-                {managerProgress.length > 0 ? managerProgress.map((p) => (
-                  <div key={p.name} className="prog-row">
-                    <div className="pr-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(p.name)}`} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
-                    <div className="pr-info">
-                      <div className="pr-name">{p.name}</div>
-                      <div className="pr-route">{p.route}</div>
-                    </div>
-                    <div className="pr-day">Día {p.day}</div>
-                    <div className="pr-progress">
-                      <div className="pr-pct">{p.pct}%</div>
-                      <div className="pr-bar">
-                        <div className="pr-fill" style={{ width: `${p.pct}%`, background: p.progColor }} />
+                {enOnboarding.length > 0 ? <>
+                  {enOnboarding.slice(0, TOPE_LISTA).map((c) => {
+                    const estado = ESTADOS_ONBOARDING[c.onb]
+                    return (
+                      <div key={c.id} className="prog-row">
+                        <div className="pr-av"><img src={avatarUrl(c.name)} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
+                        <div className="pr-info">
+                          <div className="pr-name">{c.name}</div>
+                          <div className="pr-route">{c.cargo}</div>
+                        </div>
+                        <div className="pr-day"><span className="badge" style={{ background: estado.bg, color: estado.color }}>{estado.label}</span></div>
+                        <div className="pr-progress">
+                          <div className="pr-pct">{c.onbPct ?? 0}%</div>
+                          <div className="pr-bar">
+                            <div className="pr-fill" style={{ width: `${c.onbPct ?? 0}%`, background: estado.color }} />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                )) : (
+                    )
+                  })}
+                  {enOnboarding.length > TOPE_LISTA && (
+                    <button
+                      onClick={() => navigate('/onboarding/seguimiento')}
+                      style={{ marginTop: 10, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, color: 'var(--blue)' }}
+                    >
+                      Ver los {enOnboarding.length - TOPE_LISTA} restantes en Seguimiento
+                    </button>
+                  )}
+                </> : (
                   <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
                     No hay colaboradores en onboarding actualmente
                   </div>
@@ -152,53 +168,20 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* TAREAS QUE REQUIEREN TU ACCIÓN */}
-            <div className="sec-card">
-              <div className="sc-hd">
-                <h3>Requieren tu acción <span className="sc-hd-count">{managerTareasPendientes.length}</span></h3>
-              </div>
-              <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-                {managerTareasPendientes.map((t, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 0',
-                    borderBottom: i < managerTareasPendientes.length - 1 ? '1px solid #f1f5f9' : 'none',
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      background: `${t.color}12`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <ClipboardList size={14} style={{ color: t.color }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{t.name}</div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{t.tipo}</div>
-                    </div>
-                    <button style={{
-                      fontSize: 10, fontWeight: 600, color: '#3b82f6',
-                      background: '#eff6ff', border: '1px solid #dbeafe',
-                      borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
-                    }}>Ver</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* GRADUADOS */}
             <div className="sec-card">
               <div className="sc-hd">
-                <h3>Graduados de {managerArea} <span className="sc-hd-count">{managerGraduados.length}</span></h3>
+                <h3>Graduados de {managerArea} <span className="sc-hd-count">{graduados.length}</span></h3>
               </div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-                {managerGraduados.map((g, i) => (
-                  <div key={i} style={{
+                {graduados.length > 0 ? graduados.slice(0, TOPE_LISTA).map((g, i, arr) => (
+                  <div key={g.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 0',
-                    borderBottom: i < managerGraduados.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
                   }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#0C2D40', border: '1.5px solid #e2e8f0' }}>
-                      <img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(g.name)}`} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+                      <img src={avatarUrl(g.name)} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{g.name}</div>
@@ -206,10 +189,14 @@ export default function Dashboard() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle2 size={12} style={{ color: '#16a34a' }} />
-                      <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>{g.fecha}</span>
+                      <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>Completado</span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+                    Todavía nadie de tu equipo terminó su onboarding
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -220,24 +207,27 @@ export default function Dashboard() {
             {/* ALERTAS */}
             <div className="sec-card">
               <div className="sc-hd">
-                <h3>Atención requerida <span className="sc-hd-count">{managerAlerts.length}</span></h3>
+                <h3>Atención requerida <span className="sc-hd-count">{alertas.length}</span></h3>
               </div>
               <div className="sc-body" style={{ padding: '8px 22px 18px' }}>
-                {managerAlerts.length > 0 ? managerAlerts.map((a) => (
-                  <div key={a.name} className="alert-item">
-                    <div className="ai-av"><img src={`https://i.pravatar.cc/40?u=${encodeURIComponent(a.name)}`} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
+                {alertas.length > 0 ? alertas.slice(0, TOPE_LISTA).map((a) => {
+                  const estado = ESTADOS_ONBOARDING[a.onb]
+                  return (
+                  <div key={a.id} className="alert-item">
+                    <div className="ai-av"><img src={avatarUrl(a.name)} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} /></div>
                     <div className="ai-info">
                       <div className="ai-name">{a.name}</div>
-                      <div className="ai-sub">{a.sub}</div>
+                      <div className="ai-sub">{estado.desc}</div>
                     </div>
                     <div className="ai-badge">
-                      <span className={`badge ${a.badgeCls}`}>
-                        <span className="badge-dot" />
-                        {a.badge}
+                      <span className="badge" style={{ background: estado.bg, color: estado.color }}>
+                        <span className="badge-dot" style={{ background: estado.dot }} />
+                        {estado.label}
                       </span>
                     </div>
                   </div>
-                )) : (
+                  )
+                }) : (
                   <div style={{ padding: 20, textAlign: 'center' }}>
                     <CheckCircle2 size={24} style={{ color: '#00E091', margin: '0 auto 8px' }} />
                     <div style={{ fontSize: 12, color: '#64748b' }}>Sin alertas en tu equipo</div>

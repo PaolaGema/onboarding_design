@@ -6,6 +6,7 @@ import { rutasData } from '../onboarding/JourneyBuilder'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { avatarUrl } from '../../utils/calendarEvents'
 import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
+import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 import { departamentos, colaboradoresData, ESTADOS_ONBOARDING, CON_RUTA_ACTIVA } from './colaboradoresData'
 
 /* Foto real del colaborador; si no carga, caen las iniciales sobre su color de siempre. */
@@ -969,36 +970,21 @@ export default function Colaboradores() {
         const esBuddy = confirmar.tipo === 'buddy'
         const c = confirmar.colaborador
         return (
-          <div className="pl-overlay" onClick={() => setConfirmar(null)}>
-            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-                <div className="pl-del-icon">
-                  <AlertTriangle size={28} />
-                </div>
-                <h2 className="pl-del-title">{esBuddy ? 'Desasignar buddy' : 'Desasignar ruta de onboarding'}</h2>
-                <p className="pl-del-desc">
-                  {esBuddy ? (
-                    <>¿Quitar a <strong>{c.buddy?.name}</strong> como buddy de <strong>{c.name}</strong>?</>
-                  ) : (
-                    <>Se quitará la ruta de onboarding de <strong>{c.name}</strong> y también su buddy. Volverá al estado <strong>Sin ruta</strong>.</>
-                  )}
-                </p>
-              </div>
-              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-                <button className="pl-btn-cancel" onClick={() => setConfirmar(null)}>Cancelar</button>
-                <button
-                  className="pl-btn-delete"
-                  onClick={() => {
-                    if (esBuddy) actualizar(c.id, { buddy: null })
-                    else desasignarRuta(c)
-                    setConfirmar(null)
-                  }}
-                >
-                  Desasignar
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmarAccionModal
+            titulo={esBuddy ? 'Desasignar buddy' : 'Desasignar ruta de onboarding'}
+            descripcion={esBuddy
+              ? <>¿Quitar a <strong>{c.buddy?.name}</strong> como buddy de <strong>{c.name}</strong>?</>
+              : <>Se quitará la ruta de onboarding de <strong>{c.name}</strong> y también su buddy. Volverá al estado <strong>Sin ruta</strong>.</>}
+            palabra="desasignar"
+            textoConfirmar="Desasignar"
+            onConfirmar={() => {
+              if (esBuddy) actualizar(c.id, { buddy: null })
+              else desasignarRuta(c)
+              setConfirmar(null)
+            }}
+            onCancelar={() => setConfirmar(null)}
+            icono={AlertTriangle}
+          />
         )
       })()}
     </div>

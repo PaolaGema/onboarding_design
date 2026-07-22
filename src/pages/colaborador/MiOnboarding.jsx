@@ -9,8 +9,10 @@ import {
   ClipboardList, UserCheck, MapPin, ShieldCheck,
   ExternalLink, X, Route, Info, Rocket,
   Play, Download, ChevronRight,
-  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network, IdCard
+  Send, Award, PackageOpen, ArrowLeft, Bot, Smile, Network, IdCard, History
 } from 'lucide-react'
+import HistorialOnboardingModal from '../../components/onboarding/HistorialOnboardingModal'
+import { historialDe } from '../../data/historialIncorporaciones'
 import viaBebe from '../../assets/imagenes/via_bebe.webp'
 import viaAntiguo from '../../assets/imagenes/via_colaborador_antiguo.webp'
 import manualPdf from '../../assets/documentos/manual_funciones.pdf'
@@ -65,22 +67,57 @@ const chatResponses = {
 }
 const chatSuggestions = Object.keys(chatResponses)
 
+/* Los dos accesos del rail superior. Se escriben una vez porque aparecen en cuatro lugares
+   —bienvenida y barra, en escritorio y en teléfono— y ahí es donde se desincronizan. */
+function AccionesCabecera({ compact = false, onHistorial, onOrganigrama }) {
+  const s = compact
+    ? { gap: 4, pad: '5px 9px', font: 7.5, icono: 9, radio: 14, sep: 4 }
+    : { gap: 6, pad: '7px 14px', font: 12, icono: 14, radio: 20, sep: 8 }
+
+  const base = {
+    display: 'flex', alignItems: 'center', gap: s.gap, whiteSpace: 'nowrap',
+    background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
+    borderRadius: s.radio, padding: s.pad,
+    fontSize: s.font, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+    boxShadow: '0 2px 6px rgba(12,45,64,.08)', transition: 'all .15s',
+  }
+  const entrar = e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1' }
+  const salir = e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0' }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: s.sep }}>
+      <button style={base} onClick={onHistorial} onMouseEnter={entrar} onMouseLeave={salir}>
+        <History size={s.icono} />
+        {compact ? 'Historial' : 'Ver historial'}
+      </button>
+      <button style={base} onClick={onOrganigrama} onMouseEnter={entrar} onMouseLeave={salir}>
+        <Network size={s.icono} />
+        {compact ? 'Organigrama' : 'Ver organigrama'}
+      </button>
+    </div>
+  )
+}
+
 export default function MiOnboarding({ forcePhone = false }) {
   const { currentUser } = useUser()
   const navigate = useNavigate()
   const { rutaActiva, rutaGraduado, rutaAdmin, actualizarEtapas } = useRutaActiva()
   const { asistenteIA } = useConfig()
-  const isMobile = forcePhone || currentUser.id === 4
+  const isMobile = forcePhone || currentUser.mobile === true
 
   // El buddy es un colaborador que ya se graduó: en "Mi Onboarding" ve su ruta completada,
-  // no la vista de administrador.
+  // no la vista de administrador. En el celular vale la misma regla — el hub le anuncia la
+  // tarjeta como "Completado", así que adentro no puede aparecerle una ruta a medio hacer.
   const esColaboradorOBuddy = currentUser.role === 'colaborador' || currentUser.role === 'buddy'
-  const ruta = forcePhone ? rutaActiva : (esColaboradorOBuddy ? (currentUser.onbGraduado ? rutaGraduado : rutaActiva) : rutaAdmin)
+  const ruta = (forcePhone || esColaboradorOBuddy)
+    ? (currentUser.onbGraduado ? rutaGraduado : rutaActiva)
+    : rutaAdmin
   const isGraduado = ruta?.graduado === true
   const readOnly = isGraduado
 
   const [etapas, setEtapas] = useState([])
   const [started, setStarted] = useState(false)
+  const [historialAbierto, setHistorialAbierto] = useState(false)
   const [loadedRuta, setLoadedRuta] = useState(null)
   const [selTarea, setSelTarea] = useState(null)
   const [recorridoStops, setRecorridoStops] = useState({})
@@ -255,7 +292,52 @@ export default function MiOnboarding({ forcePhone = false }) {
   const positions = [0, 60, 90, 60, 0, -60, -90, -60]
   const firstName = currentUser.name.split(' ')[0]
 
+  const procesos = historialDe(currentUser.id)
+  const abrirHistorial = () => setHistorialAbierto(true)
+  const irAlOrganigrama = () => navigate('/personas/organigrama')
+
+  /* En el teléfono el historial no puede ser un modal `fixed`: taparía el escritorio entero
+     en vez del marco. Se muestra como pantalla propia dentro del celular. */
+  if (historialAbierto && isMobile) {
+    return (
+      <HistorialOnboardingModal
+        procesos={procesos}
+        nombre={currentUser.name}
+        compact
+        onCerrar={() => setHistorialAbierto(false)}
+      />
+    )
+  }
+
+  const modalHistorial = historialAbierto ? (
+    <HistorialOnboardingModal
+      procesos={procesos}
+      nombre={currentUser.name}
+      onCerrar={() => setHistorialAbierto(false)}
+    />
+  ) : null
+
   if (currentUser.onbNA) {
+    // En el teléfono la pantalla de escritorio no entra: la mascota sola mide 200px.
+    if (isMobile) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '20px 10px', minHeight: '100%' }}>
+          <img src={viaAntiguo} alt="Mascota" style={{ width: 66, marginBottom: 10 }} />
+          <h1 style={{ fontSize: 12, fontWeight: 800, color: '#0C2D40', margin: '0 0 5px' }}>¡Hola, {firstName}!</h1>
+          <p style={{ fontSize: 7, color: '#64748b', margin: '0 0 12px', lineHeight: 1.5, maxWidth: 190 }}>
+            Este módulo es para nuevos colaboradores en proceso de incorporación. Como ya eres parte del equipo, no tienes tareas pendientes aquí.
+          </p>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 12px', borderRadius: 9,
+            background: '#f0fdf4', border: '1px solid #bbf7d0',
+          }}>
+            <CheckCircle2 size={11} style={{ color: '#16a34a' }} />
+            <span style={{ fontSize: 7.5, color: '#166534', fontWeight: 700 }}>Sin tareas pendientes</span>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="jb">
         <div className="jb-panels">
@@ -327,6 +409,10 @@ export default function MiOnboarding({ forcePhone = false }) {
         <div className="jb-panels">
           <div className="jb-canvas">
             <div className="jb-canvas-body jb-pizarra" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
+              {modalHistorial}
+              <div style={{ position: 'absolute', top: isMobile ? 8 : 20, right: isMobile ? 8 : 24, zIndex: 2 }}>
+                <AccionesCabecera compact={isMobile} onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
+              </div>
               <div className="jb-welcome-screen">
                 <div className="jb-welcome-hero">
                   <div className="jb-welcome-text">
@@ -367,20 +453,9 @@ export default function MiOnboarding({ forcePhone = false }) {
     if (isMobile) {
       return (
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 8px', textAlign: 'center', minHeight: '100%' }}>
-          <button
-            onClick={() => navigate('/personas/organigrama')}
-            style={{
-              position: 'absolute', top: 8, right: 8,
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
-              borderRadius: 14, padding: '5px 9px 5px 8px',
-              fontSize: 7.5, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'inherit', boxShadow: '0 2px 6px rgba(12,45,64,.08)',
-            }}
-          >
-            <Network size={9} />
-            Ver organigrama
-          </button>
+          <div style={{ position: 'absolute', top: 8, right: 8 }}>
+            <AccionesCabecera compact onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
+          </div>
           <img src={viaBebe} alt="Mascota" style={{ width: 60, marginBottom: 10 }} />
           <h1 style={{ fontSize: 14, fontWeight: 800, color: '#0C2D40', margin: '0 0 4px' }}>¡Hola, {firstName}!</h1>
           <p style={{ fontSize: 8, color: '#64748b', margin: '0 0 12px', lineHeight: 1.4 }}>
@@ -424,23 +499,11 @@ export default function MiOnboarding({ forcePhone = false }) {
         <div className="jb-panels">
           <div className="jb-canvas">
             <div className="jb-canvas-body jb-pizarra" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
-              <div className="jb-welcome-screen" style={{ position: 'relative' }}>
-                <button
-                  onClick={() => navigate('/personas/organigrama')}
-                  style={{
-                    position: 'absolute', top: -6, right: 0,
-                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                    background: '#fff', color: '#0C2D40', border: '1px solid #e2e8f0',
-                    borderRadius: 20, padding: '7px 14px 7px 12px',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                    boxShadow: '0 2px 8px rgba(12,45,64,.08)', transition: 'all .15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-                >
-                  <Network size={14} />
-                  Ver organigrama
-                </button>
+              {modalHistorial}
+              <div style={{ position: 'absolute', top: 20, right: 24, zIndex: 2 }}>
+                <AccionesCabecera onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
+              </div>
+              <div className="jb-welcome-screen">
                 <div className="jb-welcome-hero">
                   <div className="jb-welcome-text">
                     <h1 className="jb-welcome-title">¡Hola, {firstName}!</h1>
@@ -486,6 +549,10 @@ export default function MiOnboarding({ forcePhone = false }) {
         <div className="jb-panels">
           <div className="jb-canvas">
             <div className="jb-canvas-body jb-pizarra" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%' }}>
+              {modalHistorial}
+              <div style={{ position: 'absolute', top: isMobile ? 8 : 20, right: isMobile ? 8 : 24, zIndex: 2 }}>
+                <AccionesCabecera compact={isMobile} onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
+              </div>
               <div style={{ maxWidth: 420, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
                 <img src={viaContinuar} alt="Mascota" style={{ width: 90, height: 'auto' }} />
                 <div style={{ textAlign: 'center' }}>
@@ -2310,20 +2377,27 @@ export default function MiOnboarding({ forcePhone = false }) {
 
   return (
     <div className={isMobile ? 'jb-mobile' : 'jb'}>
+      {modalHistorial}
       {/* BARRA SUPERIOR */}
       {isMobile ? (
         <div style={{ marginBottom: 8 }}>
           {/* Fila 1: título + organigrama */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 2px 6px' }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#0C2D40' }}>Mi Onboarding</span>
-            <button onClick={() => navigate('/personas/organigrama')} style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: '#fff', border: '1px solid #e2e8f0', padding: '4px 9px', borderRadius: 14,
-              cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 3px rgba(12,45,64,.06)',
-            }}>
-              <Network size={9} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 8, fontWeight: 700, color: '#0C2D40' }}>Organigrama</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button
+                onClick={() => setStarted(false)}
+                title="Volver al resumen de mi ruta"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 17, height: 17, borderRadius: 6, padding: 0, flexShrink: 0,
+                  background: '#fff', border: '1px solid #e2e8f0', color: '#0C2D40', cursor: 'pointer',
+                }}
+              >
+                <ArrowLeft size={9} />
+              </button>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#0C2D40' }}>Mi Onboarding</span>
+            </div>
+            <AccionesCabecera compact onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
           </div>
           {/* Fila 2: tarjeta de progreso */}
           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '9px 11px' }}>
@@ -2349,23 +2423,18 @@ export default function MiOnboarding({ forcePhone = false }) {
       ) : (
         <div className="jb-topbar">
           <div className="jb-breadcrumb">
+            {/* El resumen de la ruta —etapas, tareas, puntos— solo vivía en la pantalla de
+                bienvenida, que sin esto era un camino de ida. */}
+            <button className="jb-back" onClick={() => setStarted(false)} title="Volver al resumen de mi ruta">
+              <ArrowLeft size={16} />
+            </button>
             <span className="jb-bc-current" style={{ fontSize: 14, fontWeight: 700 }}>Mi Onboarding</span>
             <span style={{ fontSize: 12, color: '#64748b', marginLeft: 10 }}>
               Ruta: {ruta?.nombre || 'Sin asignar'}{ruta?.area ? ` — ${ruta.area}` : ''}
             </span>
           </div>
           <div className="jb-topbar-actions" style={{ gap: 10 }}>
-            <button
-              onClick={() => navigate('/personas/organigrama')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: '#fff', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 8,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              <Network size={13} style={{ color: '#0C2D40' }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>Ver organigrama</span>
-            </button>
+            <AccionesCabecera onHistorial={abrirHistorial} onOrganigrama={irAlOrganigrama} />
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: '#fef3c7', padding: '6px 12px', borderRadius: 8,

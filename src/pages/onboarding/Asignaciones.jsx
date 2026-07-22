@@ -3,15 +3,17 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pause, Play, Trash2, Info, CheckCircle2, Check,
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, MoreVertical, Pause, Play, Trash2, Info, CheckCircle2, Check,
   Send, MessageCircle, Bell,
   Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle,
-  BookOpen, Link2, Award
+  BookOpen, Link2, Award, LayoutGrid, List
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
-import { rutasData } from './JourneyBuilder'
+import { buildDetalleEtapas as construirEtapas } from '../../utils/detalleEtapas'
+import ColaboradorCard from '../../components/onboarding/ColaboradorCard'
 import EmptyState from '../../components/layout/EmptyState'
+import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 
 const statusLabels = {
   'en-curso': 'En curso',
@@ -33,6 +35,11 @@ const statusCls = {
 
 const tiposRuta = ['Onboarding', 'Reboarding']
 
+// Alto aproximado del menú de acciones (6 opciones): sirve para decidir si abre hacia
+// abajo o hacia arriba antes de que exista en el DOM y se pueda medir.
+const ALTO_MENU_ACCIONES = 250
+const MARGEN_MENU_ACCIONES = 24
+
 const tareaIconMap = {
   video: Video, audio: Headphones, documento: FileText, quiz: HelpCircle,
   'completar-perfil': ClipboardList, 'form-custom': ClipboardList, subida: Upload,
@@ -49,6 +56,70 @@ function videoStats(taskId, done) {
   return { veces: seed % 3, completo: false }
 }
 
+/* PROTOTIPO — respuestas del colaborador.
+   Hoy las respuestas reales no se guardan: viven en el estado local de la vista del
+   colaborador (MiOnboarding) y se pierden al salir. Hasta que se persistan en la
+   asignación, esta vista las simula de forma DETERMINISTA (misma persona + tarea →
+   mismas respuestas), con la misma semilla por suma de char-codes que videoStats, para
+   que RH pueda validar cómo se verá el panel. Si la tarea trae preguntas propias
+   (quizPreguntas/formCampos, creadas en el builder) se usan esas; si no, un banco genérico. */
+const QUIZ_BANCO = [
+  { q: '¿Cuál es uno de los valores centrales de la empresa?', opts: ['Transparencia', 'Individualismo', 'Jerarquía estricta'], correcta: 0 },
+  { q: '¿A quién acudes ante una duda sobre tu rol?', opts: ['A un cliente', 'A tu buddy o líder', 'A nadie'], correcta: 1 },
+  { q: '¿Dónde encuentras el manual de tu cargo?', opts: ['En Recursos corporativos', 'En redes sociales', 'No existe'], correcta: 0 },
+  { q: '¿Qué debes completar en tu primera semana?', opts: ['La evaluación final', 'Tu perfil y la bienvenida', 'Un reporte anual'], correcta: 1 },
+  { q: '¿Cada cuánto es el check-in con tu líder?', opts: ['Nunca', 'Solo el primer día', 'De forma quincenal'], correcta: 2 },
+]
+const FORM_BANCO = [
+  { q: '¿Cómo te has sentido en tu primera semana?', a: ['Muy acompañado/a, el equipo fue muy abierto.', 'Bien en general, con algunas dudas al inicio.', 'Algo perdido/a los primeros días, luego mejor.'] },
+  { q: '¿Qué tema te gustaría reforzar?', a: ['Las herramientas internas del área.', 'El proceso de aprobación de contenido.', 'Conocer mejor a las otras áreas.'] },
+  { q: '¿Tuviste todo lo necesario para empezar (accesos, equipo)?', a: ['Sí, todo listo desde el día uno.', 'Casi todo; faltó un acceso que ya se resolvió.', 'Tardaron algunos accesos la primera semana.'] },
+  { q: 'Un comentario para tu líder', a: ['Gracias por el acompañamiento.', 'Me gustaría un poco más de feedback semanal.', 'Todo claro por ahora, ¡con muchas ganas!'] },
+]
+
+function respuestasSimuladas(asignacion, tarea) {
+  const seed = String(asignacion.id).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
+             + String(tarea.id).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
+  // Falla ~1 de cada 4 preguntas calificables, para que el acierto no sea siempre perfecto.
+  const fallaEn = i => (seed + i) % 4 === 0
+
+  if (tarea.tipo === 'quiz') {
+    const reales = tarea.quizPreguntas?.length ? tarea.quizPreguntas : null
+    if (reales) {
+      return reales.map((p, i) => {
+        if (p.tipo === 'abierta') {
+          const banco = FORM_BANCO[(seed + i) % FORM_BANCO.length].a
+          return { q: p.texto, resp: banco[(seed + i) % banco.length] }
+        }
+        const correctaIdx = Math.max(0, p.opciones.findIndex(o => o.correcta))
+        const pickIdx = fallaEn(i) ? (correctaIdx + 1) % p.opciones.length : correctaIdx
+        return { q: p.texto, resp: p.opciones[pickIdx]?.texto || '—', ok: pickIdx === correctaIdx }
+      })
+    }
+    const n = 3 + (seed % 2) // 3 o 4 preguntas
+    return Array.from({ length: n }, (_, i) => {
+      const item = QUIZ_BANCO[(seed + i) % QUIZ_BANCO.length]
+      const pickIdx = fallaEn(i) ? (item.correcta + 1) % item.opts.length : item.correcta
+      return { q: item.q, resp: item.opts[pickIdx], ok: pickIdx === item.correcta }
+    })
+  }
+
+  // Formulario (completar-perfil): sin respuesta correcta, solo texto/opción elegida.
+  const reales = tarea.formCampos?.length ? tarea.formCampos : null
+  if (reales) {
+    return reales.map((c, i) => {
+      if (c.opciones?.length) return { q: c.etiqueta, resp: c.opciones[(seed + i) % c.opciones.length]?.texto || '—' }
+      const banco = FORM_BANCO[(seed + i) % FORM_BANCO.length].a
+      return { q: c.etiqueta, resp: banco[(seed + i) % banco.length] }
+    })
+  }
+  const n = 3 + (seed % 2)
+  return Array.from({ length: n }, (_, i) => {
+    const item = FORM_BANCO[(seed + i) % FORM_BANCO.length]
+    return { q: item.q, resp: item.a[(seed + i) % item.a.length] }
+  })
+}
+
 
 function barColor(status, pct) {
   if (status === 'completado') return 'var(--green)'
@@ -60,7 +131,8 @@ function barColor(status, pct) {
 export default function Asignaciones() {
   const { currentUser } = useUser()
   const isAreaRole = currentUser.role === 'manager' || currentUser.role === 'auxiliar'
-  const managerArea = 'Marketing'
+  // El área sale del usuario: los roles de alcance acotado (líder, auxiliar) la traen consigo.
+  const managerArea = currentUser.area
 
   const { asignaciones: allAsignaciones, setAsignaciones: setAllAsignaciones, plantillas: allPlantillas, addFeedEntry } = useOnboardingData()
   const asignaciones = isAreaRole ? allAsignaciones.filter(a => a.area === managerArea) : allAsignaciones
@@ -76,8 +148,16 @@ export default function Asignaciones() {
   const [filterTipo, setFilterTipo] = useState('todos')
   const [filterArea, setFilterArea] = useState('todas')
   const [filterCargo, setFilterCargo] = useState('todos')
+  /* Mismo interruptor que Rutas y Recursos: 'list' primero, 'grid' después.
+     El default va por rol y no por gusto: RH compara cientos de filas por los mismos campos
+     y necesita la tabla; un líder tiene 5-15 personas y ahí la tabla estorba más de lo que ayuda. */
+  const [viewMode, setViewMode] = useState(isAreaRole ? 'grid' : 'list')
   const [afDropStatus, setAfDropStatus] = useState(false)
   const [afDropTipo, setAfDropTipo] = useState(false)
+  // Tipo y Estado se filtran desde las cabeceras de la tabla; en tarjetas no hay cabeceras,
+  // así que los mismos filtros se ofrecen en la barra de arriba.
+  const [afDropTipoCard, setAfDropTipoCard] = useState(false)
+  const [afDropStatusCard, setAfDropStatusCard] = useState(false)
   const [afDropArea, setAfDropArea] = useState(false)
   const [afDropCargo, setAfDropCargo] = useState(false)
   const [statusHeaderPos, setStatusHeaderPos] = useState(null)
@@ -95,6 +175,8 @@ export default function Asignaciones() {
   const [recEnviado, setRecEnviado] = useState(false)
   const [menuPos, setMenuPos] = useState(null)
   const [detalle, setDetalle] = useState(null)
+  // Tarea (quiz/formulario) cuyo detalle de respuestas se está viendo dentro de "Ver detalles".
+  const [verRespuestas, setVerRespuestas] = useState(null)
   const [buddyModal, setBuddyModal] = useState(null)
   const [desasignarBuddyTarget, setDesasignarBuddyTarget] = useState(null)
 
@@ -107,6 +189,7 @@ export default function Asignaciones() {
     function closeDrops(e) {
       if (!e.target.closest('[data-th-filter]')) {
         setAfDropStatus(false); setAfDropTipo(false); setAfDropArea(false); setAfDropCargo(false)
+        setAfDropTipoCard(false); setAfDropStatusCard(false)
       }
     }
     document.addEventListener('mousedown', closeDrops)
@@ -175,34 +258,8 @@ export default function Asignaciones() {
     setTimeout(() => setRecordatorio(null), 1200)
   }
 
-  function buildDetalleEtapas(a) {
-    // El contenido del colaborador se resuelve por su versión fijada
-    // (ruta.versiones[version]); si no, cae al snapshot, luego a la ruta viva.
-    const ruta = allPlantillas.find(p => p.id === a.rutaId || p.name === a.ruta)
-    const porVersion = ruta?.versiones && a.version != null
-      ? ruta.versiones.find(v => v.v === a.version)?.etapasData
-      : null
-    const fuente = porVersion
-      || (a.etapasData && a.etapasData.length ? a.etapasData : null)
-      || ruta?.etapasData
-      || rutasData[1].etapas
-    const flat = fuente.flatMap(e => e.actividades.flatMap(act => act.tareas))
-    const doneCount = Math.round(flat.length * a.pct / 100)
-    let seen = 0
-    return fuente.map(etapa => {
-      const tareas = etapa.actividades.flatMap(act => act.tareas).map(t => {
-        const done = seen < doneCount
-        seen += 1
-        return { ...t, done }
-      })
-      return {
-        name: etapa.name,
-        days: etapa.days || (etapa.duracion ? `${etapa.duracion} días` : ''),
-        tareas,
-        doneLocal: tareas.filter(t => t.done).length,
-      }
-    })
-  }
+  // La regla de qué versión de la ruta aplica vive en utils: la comparte el celular del líder.
+  const buildDetalleEtapas = a => construirEtapas(a, allPlantillas)
 
   function confirmPausar(a) {
     setPausarTarget(a)
@@ -245,6 +302,76 @@ export default function Asignaciones() {
     setAsignaciones(asignaciones.filter(a => a.id !== deleteTarget.id))
     setDeleteTarget(null)
   }
+
+  /* Las acciones son las mismas se vea tabla o tarjetas: si se agrega una, tiene que
+     aparecer en ambas vistas o una queda coja. Por eso el menú se escribe una sola vez.
+     En tabla los puntos van horizontales, que es lo que se espera al final de una fila;
+     en tarjeta van verticales porque el botón se apoya en el borde derecho de la ficha. */
+  const accionesMenu = (a, vertical = false) => (
+    <div className="as-menu-wrap">
+      <button
+        className="as-btn-more"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (menuOpen === a.id) { setMenuOpen(null); return }
+          const rect = e.currentTarget.getBoundingClientRect()
+          /* Abrir siempre hacia abajo corta el menú cuando el botón cae cerca del borde
+             inferior (últimas filas de la tabla, tarjetas del final de la grilla). Si no
+             cabe debajo y arriba hay más sitio, se ancla por abajo y crece hacia arriba. */
+          const espacioAbajo = window.innerHeight - rect.bottom
+          const haciaArriba = espacioAbajo < ALTO_MENU_ACCIONES && rect.top > espacioAbajo
+          setMenuPos({
+            top: haciaArriba ? undefined : rect.bottom + 4,
+            bottom: haciaArriba ? window.innerHeight - rect.top + 4 : undefined,
+            right: window.innerWidth - rect.right,
+          })
+          setMenuOpen(a.id)
+        }}
+      >
+        {vertical ? <MoreVertical size={14} /> : <MoreHorizontal size={14} />}
+      </button>
+      {menuOpen === a.id && menuPos && (
+        <div
+          className="as-menu"
+          style={{
+            position: 'fixed', top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right,
+            // Red de seguridad: si aun así no cabe, que haga scroll en vez de cortarse.
+            maxHeight: `calc(100vh - ${MARGEN_MENU_ACCIONES}px)`, overflowY: 'auto',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button className="as-menu-item" onClick={() => { setDetalle(a); setMenuOpen(null) }}>
+            <Eye size={13} />
+            Ver detalles
+          </button>
+          <button className="as-menu-item" onClick={() => { setBuddyModal(a); setMenuOpen(null) }}>
+            <UserCheck size={13} />
+            {a.buddy ? 'Cambiar buddy' : 'Asignar buddy'}
+          </button>
+          {a.buddy && (
+            <button className="as-menu-item as-menu-del" onClick={() => confirmDesasignarBuddy(a)}>
+              <X size={13} />
+              Desasignar buddy
+            </button>
+          )}
+          {(a.status === 'atrasado' || a.status === 'en-riesgo') && (
+            <button className="as-menu-item" onClick={() => openRecordatorio(a)}>
+              <Send size={13} />
+              Enviar recordatorio
+            </button>
+          )}
+          <button className="as-menu-item" onClick={() => confirmPausar(a)}>
+            {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
+            {a.status === 'pausado' ? 'Reanudar' : 'Pausar'}
+          </button>
+          <button className="as-menu-item as-menu-del" onClick={() => confirmDelete(a)}>
+            <Trash2 size={13} />
+            Desasignar
+          </button>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="content-scroll" onClick={() => setMenuOpen(null)}>
@@ -330,6 +457,45 @@ export default function Asignaciones() {
           )}
         </div>
 
+        {/* TIPO y ESTADO — solo en tarjetas: en tabla viven en las cabeceras de columna */}
+        {viewMode === 'grid' && (
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }} data-th-filter>
+            <button type="button" className={`pl-dropdown-trigger${afDropTipoCard ? ' open' : ''}${filterTipo === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setAfDropTipoCard(!afDropTipoCard); setAfDropStatusCard(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{filterTipo === 'todos' ? 'Todos los tipos' : filterTipo}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {afDropTipoCard && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+                {['todos', ...tiposRuta].map(t => (
+                  <button key={t} type="button" className={`pl-dropdown-item${filterTipo === t ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterTipo(t); setAfDropTipoCard(false); setPage(1) }}>
+                    <span>{t === 'todos' ? 'Todos los tipos' : t}</span>
+                    {filterTipo === t && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === 'grid' && (
+          <div className="pl-dropdown-wrap" style={{ width: 'auto' }} data-th-filter>
+            <button type="button" className={`pl-dropdown-trigger${afDropStatusCard ? ' open' : ''}${filterStatus === 'todos' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', justifyContent: 'flex-start', gap: 6 }} onClick={e => { e.stopPropagation(); setAfDropStatusCard(!afDropStatusCard); setAfDropTipoCard(false) }}>
+              <span style={{ whiteSpace: 'nowrap' }}>{filterStatus === 'todos' ? 'Todos los estados' : statusLabels[filterStatus]}</span>
+              <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
+            </button>
+            {afDropStatusCard && (
+              <div className="pl-dropdown-menu" style={{ minWidth: 160 }}>
+                {['todos', ...Object.keys(statusLabels)].map(s => (
+                  <button key={s} type="button" className={`pl-dropdown-item${filterStatus === s ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(s); setAfDropStatusCard(false); setPage(1) }}>
+                    <span>{s === 'todos' ? 'Todos los estados' : statusLabels[s]}</span>
+                    {filterStatus === s && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {hasAsigFilters && (
           <button onClick={() => { clearAsigFilters(); setPage(1) }} style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Limpiar</button>
         )}
@@ -339,10 +505,31 @@ export default function Asignaciones() {
             <UserPlus size={14} /> Asignar ruta a colaboradores
           </button>
         )}
+        <div style={{ display: 'flex', background: 'var(--surface-hover)', borderRadius: 8, padding: 3, marginLeft: isAreaRole ? 'auto' : 0 }}>
+          {[{ key: 'list', icon: List }, { key: 'grid', icon: LayoutGrid }].map(v => {
+            const VIcon = v.icon
+            return (
+              <button
+                key={v.key}
+                onClick={() => setViewMode(v.key)}
+                style={{
+                  width: 32, height: 28, borderRadius: 6, border: 'none',
+                  background: viewMode === v.key ? '#fff' : 'transparent',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: viewMode === v.key ? '#0C2D40' : '#94a3b8',
+                  transition: 'all .15s',
+                }}
+              >
+                <VIcon size={14} />
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* TABLA */}
       <div className="as-table-wrap">
+        {viewMode === 'list' ? (
         <table className="as-table">
           <thead>
             <tr>
@@ -507,59 +694,34 @@ export default function Asignaciones() {
                   )}
                 </td>
                 <td>
-                  <div className="as-actions-cell">
-                    <div className="as-menu-wrap">
-                      <button
-                        className="as-btn-more"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (menuOpen === a.id) { setMenuOpen(null); return }
-                          const rect = e.currentTarget.getBoundingClientRect()
-                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                          setMenuOpen(a.id)
-                        }}
-                      >
-                        <MoreHorizontal size={14} />
-                      </button>
-                      {menuOpen === a.id && menuPos && (
-                        <div className="as-menu" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }} onClick={e => e.stopPropagation()}>
-                          <button className="as-menu-item" onClick={() => { setDetalle(a); setMenuOpen(null) }}>
-                            <Eye size={13} />
-                            Ver detalles
-                          </button>
-                          <button className="as-menu-item" onClick={() => { setBuddyModal(a); setMenuOpen(null) }}>
-                            <UserCheck size={13} />
-                            {a.buddy ? 'Cambiar buddy' : 'Asignar buddy'}
-                          </button>
-                          {a.buddy && (
-                            <button className="as-menu-item as-menu-del" onClick={() => confirmDesasignarBuddy(a)}>
-                              <X size={13} />
-                              Desasignar buddy
-                            </button>
-                          )}
-                          {(a.status === 'atrasado' || a.status === 'en-riesgo') && (
-                            <button className="as-menu-item" onClick={() => openRecordatorio(a)}>
-                              <Send size={13} />
-                              Enviar recordatorio
-                            </button>
-                          )}
-                          <button className="as-menu-item" onClick={() => confirmPausar(a)}>
-                            {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
-                            {a.status === 'pausado' ? 'Reanudar' : 'Pausar'}
-                          </button>
-                          <button className="as-menu-item as-menu-del" onClick={() => confirmDelete(a)}>
-                            <Trash2 size={13} />
-                            Desasignar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <div className="as-actions-cell">{accionesMenu(a)}</div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        ) : paginated.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14, padding: 16 }}>
+            {paginated.map(a => (
+              <ColaboradorCard
+                key={a.id}
+                nombre={a.nombre}
+                cargo={a.cargo}
+                area={a.area}
+                pct={a.pct}
+                barColor={barColor(a.status, a.pct)}
+                badge={<span className={`as-status ${statusCls[a.status]}`} style={{ flexShrink: 0 }}>{statusLabels[a.status]}</span>}
+                meta={
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {a.ruta} · Día {a.dia}/{a.totalDias}
+                  </span>
+                }
+                onVerDetalles={() => setDetalle(a)}
+                acciones={accionesMenu(a, true)}
+              />
+            ))}
+          </div>
+        )}
 
         {paginated.length === 0 && (
           <div style={{ padding: '12px 16px 16px' }}>
@@ -680,43 +842,27 @@ export default function Asignaciones() {
       )}
 
       {desasignarBuddyTarget && (
-        <div className="pl-overlay" onClick={() => setDesasignarBuddyTarget(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-              <div className="pl-del-icon">
-                <AlertTriangle size={28} />
-              </div>
-              <h2 className="pl-del-title">Desasignar buddy</h2>
-              <p className="pl-del-desc">
-                ¿Quitar a <strong>{desasignarBuddyTarget.buddy?.name}</strong> como buddy de <strong>{desasignarBuddyTarget.nombre}</strong>?
-              </p>
-            </div>
-            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-              <button className="pl-btn-cancel" onClick={() => setDesasignarBuddyTarget(null)}>Cancelar</button>
-              <button className="pl-btn-delete" onClick={handleDesasignarBuddy}>Desasignar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmarAccionModal
+          titulo="Desasignar buddy"
+          descripcion={<>¿Quitar a <strong>{desasignarBuddyTarget.buddy?.name}</strong> como buddy de <strong>{desasignarBuddyTarget.nombre}</strong>?</>}
+          palabra="desasignar"
+          textoConfirmar="Desasignar"
+          onConfirmar={handleDesasignarBuddy}
+          onCancelar={() => setDesasignarBuddyTarget(null)}
+          icono={AlertTriangle}
+        />
       )}
 
       {deleteTarget && (
-        <div className="pl-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-              <div className="pl-del-icon">
-                <AlertTriangle size={28} />
-              </div>
-              <h2 className="pl-del-title">Desasignar ruta</h2>
-              <p className="pl-del-desc">
-                ¿Desasignar a <strong>{deleteTarget.nombre}</strong> de <strong>{deleteTarget.ruta}</strong>? Se perderá el progreso actual.
-              </p>
-            </div>
-            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-              <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-              <button className="pl-btn-delete" onClick={handleDelete}>Desasignar</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmarAccionModal
+          titulo="Desasignar ruta"
+          descripcion={<>¿Desasignar a <strong>{deleteTarget.nombre}</strong> de <strong>{deleteTarget.ruta}</strong>? Se perderá el progreso actual.</>}
+          palabra="desasignar"
+          textoConfirmar="Desasignar"
+          onConfirmar={handleDelete}
+          onCancelar={() => setDeleteTarget(null)}
+          icono={AlertTriangle}
+        />
       )}
 
       {/* MODAL ENVIAR RECORDATORIO */}
@@ -910,6 +1056,21 @@ export default function Asignaciones() {
                                       {vs.veces === 0 ? 'No visto' : `${vs.veces}×${vs.completo ? ' · completo' : ' · incompleto'}`}
                                     </span>
                                   )}
+                                  {/* Prueba y Formulario completados: RH abre aquí lo que respondió la persona. */}
+                                  {t.done && (t.tipo === 'quiz' || t.tipo === 'completar-perfil') && (
+                                    <button
+                                      onClick={() => setVerRespuestas(t)}
+                                      style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8.5, fontWeight: 700,
+                                        padding: '2px 8px', borderRadius: 20, marginTop: 3, cursor: 'pointer',
+                                        border: '1px solid #dbeafe', background: '#eff6ff', color: '#1d4ed8', fontFamily: 'inherit',
+                                      }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'}
+                                      onMouseLeave={e => e.currentTarget.style.background = '#eff6ff'}
+                                    >
+                                      <Eye size={9} /> Ver respuestas
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )
@@ -942,6 +1103,89 @@ export default function Asignaciones() {
                     Enviar recordatorio
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* RESPUESTAS DE LA TAREA (Prueba / Formulario) — se abre sobre "Ver detalles" */}
+      {verRespuestas && detalle && (() => {
+        const t = verRespuestas
+        const esQuiz = t.tipo === 'quiz'
+        const items = respuestasSimuladas(detalle, t)
+        const calificables = items.filter(it => it.ok !== undefined)
+        const aciertos = calificables.filter(it => it.ok).length
+        const HeaderIcon = esQuiz ? HelpCircle : ClipboardList
+        return (
+          <div className="pl-overlay" style={{ zIndex: 1200 }} onClick={() => setVerRespuestas(null)}>
+            <div className="pl-modal" style={{ maxWidth: 480, maxHeight: '82vh' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <HeaderIcon size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h2 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</h2>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Respuestas de {detalle.nombre}
+                    </div>
+                  </div>
+                </div>
+                <button className="pl-modal-close" onClick={() => setVerRespuestas(null)}><X size={18} /></button>
+              </div>
+
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '62vh' }}>
+                {/* Nota de prototipo: dejar claro que aún no son respuestas reales. */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', marginBottom: 14 }}>
+                  <Info size={14} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 11, color: '#92400e', lineHeight: 1.45 }}>
+                    Vista previa: respuestas de ejemplo. Aún no se guarda lo que responde el colaborador.
+                  </span>
+                </div>
+
+                {esQuiz && calificables.length > 0 && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 14,
+                    padding: '6px 12px', borderRadius: 20,
+                    background: aciertos === calificables.length ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${aciertos === calificables.length ? '#bbf7d0' : '#fecaca'}`,
+                  }}>
+                    <Award size={13} style={{ color: aciertos === calificables.length ? '#16a34a' : '#dc2626' }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: aciertos === calificables.length ? '#16a34a' : '#dc2626' }}>
+                      {aciertos}/{calificables.length} correctas
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {items.map((it, i) => (
+                    <div key={i} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 7 }}>
+                        <span style={{ width: 20, height: 20, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', lineHeight: 1.35 }}>{it.q}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>
+                        {it.ok !== undefined && (
+                          <span style={{
+                            width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: it.ok ? '#16a34a' : '#dc2626',
+                          }}>
+                            {it.ok ? <Check size={11} style={{ color: '#fff' }} /> : <X size={11} style={{ color: '#fff' }} />}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 12, color: it.ok === false ? '#b91c1c' : '#334155', lineHeight: 1.4 }}>
+                          {it.resp}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setVerRespuestas(null)}>Cerrar</button>
               </div>
             </div>
           </div>

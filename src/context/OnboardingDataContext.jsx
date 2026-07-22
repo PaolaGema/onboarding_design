@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect } from 'react'
 import { useLocalStorage, clearAllDemoData } from '../hooks/useLocalStorage'
 import { rutasSeedEtapas } from '../data/rutasSeedEtapas'
+import { colaboradoresData } from '../pages/personas/colaboradoresData'
 
 const OnboardingDataContext = createContext()
 
@@ -50,21 +51,23 @@ const samplePlantillas = samplePlantillasBase.map(p => {
   return { ...p, etapasData, etapas: etapasData.length, tareas }
 })
 
+/* El `cargo` no es decorativo: además de mostrarse en la ficha, alimenta el filtro por cargo
+   de Seguimiento, que queda vacío en cuanto una asignación no lo trae. */
 const sampleAsignaciones = [
-  { id: 1, nombre: 'Diego Morales', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 68, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
-  { id: 2, nombre: 'Camila Herrera', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 18, totalDias: 30, pct: 42, status: 'en-curso', fechaInicio: '30 May 2026', color: '#f97316' },
-  { id: 3, nombre: 'Valentina Cruz', area: 'Diseño', ruta: 'Onboarding Diseño & UX', dia: 20, totalDias: 30, pct: 25, status: 'atrasado', fechaInicio: '28 May 2026', color: '#ec4899' },
-  { id: 4, nombre: 'Facundo Medina', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 21, totalDias: 30, pct: 15, status: 'en-riesgo', fechaInicio: '27 May 2026', color: '#ef4444' },
-  { id: 5, nombre: 'Sofía Ramírez', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 1, totalDias: 30, pct: 0, status: 'pendiente', fechaInicio: '17 Jun 2026', color: '#f59e0b' },
-  { id: 6, nombre: 'Martín Solano', area: 'Tecnología', ruta: 'Onboarding Tech — Backend', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#10b981' },
-  { id: 7, nombre: 'Isabella Vargas', area: 'Comercial', ruta: 'Onboarding Comercial — Ejecutivo', dia: 10, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#8b5cf6' },
-  { id: 8, nombre: 'Nicolás Paredes', area: 'Ventas', ruta: 'Onboarding Ventas — Pasante', dia: 24, totalDias: 30, pct: 73, status: 'en-curso', fechaInicio: '24 May 2026', color: '#0d9488' },
-  { id: 9, nombre: 'Andrea Ríos', area: 'Operaciones', ruta: 'Onboarding Operaciones', dia: 8, totalDias: 30, pct: 35, status: 'en-curso', fechaInicio: '09 Jun 2026', color: '#06b6d4' },
-  { id: 10, nombre: 'Rodrigo Peña', area: 'Dirección', ruta: 'Onboarding Liderazgo', dia: 28, totalDias: 30, pct: 90, status: 'en-curso', fechaInicio: '20 May 2026', color: '#d946ef' },
-  { id: 11, nombre: 'Paula Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#3b82f6' },
-  { id: 12, nombre: 'Emilio Castañeda', area: 'Recursos Humanos', ruta: 'Onboarding RRHH — Generalista', dia: 5, totalDias: 30, pct: 20, status: 'en-curso', fechaInicio: '12 Jun 2026', color: '#f97316' },
-  { id: 13, nombre: 'Andrea Núñez', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 16, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '01 Jun 2026', color: '#06b6d4' },
-  { id: 14, nombre: 'Isabella Mendoza', area: 'Marketing', ruta: 'Onboarding Marketing Digital', dia: 10, totalDias: 30, pct: 32, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#7c3aed' },
+  { id: 1, nombre: 'Diego Morales', area: 'Tecnología', cargo: 'Desarrollador Backend', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 68, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
+  { id: 2, nombre: 'Camila Herrera', area: 'Ventas', cargo: 'Ejecutiva Comercial', ruta: 'Onboarding Ventas — Pasante', dia: 18, totalDias: 30, pct: 42, status: 'en-curso', fechaInicio: '30 May 2026', color: '#f97316' },
+  { id: 3, nombre: 'Valentina Cruz', area: 'Diseño', cargo: 'Diseñadora UX/UI', ruta: 'Onboarding Diseño & UX', dia: 20, totalDias: 30, pct: 25, status: 'atrasado', fechaInicio: '28 May 2026', color: '#ec4899' },
+  { id: 4, nombre: 'Facundo Medina', area: 'Tecnología', cargo: 'QA Engineer', ruta: 'Onboarding Tech — Backend', dia: 21, totalDias: 30, pct: 15, status: 'en-riesgo', fechaInicio: '27 May 2026', color: '#ef4444' },
+  { id: 5, nombre: 'Sofía Ramírez', area: 'Ventas', cargo: 'Pasante Comercial', ruta: 'Onboarding Ventas — Pasante', dia: 1, totalDias: 30, pct: 0, status: 'pendiente', fechaInicio: '17 Jun 2026', color: '#f59e0b' },
+  { id: 6, nombre: 'Martín Solano', area: 'Tecnología', cargo: 'Frontend Developer', ruta: 'Onboarding Tech — Backend', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#10b981' },
+  { id: 7, nombre: 'Isabella Vargas', area: 'Comercial', cargo: 'Ejecutiva Comercial', ruta: 'Onboarding Comercial — Ejecutivo', dia: 10, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#8b5cf6' },
+  { id: 8, nombre: 'Nicolás Paredes', area: 'Ventas', cargo: 'Pasante Comercial', ruta: 'Onboarding Ventas — Pasante', dia: 24, totalDias: 30, pct: 73, status: 'en-curso', fechaInicio: '24 May 2026', color: '#0d9488' },
+  { id: 9, nombre: 'Andrea Ríos', area: 'Operaciones', cargo: 'Analista de Procesos', ruta: 'Onboarding Operaciones', dia: 8, totalDias: 30, pct: 35, status: 'en-curso', fechaInicio: '09 Jun 2026', color: '#06b6d4' },
+  { id: 10, nombre: 'Rodrigo Peña', area: 'Dirección', cargo: 'Director de Área', ruta: 'Onboarding Liderazgo', dia: 28, totalDias: 30, pct: 90, status: 'en-curso', fechaInicio: '20 May 2026', color: '#d946ef' },
+  { id: 11, nombre: 'Paula Mendoza', area: 'Marketing', cargo: 'Content Creator', ruta: 'Onboarding Marketing Digital', dia: 30, totalDias: 30, pct: 100, status: 'completado', fechaInicio: '18 May 2026', color: '#3b82f6' },
+  { id: 12, nombre: 'Emilio Castañeda', area: 'Recursos Humanos', cargo: 'Generalista RRHH', ruta: 'Onboarding RRHH — Generalista', dia: 5, totalDias: 30, pct: 20, status: 'en-curso', fechaInicio: '12 Jun 2026', color: '#f97316' },
+  { id: 13, nombre: 'Andrea Núñez', area: 'Marketing', cargo: 'Community Manager', ruta: 'Onboarding Marketing Digital', dia: 16, totalDias: 30, pct: 55, status: 'en-curso', fechaInicio: '01 Jun 2026', color: '#06b6d4' },
+  { id: 14, nombre: 'Isabella Mendoza', area: 'Marketing', cargo: 'Analista de Marketing', ruta: 'Onboarding Marketing Digital', dia: 10, totalDias: 30, pct: 32, status: 'en-curso', fechaInicio: '07 Jun 2026', color: '#7c3aed' },
 ]
 
 const sampleFeed = [
@@ -186,6 +189,17 @@ export function OnboardingDataProvider({ children }) {
         if (na.version == null) {
           na = { ...na, version: 1 }
           changed = true
+        }
+        /* Las asignaciones guardadas antes de que existiera el campo se quedaron sin cargo,
+           y sin él la ficha muestra solo el área y el filtro por cargo llega vacío. Se toma
+           del directorio y, si la persona no está ahí, del cargo al que apunta su ruta. */
+        if (!na.cargo) {
+          const cargo = colaboradoresData.find(c => c.name === na.nombre)?.cargo
+            || plantillas.find(p => p.id === na.rutaId || p.name === na.ruta)?.cargo
+          if (cargo) {
+            na = { ...na, cargo }
+            changed = true
+          }
         }
         return na
       })

@@ -99,7 +99,7 @@ export default function Header({ floating }) {
             boxShadow: '0 12px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
             overflow: 'hidden', zIndex: 50, animation: 'fadeInDown .15s ease-out',
           }}>
-            <div style={{ padding: '8px 6px' }}>
+            <div style={{ padding: '8px 6px', maxHeight: 'min(380px, calc(100vh - 150px))', overflowY: 'auto' }}>
               {gruposDeRol.map((group, gi) => {
                 const groupUsers = users.filter(group.filter)
                 if (groupUsers.length === 0) return null
@@ -372,7 +372,7 @@ export default function Header({ floating }) {
                 animation: 'fadeInDown .15s ease-out',
               }}
             >
-              <div style={{ padding: '8px 6px' }}>
+              <div style={{ padding: '8px 6px', maxHeight: 'min(380px, calc(100vh - 150px))', overflowY: 'auto' }}>
                 {gruposDeRol.map((group, gi) => {
                   const groupUsers = users.filter(group.filter)
                   if (groupUsers.length === 0) return null

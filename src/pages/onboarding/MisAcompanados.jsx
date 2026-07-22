@@ -1,56 +1,31 @@
 import { useState } from 'react'
-import { HeartHandshake, AlertTriangle, Clock, ShieldOff, ArrowLeft, Search, ChevronDown, Check } from 'lucide-react'
+import { HeartHandshake, AlertTriangle, ShieldOff, ArrowLeft, Search, ChevronDown, Check } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { avatarUrl } from '../../utils/calendarEvents'
 import { colaboradoresData, ESTADOS_ONBOARDING } from '../personas/colaboradoresData'
-
-/* Tareas de acompañamiento, indexadas por el id del colaborador acompañado.
-   En producción NO son un dato aparte: salen de las tareas de la ruta con
-   `tipo: 'tarea-otro'` y `responsable: 'Buddy'` (ver rutasData en JourneyBuilder).
-   Aquí van sueltas para no tener que instanciar una ruta completa por persona. */
-const TAREAS_BUDDY = {
-  3: [
-    { id: 'b1', name: 'Reunión 1:1 de bienvenida', fechaRel: 'Día 3', done: true },
-    { id: 'b2', name: 'Presentarle al equipo de Diseño', fechaRel: 'Día 5', done: true },
-    { id: 'b3', name: 'Revisar su primer entregable', fechaRel: 'Día 12', done: false },
-    { id: 'b4', name: 'Check-in de fin de mes', fechaRel: 'Día 30', done: false },
-  ],
-  11: [
-    { id: 'b5', name: 'Reunión 1:1 de bienvenida', fechaRel: 'Día 3', done: true },
-    { id: 'b6', name: 'Acompañar su primera campaña', fechaRel: 'Día 14', done: false },
-  ],
-  20: [
-    { id: 'b7', name: 'Reunión 1:1 de bienvenida', fechaRel: 'Día 3', done: true },
-    { id: 'b8', name: 'Revisar su primer dashboard', fechaRel: 'Día 20', done: true },
-    { id: 'b9', name: 'Check-in de fin de mes', fechaRel: 'Día 30', done: false },
-  ],
-  13: [
-    { id: 'b10', name: 'Reunión 1:1 de bienvenida', fechaRel: 'Día 3', done: true },
-    { id: 'b11', name: 'Acompañar su primera campaña', fechaRel: 'Día 14', done: true },
-    { id: 'b12', name: 'Check-in de fin de mes', fechaRel: 'Día 30', done: true },
-  ],
-}
+import { rutasData } from './JourneyBuilder'
+import { RutaPath, TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
+import ColaboradorCard from '../../components/onboarding/ColaboradorCard'
+import { tareasBuddyDe } from '../../data/tareasBuddy'
 
 // Estados relevantes para filtrar acompañados (excluye N/A y sin-ruta).
 const ESTADOS_FILTRO = ['sin-iniciar', 'en-curso', 'en-riesgo', 'graduado']
 
 export default function MisAcompanados() {
   const { currentUser } = useUser()
-  const [tareas, setTareas] = useState(TAREAS_BUDDY)
   const [selectedId, setSelectedId] = useState(null)
   const [search, setSearch] = useState('')
   const [filterEstado, setFilterEstado] = useState('todos')
   const [estadoOpen, setEstadoOpen] = useState(false)
+  const [rutaTarea, setRutaTarea] = useState(null)
 
   const acompanados = colaboradoresData.filter(c => c.buddy?.name === currentUser.name)
 
-  const toggleTarea = (colaboradorId, tareaId) => setTareas(prev => ({
-    ...prev,
-    [colaboradorId]: prev[colaboradorId].map(t => (t.id === tareaId ? { ...t, done: !t.done } : t)),
-  }))
+  /* La ruta que ve el buddy es la del colaborador. En producción sale del snapshot
+     que se le asignó; aquí solo existe la ruta 1, igual que en el resto del módulo. */
+  const rutaDe = c => rutasData[c.rutaId] || rutasData[1]
 
-  const tareasDe = id => tareas[id] || []
-  const pendientes = acompanados.reduce((s, c) => s + tareasDe(c.id).filter(t => !t.done).length, 0)
+  const pendientes = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
   const enRiesgo = acompanados.filter(c => c.onb === 'en-riesgo').length
 
   if (acompanados.length === 0) {
@@ -79,13 +54,11 @@ export default function MisAcompanados() {
   const sel = selectedId ? acompanados.find(c => c.id === selectedId) : null
   if (sel) {
     const estado = ESTADOS_ONBOARDING[sel.onb]
-    const misTareas = tareasDe(sel.id)
-    const hechas = misTareas.filter(t => t.done).length
     return (
       <div className="content-scroll">
         {/* Breadcrumb / volver */}
         <button
-          onClick={() => setSelectedId(null)}
+          onClick={() => { setRutaTarea(null); setSelectedId(null) }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', padding: 0, marginBottom: 14 }}
         >
           <ArrowLeft size={15} /> Mis acompañados
@@ -124,54 +97,16 @@ export default function MisAcompanados() {
           </div>
         </div>
 
-        {/* Tareas de acompañamiento */}
+        {/* La ruta completa del colaborador: el buddy la ve para saber dónde está
+            atascado y en qué puede ayudar. Solo lectura, sin sus respuestas. */}
         <div className="sec-card" style={{ marginBottom: 16 }}>
           <div className="sc-hd">
-            <h3 style={{ flex: 1 }}>Mis tareas de acompañamiento</h3>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>{hechas}/{misTareas.length}</span>
+            <h3 style={{ flex: 1 }}>La ruta de {sel.name.split(' ')[0]}</h3>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Toca una tarea para ver de qué se trata</span>
           </div>
           <div className="sc-body" style={{ paddingTop: 4 }}>
             <div style={{ borderRadius: 12, padding: '22px 0', background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)' }}>
-              {misTareas.map((t, i) => {
-                const off = [0, 40, 0, -40][i % 4]
-                return (
-                  <div key={t.id}>
-                    {i > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ width: 2, height: 18, background: '#cbd5e1', borderRadius: 1 }} />
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translateX(${off}px)`, transition: 'transform .2s' }}>
-                      <button
-                        onClick={() => toggleTarea(sel.id, t.id)}
-                        title={t.done ? 'Marcar como pendiente' : 'Marcar como completada'}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
-                      >
-                        <div style={{
-                          width: 46, height: 46, borderRadius: '50%',
-                          background: t.done ? '#00E091' : '#fff',
-                          border: t.done ? 'none' : '2px solid #cbd5e1',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          boxShadow: t.done ? '0 2px 8px rgba(0,224,145,.3)' : '0 1px 4px rgba(0,0,0,.06)',
-                          transition: 'all .15s',
-                        }}>
-                          {t.done
-                            ? <Check size={20} style={{ color: '#fff' }} />
-                            : <span style={{ fontSize: 14, fontWeight: 800, color: '#94a3b8' }}>{i + 1}</span>}
-                        </div>
-                      </button>
-                      <span style={{
-                        fontSize: 12.5, fontWeight: 600, marginTop: 8, textAlign: 'center', maxWidth: 180, lineHeight: 1.3,
-                        color: t.done ? '#64748b' : '#0C2D40',
-                        textDecoration: t.done ? 'line-through' : 'none',
-                      }}>{t.name}</span>
-                      <span style={{ fontSize: 10.5, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 3 }}>
-                        <Clock size={10} /> {t.fechaRel}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
+              <RutaPath etapas={rutaDe(sel).etapas} gamificacion onSelectTask={setRutaTarea} />
             </div>
           </div>
         </div>
@@ -188,6 +123,8 @@ export default function MisAcompanados() {
         </div>
 
         <div style={{ height: 8 }} />
+
+        {rutaTarea && <TaskPreviewModal task={rutaTarea} onClose={() => setRutaTarea(null)} />}
       </div>
     )
   }
@@ -277,57 +214,26 @@ export default function MisAcompanados() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
         {visibles.map(c => {
           const estado = ESTADOS_ONBOARDING[c.onb]
-          const misTareas = tareasDe(c.id)
+          const misTareas = tareasBuddyDe(c.id)
           const hechas = misTareas.filter(t => t.done).length
           const pend = misTareas.length - hechas
           return (
-            <div
+            <ColaboradorCard
               key={c.id}
-              style={{
-                background: 'var(--surface-card)', border: '1px solid var(--border-soft)', borderRadius: 14,
-                boxShadow: 'var(--shadow-card)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="ai-av" style={{ width: 36, height: 36, flexShrink: 0 }}>
-                  <img src={avatarUrl(c.name)} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.cargo} · {c.depto}</div>
-                </div>
-                <span className="badge" style={{ background: estado.bg, color: estado.color, flexShrink: 0 }}>{estado.label}</span>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Avance de su onboarding</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-heading)' }}>{c.onbPct}%</span>
-                </div>
-                <div className="pr-bar">
-                  <div className="pr-fill" style={{ width: `${c.onbPct}%`, background: estado.color }} />
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-soft)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              nombre={c.name}
+              cargo={c.cargo}
+              area={c.depto}
+              pct={c.onbPct}
+              barColor={estado.color}
+              badge={<span className="badge" style={{ background: estado.bg, color: estado.color, flexShrink: 0 }}>{estado.label}</span>}
+              meta={
                 <span style={{ fontSize: 11.5, color: pend > 0 ? 'var(--text-heading)' : 'var(--text-muted)', fontWeight: pend > 0 ? 600 : 500 }}>
                   Mis tareas: {hechas}/{misTareas.length}
                   {pend > 0 && <span style={{ color: 'var(--yellow)', fontWeight: 700 }}> · {pend} pendiente{pend > 1 ? 's' : ''}</span>}
                 </span>
-                <button
-                  onClick={() => setSelectedId(c.id)}
-                  style={{
-                    width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: '9px 0', borderRadius: 8, border: 'none', background: 'var(--navy)', color: '#fff',
-                    cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', transition: 'background .12s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#16405a'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'var(--navy)'}
-                >
-                  Ver detalles
-                </button>
-              </div>
-            </div>
+              }
+              onVerDetalles={() => setSelectedId(c.id)}
+            />
           )
         })}
       </div>

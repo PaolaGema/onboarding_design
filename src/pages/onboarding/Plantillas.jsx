@@ -11,7 +11,9 @@ import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewMod
 import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import EmptyState from '../../components/layout/EmptyState'
+import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 import { rutaPlantillas } from '../../data/rutaPlantillas'
+import { colaboradoresData } from '../personas/colaboradoresData'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
@@ -38,7 +40,8 @@ export default function Plantillas() {
   const isManager = currentUser.role === 'manager'
   const isAuxiliar = currentUser.role === 'auxiliar'
   const isAreaRole = isManager || isAuxiliar
-  const managerArea = 'Marketing'
+  // El área sale del usuario: los roles de alcance acotado (líder, auxiliar) la traen consigo.
+  const managerArea = currentUser.area
 
   const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, asignaciones, setAsignaciones, addFeedEntry } = useOnboardingData()
   const isAdmin = !isAreaRole
@@ -114,11 +117,8 @@ export default function Plantillas() {
     9: [{ name: 'Ana Martínez Ruiz', initials: 'AM', color: '#c026d3', role: 'Líder de área' }],
   })
 
-  const equipoMarketing = [
-    { name: 'Laura Díaz Romero', initials: 'LD', color: '#14b8a6', cargo: 'Auxiliar' },
-    { name: 'Andrea Núñez', initials: 'AN', color: '#06b6d4', cargo: 'Community Manager' },
-    { name: 'Carolina Vega', initials: 'CV', color: '#14b8a6', cargo: 'Analista de Marketing' },
-  ]
+  // Candidatos a responsable de una ruta: el equipo del área de quien la administra.
+  const equipoArea = colaboradoresData.filter(c => c.depto === managerArea && c.name !== currentUser.name)
 
   function addResponsable(rutaId, persona) {
     setResponsables(prev => {
@@ -682,7 +682,7 @@ export default function Plantillas() {
                     boxShadow: '0 4px 12px rgba(0,0,0,.08)',
                   }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
-                    {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).map(e => (
+                    {equipoArea.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).map(e => (
                       <button
                         key={e.name}
                         onClick={(ev) => { ev.stopPropagation(); addResponsable(p.id, e) }}
@@ -707,7 +707,7 @@ export default function Plantillas() {
                         </div>
                       </button>
                     ))}
-                    {equipoMarketing.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).length === 0 && (
+                    {equipoArea.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).length === 0 && (
                       <div style={{ fontSize: 9, color: 'var(--text-muted)', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
                     )}
                   </div>
@@ -1577,25 +1577,36 @@ export default function Plantillas() {
       {deleteTarget && (() => {
         const asignadosCount = asignaciones.filter(a => a.rutaId === deleteTarget.id || a.ruta === deleteTarget.name).length
         const bloqueada = asignadosCount > 0
+        /* Cuando la ruta está asignada no hay borrado que confirmar: el diálogo explica por qué
+           no se puede y ofrece archivar, que es reversible. Por eso no usa el modal destructivo. */
+        if (!bloqueada) {
+          return (
+            <ConfirmarAccionModal
+              titulo="Eliminar ruta"
+              descripcion={<>¿Estás seguro de eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.</>}
+              palabra="eliminar"
+              textoConfirmar="Eliminar"
+              onConfirmar={handleDelete}
+              onCancelar={() => setDeleteTarget(null)}
+              icono={AlertTriangle}
+            />
+          )
+        }
         return (
           <div className="pl-overlay" onClick={() => setDeleteTarget(null)}>
             <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
               <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-                <div className="pl-del-icon" style={bloqueada ? { background: '#fffbeb', color: '#b45309' } : undefined}>
-                  {bloqueada ? <Archive size={26} /> : <AlertTriangle size={28} />}
+                <div className="pl-del-icon" style={{ background: '#fffbeb', color: '#b45309' }}>
+                  <Archive size={26} />
                 </div>
-                <h2 className="pl-del-title">{bloqueada ? 'No se puede eliminar' : 'Eliminar ruta'}</h2>
+                <h2 className="pl-del-title">No se puede eliminar</h2>
                 <p className="pl-del-desc">
-                  {bloqueada
-                    ? <>Esta ruta ya forma parte del historial del sistema. Al estar asignada a <strong>{asignadosCount}</strong> {asignadosCount === 1 ? 'colaborador' : 'colaboradores'}, no puede eliminarse. Puedes <strong>archivarla</strong> para que deje de estar disponible para nuevas asignaciones.</>
-                    : <>¿Estás seguro de eliminar <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.</>}
+                  Esta ruta ya forma parte del historial del sistema. Al estar asignada a <strong>{asignadosCount}</strong> {asignadosCount === 1 ? 'colaborador' : 'colaboradores'}, no puede eliminarse. Puedes <strong>archivarla</strong> para que deje de estar disponible para nuevas asignaciones.
                 </p>
               </div>
               <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
                 <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                {bloqueada
-                  ? <button className="pl-btn-save" onClick={() => { setPlantillas(prev => prev.map(x => x.id === deleteTarget.id ? { ...x, statusPrevio: x.status, status: 'archivada' } : x)); addFeedEntry(`Ruta "${deleteTarget.name}" archivada`); setDeleteTarget(null) }}>Archivar ruta</button>
-                  : <button className="pl-btn-delete" onClick={handleDelete}>Eliminar</button>}
+                <button className="pl-btn-save" onClick={() => { setPlantillas(prev => prev.map(x => x.id === deleteTarget.id ? { ...x, statusPrevio: x.status, status: 'archivada' } : x)); addFeedEntry(`Ruta "${deleteTarget.name}" archivada`); setDeleteTarget(null) }}>Archivar ruta</button>
               </div>
             </div>
           </div>

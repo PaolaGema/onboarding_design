@@ -14,10 +14,10 @@ import {
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Users, Calendar, ExternalLink,
-  ShieldCheck, X, Star, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, HeartHandshake
+  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
-import imagenEtapa from '../../assets/imagenes/imagen_etapa.png'
+import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 
 const pulsoPreguntasSugeridas = [
   '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
@@ -36,6 +36,11 @@ const CONTENT_RESOURCE_DESC = { video: 'Elige un enlace de video ya guardado por
 const CONTENT_LINK_DESC = { video: 'Pega el enlace de un video de YouTube, Vimeo, Google Drive, etc. Todavía no se pueden subir archivos de video directamente.', audio: 'Pega el enlace de un audio o podcast. Todavía no se pueden subir archivos de audio directamente.', lectura: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pega cualquier enlace externo' }
 const CONTENT_LINK_PLACEHOLDER = { video: 'Pega aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pega aquí el link de tu audio o podcast', lectura: 'Pega aquí el link de tu documento (Drive, PDF...)', documento: 'Pega aquí el link de tu documento (Drive, PDF...)', enlace: 'Pega aquí tu enlace' }
 const CONTENT_ITEM_LABEL = { video: 'este video', audio: 'este audio', lectura: 'este documento', documento: 'este documento', enlace: 'este enlace' }
+// Solo documentos se pueden subir desde el equipo; video y audio siguen siendo solo por enlace.
+const TIPOS_SUBIBLES = ['documento', 'lectura']
+// Mismos formatos que acepta Recursos corporativos, para que un doc subido desde la tarea
+// sea idéntico a uno subido en la biblioteca.
+const DOC_UPLOAD_ACCEPT = 'application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt,application/vnd.ms-powerpoint,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation,.pptx'
 
 const formTiposCampo = [
   { v: 'texto-corto', l: 'Texto corto' },
@@ -88,6 +93,9 @@ export const rutasData = {
 const defaultRuta = rutasData[1]
 
 let idCounter = 100
+// Secuencia aparte y alta para los docs subidos desde la tarea: id único sin chocar con
+// los recursos ya existentes y sin usar Date.now() (que la regla de pureza marca).
+let localDocSeq = 900000
 
 const emptyRuta = {
   etapas: [],
@@ -115,15 +123,29 @@ const rutaConfigOpciones = [
 ]
 const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key, true]))
 
+/* `days` no es un dato de la etapa sino una etiqueta derivada: el tramo que ocupa dentro de
+   la ruta ("Día 8 — Día 15"), resultado de acumular las duraciones de las anteriores. El
+   editor la recalculaba al reordenar y al editar, pero no al cargar — así que una ruta
+   guardada llegaba sin ella y la pantalla se caía al intentar leerla. Se calcula siempre. */
+function recalcularDias(etapas) {
+  let acum = 1
+  return etapas.map(e => {
+    const d = e.duracion || 7
+    const days = d === 1 ? `Día ${acum}` : `Día ${acum} — Día ${acum + d - 1}`
+    acum += d
+    return { ...e, duracion: d, days }
+  })
+}
+
 /* Los datos vienen de localStorage y pueden traer etapas guardadas por versiones anteriores
    del editor, sin `actividades` o con actividades sin `tareas`. El editor recorre esas listas
    sin protección al dibujar, así que una sola etapa incompleta tumbaba la pantalla entera.
    Se normaliza al entrar: mejor una etapa vacía que un editor en blanco. */
 function normalizarEtapas(etapas) {
-  return (etapas || []).map(e => ({
+  return recalcularDias((etapas || []).map(e => ({
     ...e,
     actividades: (e.actividades || []).map(a => ({ ...a, tareas: a.tareas || [] })),
-  }))
+  })))
 }
 
 export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, editing }) {
@@ -154,6 +176,10 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     return data
   })
   const [rutaConfig, setRutaConfig] = useState(() => ({ ...defaultRutaConfig, ...(plantilla.config || {}) }))
+  /* Dos interruptores mandan sobre los puntos y basta con que uno esté apagado: el global
+     apaga la gamificación en toda la plataforma, el de la ruta solo en esta. Si no se
+     miran los dos, desactivarla en "Configuración de la ruta" no cambia nada en el lienzo. */
+  const mostrarPuntos = gamificacion && rutaConfig.gamificacion
   const [configConfirm, setConfigConfirm] = useState(null)
   const [selEtapa, setSelEtapa] = useState(0)
   const [selTarea, setSelTarea] = useState(null)
@@ -161,7 +187,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [dropTarget, setDropTarget] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
-  const [deleteInput, setDeleteInput] = useState('')
   const [showConfig, setShowConfig] = useState(false)
   const [quizEditorJB, setQuizEditorJB] = useState(null)
   const [pulsoEditorJB, setPulsoEditorJB] = useState(null)
@@ -170,9 +195,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [addPickerTarget, setAddPickerTarget] = useState(null)
   const [formTipoDropOpen, setFormTipoDropOpen] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
-  const [respMenuPos, setRespMenuPos] = useState(null)
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false)
   const [contentChooserOpen, setContentChooserOpen] = useState(false)
+  // Carpeta destino al subir un documento local desde la tarea (índice en `recursos`).
+  const [uploadDestIdx, setUploadDestIdx] = useState(0)
+  const [uploadFolderOpen, setUploadFolderOpen] = useState(false)
   const [contentPickerOpen, setContentPickerOpen] = useState(false)
   const [rpFolder, setRpFolder] = useState(null)
   const [rpSearch, setRpSearch] = useState('')
@@ -539,7 +566,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     setSelTarea(null)
     setTareaForm(null)
     setDeleteConfirm(null)
-    setDeleteInput('')
   }
 
   function selectTarea(tarea) {
@@ -657,6 +683,50 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     setSaveLinkDone(recursos[folderIdx].name)
   }
 
+  /* Sube un documento local desde Propiedades de la tarea. El archivo entra a una carpeta de
+     Recursos corporativos (para que tenga un solo hogar y sea reutilizable) y la tarea lo
+     referencia. Mismo formato de doc y mismo "procesando → procesado" que la biblioteca.
+     PROTOTIPO: el archivo no se sube a ningún servidor, solo se guarda su nombre/peso. */
+  function handleLocalDocUpload(fileList) {
+    const file = fileList[0]
+    if (!file) return
+    const size = file.size < 1024 * 1024
+      ? `${(file.size / 1024).toFixed(0)} KB`
+      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+    const newDoc = {
+      id: ++localDocSeq,
+      name: file.name,
+      size,
+      estado: 'procesando',
+      fecha: 'Ahora',
+      general: false,
+      subidoPor: currentUser?.name || null,
+    }
+    // Destino: la carpeta elegida; si no hay ninguna, se crea una por defecto.
+    const hayCarpetas = recursos.length > 0
+    const idx = hayCarpetas ? Math.min(uploadDestIdx, recursos.length - 1) : 0
+    const destName = hayCarpetas ? recursos[idx].name : 'Documentos de onboarding'
+    setRecursos(prev => {
+      if (!prev.length) return [{ name: destName, docs: [newDoc], updatedAt: Date.now() }]
+      const dest = Math.min(idx, prev.length - 1)
+      return prev.map((c, i) => i === dest ? { ...c, docs: [newDoc, ...c.docs], updatedAt: Date.now() } : c)
+    })
+    // El "procesando" pasa a "procesado" a los 3s, igual que en Recursos corporativos.
+    setTimeout(() => {
+      setRecursos(prev => prev.map(c => ({
+        ...c,
+        docs: c.docs.map(d => d.id === newDoc.id ? { ...d, estado: 'procesado' } : d),
+      })))
+    }, 3000)
+    // La tarea referencia el documento recién subido (ya vive en Recursos).
+    updateForm('_kbItem', { name: file.name, tipo: 'documento', cat: destName, url: '' })
+    updateForm('enlace', '')
+    if (!tareaForm.name || tareaForm.name.startsWith('Nueva tarea')) updateForm('name', file.name)
+    addFeedEntry(`Nuevo recurso "${file.name}" subido a ${destName}`)
+    setUploadFolderOpen(false)
+    setContentChooserOpen(false)
+  }
+
   function handleDragStart(e, tipoKey) {
     e.dataTransfer.setData('tipoKey', tipoKey)
     e.dataTransfer.effectAllowed = 'copy'
@@ -681,7 +751,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       obligatoria: false,
       puntos: 10,
       desc: '',
-      responsable: [tipo.resp],
+      responsable: ['Colaborador'],
       fechaRel: etapaTarget.days.split('—')[0]?.trim() || 'Día 1',
       confirmacion: false,
       done: false,
@@ -999,7 +1069,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   onMouseDown={() => { if (selEtapa !== ei) setSelEtapa(ei) }}
                 >
               <div className="jb-etapa-header" style={{ alignItems: 'stretch', ...(isLocked ? { background: '#EEF1F5', boxShadow: 'inset 0 0 0 1px #cdd5df' } : {}) }}>
-                <img src={imagenEtapa} alt="" style={{ height: 64, width: 'auto', flexShrink: 0 }} />
                 <div className={`jb-etapa-num ${isLocked ? 'locked' : ''}`}>
                   {isLocked ? <Lock size={14} /> : ei + 1}
                 </div>
@@ -1176,7 +1245,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             <div className="jb-duo-circle">
                               <Icon size={18} />
                             </div>
-                            {gamificacion && tarea.puntos > 0 && <span className="jb-duo-puntos">+{tarea.puntos}</span>}
+                            {mostrarPuntos && tarea.puntos > 0 && <span className="jb-duo-puntos">+{tarea.puntos}</span>}
                           </button>
                           <span className={`jb-duo-label ${status} ${isLocked ? 'locked' : ''}`}>{tarea.name}</span>
                         </div>
@@ -1241,19 +1310,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       {/* MODAL PROPIEDADES */}
       {tareaForm && (() => {
         const tipo = tipoMap[tareaForm.tipo] || tiposTarea[0]
-        const responsables = [
-          { value: 'Colaborador', icon: UserCheck, color: '#10b981' },
-          { value: 'Buddy', icon: HeartHandshake, color: '#ec4899' },
-          { value: 'Líder de área', icon: Star, color: '#f59e0b' },
-          { value: 'Manager', icon: ShieldCheck, color: '#3b82f6' },
-          { value: 'RR.HH. / Admin', icon: Settings2, color: '#8b5cf6' },
-        ]
-        const respValues = Array.isArray(tareaForm.responsable) ? tareaForm.responsable : [tareaForm.responsable].filter(Boolean)
-        const selResps = responsables.filter(r => respValues.includes(r.value))
-        function toggleResp(value) {
-          const next = respValues.includes(value) ? respValues.filter(v => v !== value) : [...respValues, value]
-          updateForm('responsable', next)
-        }
         const totalDias = etapa.duracion || 7
         const desde = tareaForm.diaDesde || 1
         const hasta = tareaForm.diaHasta || desde
@@ -1318,128 +1374,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   </label>
                 </div>
 
-                {/* SECCIÓN: RESPONSABLE */}
-                {(tareaForm.tipo === 'video' || tareaForm.tipo === 'tarea-otro') ? (
-                  <div className="pl-label">
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea?</span>
+                {/* SECCIÓN: RESPONSABLE
+                    Fijo en Colaborador para todos los tipos: la ruta es su recorrido, así que
+                    es siempre quien realiza la tarea. Los demás roles entran por la contraparte
+                    de cada línea en "Otra tarea", no eligiéndolos aquí. */}
+                <div className="pl-label">
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea?</span>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10, marginTop: 4,
+                    border: '1.5px solid #e2e8f0', background: '#f8fafc',
+                  }}>
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 14px', borderRadius: 10, marginTop: 4,
-                      border: '1.5px solid #e2e8f0', background: '#f8fafc',
+                      width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      background: '#10b98112',
                     }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        background: '#10b98112',
-                      }}>
-                        <UserCheck size={14} style={{ color: '#10b981' }} />
-                      </div>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0C2D40' }}>Colaborador</span>
+                      <UserCheck size={14} style={{ color: '#10b981' }} />
                     </div>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0C2D40' }}>Colaborador</span>
                   </div>
-                ) : (
-                <div className="pl-label" style={{ position: 'relative' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>¿Quién realiza la tarea? <span style={{ color: '#ef4444' }}>*</span></span>
-                  <div
-                    onClick={e => {
-                      if (!tareaForm._respOpen) {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        const menuH = 8 + responsables.length * 38 + 44
-                        const margin = 12
-                        let top = rect.bottom + 4
-                        if (top + menuH > window.innerHeight - margin) {
-                          top = Math.max(margin, rect.top - menuH - 4)
-                        }
-                        setRespMenuPos({ top, left: rect.left, width: rect.width })
-                      }
-                      updateForm('_respOpen', !tareaForm._respOpen)
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 14px', borderRadius: 10, marginTop: 4,
-                      border: `1.5px solid ${tareaForm._respOpen ? '#0C2D40' : '#e2e8f0'}`,
-                      background: '#fff', cursor: 'pointer', transition: 'border-color .15s',
-                    }}
-                  >
-                    {selResps.length <= 1 ? (
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        background: `${(selResps[0] || responsables[0]).color}12`,
-                      }}>
-                        {(() => { const Ico = (selResps[0] || responsables[0]).icon; return <Ico size={14} style={{ color: (selResps[0] || responsables[0]).color }} /> })()}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexShrink: 0 }}>
-                        {selResps.slice(0, 3).map((r, i) => (
-                          <div key={r.value} style={{
-                            width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: `${r.color}12`, border: '2px solid #fff', marginLeft: i === 0 ? 0 : -10,
-                          }}>
-                            <r.icon size={13} style={{ color: r.color }} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0C2D40', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {selResps.length === 0 ? 'Seleccionar responsable' : selResps.map(r => r.value).join(', ')}
-                    </span>
-                    <ChevronRight size={13} style={{ color: '#94a3b8', transform: tareaForm._respOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
-                  </div>
-                  {tareaForm._respOpen && respMenuPos && (
-                    <div style={{
-                      position: 'fixed', top: respMenuPos.top, left: respMenuPos.left, width: respMenuPos.width,
-                      background: '#fff', borderRadius: 12, padding: 4,
-                      boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0',
-                      maxHeight: 'calc(100vh - 24px)', overflowY: 'auto',
-                      zIndex: 1200, animation: 'plSlideUp .12s',
-                    }}>
-                      {responsables.map(r => {
-                        const checked = respValues.includes(r.value)
-                        return (
-                          <button
-                            key={r.value}
-                            onClick={() => toggleResp(r.value)}
-                            style={{
-                              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '8px 10px', border: 'none', borderRadius: 8,
-                              background: checked ? '#f8fafc' : 'transparent',
-                              cursor: 'pointer', textAlign: 'left',
-                              fontFamily: 'inherit', transition: 'background .1s',
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                            onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent' }}
-                          >
-                            <div style={{
-                              width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                              border: `1.5px solid ${checked ? '#00E091' : '#cbd5e1'}`,
-                              background: checked ? '#00E091' : '#fff',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              {checked && <CheckCircle2 size={12} style={{ color: '#fff' }} />}
-                            </div>
-                            <div style={{
-                              width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                              background: `${r.color}12`,
-                            }}>
-                              <r.icon size={13} style={{ color: r.color }} />
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40' }}>{r.value}</span>
-                          </button>
-                        )
-                      })}
-                      <button
-                        onClick={() => updateForm('_respOpen', false)}
-                        style={{
-                          width: '100%', marginTop: 4, padding: '8px 10px', borderRadius: 8,
-                          border: 'none', borderTop: '1px solid #e8ecf0', background: 'transparent',
-                          cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#0C2D40', fontFamily: 'inherit',
-                        }}
-                      >
-                        Listo
-                      </button>
-                    </div>
-                  )}
                 </div>
-                )}
 
                 </div>
                 <div className="jb-modal-col">
@@ -2268,7 +2222,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={closeModal}>Cancelar</button>
-                <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || respValues.length === 0 || (originalTareaForm !== null && JSON.stringify(tareaForm) === originalTareaForm)} onClick={saveTareaForm}>Guardar cambios</button>
+                <button className="pl-btn-save" disabled={!tareaForm.name?.trim() || (originalTareaForm !== null && JSON.stringify(tareaForm) === originalTareaForm)} onClick={saveTareaForm}>Guardar cambios</button>
               </div>
             </div>
           </div>
@@ -2280,6 +2234,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         const uploadLabel = CONTENT_UPLOAD_LABEL[tareaForm.tipo] || 'Agregar contenido'
         const resourceDesc = CONTENT_RESOURCE_DESC[tareaForm.tipo] || 'Elige un recurso ya subido por tu equipo'
         const linkDesc = CONTENT_LINK_DESC[tareaForm.tipo] || 'Pega un enlace externo'
+        const permiteSubir = TIPOS_SUBIBLES.includes(tareaForm.tipo)
+        const destIdxSeguro = recursos.length ? Math.min(uploadDestIdx, recursos.length - 1) : 0
         return (
           <div className="pl-overlay" style={{ zIndex: 1100 }} onClick={() => setContentChooserOpen(false)}>
             <div className="pl-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
@@ -2300,6 +2256,72 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               </div>
 
               <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Subir desde el equipo — solo para documentos (video/audio siguen siendo por enlace).
+                    El archivo entra a Recursos, así tiene un solo hogar y se puede reutilizar. */}
+                {permiteSubir && (
+                  <div style={{ borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', overflow: 'hidden' }}>
+                    <label
+                      htmlFor="jb-local-doc-input"
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer', transition: 'background .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      <input
+                        id="jb-local-doc-input"
+                        type="file"
+                        accept={DOC_UPLOAD_ACCEPT}
+                        style={{ display: 'none' }}
+                        onChange={e => { if (e.target.files.length) handleLocalDocUpload(e.target.files); e.target.value = '' }}
+                      />
+                      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: '#3b82f612', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Upload size={18} style={{ color: '#3b82f6' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Subir desde mi equipo</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, lineHeight: 1.4 }}>PDF, Word, PowerPoint o TXT</div>
+                      </div>
+                      <ChevronRight size={15} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                    </label>
+                    {/* Destino en Recursos: por defecto la primera carpeta, editable de un toque. */}
+                    <div style={{ borderTop: '1px solid #f1f5f9', padding: '9px 16px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                      {recursos.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setUploadFolderOpen(o => !o)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 11, color: '#64748b' }}
+                        >
+                          <FolderOpen size={12} style={{ color: '#94a3b8' }} />
+                          Se guarda en <strong style={{ color: '#0C2D40', fontWeight: 700 }}>{recursos[destIdxSeguro].name}</strong>
+                          <ChevronDown size={12} style={{ color: '#94a3b8', transform: uploadFolderOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#64748b' }}>
+                          <FolderOpen size={12} style={{ color: '#94a3b8' }} />
+                          Se creará la carpeta <strong style={{ color: '#0C2D40', fontWeight: 700 }}>Documentos de onboarding</strong>
+                        </div>
+                      )}
+                      {uploadFolderOpen && recursos.length > 0 && (
+                        <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', marginTop: 4, zIndex: 10, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', animation: 'plSlideUp .12s', maxHeight: 200, overflowY: 'auto' }}>
+                          {recursos.map((c, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => { setUploadDestIdx(i); setUploadFolderOpen(false) }}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', border: 'none', borderRadius: 7, background: i === destIdxSeguro ? '#f8fafc' : 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#0C2D40' }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                              onMouseLeave={e => { if (i !== destIdxSeguro) e.currentTarget.style.background = 'transparent' }}
+                            >
+                              <FolderOpen size={13} style={{ color: '#64748b' }} />
+                              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                              {i === destIdxSeguro && <Check size={13} style={{ color: '#00E091', flexShrink: 0 }} />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => { setContentChooserOpen(false); setRpFolder(null); setRpSearch(''); setResourcePickerOpen(true) }}
@@ -2512,46 +2534,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         const etapaDel = rutaState.etapas[deleteConfirm]
         const totalTareasEtapa = etapaDel.actividades.reduce((s, a) => s + a.tareas.length, 0)
         return (
-          <div className="pl-overlay" onClick={() => setDeleteConfirm(null)}>
-            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '28px 24px 16px' }}>
-                <div className="jb-del-ico">
-                  <Trash2 size={24} />
-                </div>
-                <h2 className="pl-del-title">Eliminar etapa</h2>
-                <p className="pl-del-desc">
-                  ¿Estás seguro de eliminar <strong>{etapaDel.name}</strong>?
-                  {totalTareasEtapa > 0 && (
-                    <> Esta etapa tiene <strong>{totalTareasEtapa} tarea{totalTareasEtapa > 1 ? 's' : ''} configurada{totalTareasEtapa > 1 ? 's' : ''}</strong> que se perderán.</>
-                  )}
-                </p>
-                {totalTareasEtapa > 0 && (
-                  <div style={{ marginTop: '14px' }}>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>Escribe <strong>eliminar</strong> para confirmar</span>
-                    <input
-                      type="text"
-                      className="pl-input"
-                      placeholder="eliminar"
-                      value={deleteInput}
-                      onChange={e => setDeleteInput(e.target.value)}
-                      autoFocus
-                      style={{ marginTop: 8 }}
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-                <button className="pl-btn-cancel" onClick={() => setDeleteConfirm(null)}>Cancelar</button>
-                <button
-                  className="pl-btn-delete"
-                  disabled={totalTareasEtapa > 0 && deleteInput.toLowerCase() !== 'eliminar'}
-                  onClick={() => deleteEtapa(deleteConfirm)}
-                >
-                  Eliminar etapa
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmarAccionModal
+            titulo="Eliminar etapa"
+            descripcion={<>
+              ¿Estás seguro de eliminar <strong>{etapaDel.name}</strong>?
+              {totalTareasEtapa > 0 && (
+                <> Esta etapa tiene <strong>{totalTareasEtapa} tarea{totalTareasEtapa > 1 ? 's' : ''} configurada{totalTareasEtapa > 1 ? 's' : ''}</strong> que se perderán.</>
+              )}
+            </>}
+            palabra="eliminar"
+            textoConfirmar="Eliminar etapa"
+            onConfirmar={() => deleteEtapa(deleteConfirm)}
+            onCancelar={() => setDeleteConfirm(null)}
+          />
         )
       })()}
 
@@ -2649,7 +2644,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               Editar etapa
             </button>
             {!rutaState.etapas[etapaMenu.idx]?.locked && rutaState.etapas.length > 1 && (
-              <button className="jb-ctx-item jb-ctx-danger" onClick={() => { setDeleteConfirm(etapaMenu.idx); setDeleteInput(''); setEtapaMenu(null) }}>
+              <button className="jb-ctx-item jb-ctx-danger" onClick={() => { setDeleteConfirm(etapaMenu.idx); setEtapaMenu(null) }}>
                 <Trash2 size={13} />
                 Eliminar etapa
               </button>
@@ -2733,23 +2728,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         const tarea = rutaState.etapas.flatMap(e => e.actividades).flatMap(a => a.tareas).find(t => t.id === deleteTaskConfirm)
         if (!tarea) return null
         return (
-          <div className="pl-overlay" onClick={() => setDeleteTaskConfirm(null)}>
-            <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-body" style={{ textAlign: 'center', padding: '28px 24px 16px' }}>
-                <div className="jb-del-ico">
-                  <Trash2 size={24} />
-                </div>
-                <h2 className="pl-del-title">Eliminar tarea</h2>
-                <p className="pl-del-desc">
-                  ¿Estás seguro de eliminar <strong>{tarea.name}</strong>? Esta acción no se puede deshacer.
-                </p>
-              </div>
-              <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-                <button className="pl-btn-cancel" onClick={() => setDeleteTaskConfirm(null)}>Cancelar</button>
-                <button className="pl-btn-delete" onClick={() => deleteTarea(deleteTaskConfirm)}>Eliminar</button>
-              </div>
-            </div>
-          </div>
+          <ConfirmarAccionModal
+            titulo="Eliminar tarea"
+            descripcion={<>¿Estás seguro de eliminar <strong>{tarea.name}</strong>? Esta acción no se puede deshacer.</>}
+            palabra="eliminar"
+            textoConfirmar="Eliminar"
+            onConfirmar={() => deleteTarea(deleteTaskConfirm)}
+            onCancelar={() => setDeleteTaskConfirm(null)}
+          />
         )
       })()}
 
