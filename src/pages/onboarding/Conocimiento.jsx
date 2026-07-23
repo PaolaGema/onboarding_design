@@ -10,7 +10,6 @@ export default function Conocimiento() {
       title="Recursos corporativos"
       subtitle="Centraliza todos los materiales que tus colaboradores necesitan durante su onboarding"
       scopeLabel="onboarding"
-      enableQuiz
     />
   )
 }

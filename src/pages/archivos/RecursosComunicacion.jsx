@@ -10,7 +10,6 @@ export default function RecursosComunicacion() {
       title="Recursos de comunicación"
       subtitle="Archivos y materiales del área de Comunicación"
       scopeLabel="comunicación"
-      enableQuiz={false}
     />
   )
 }
