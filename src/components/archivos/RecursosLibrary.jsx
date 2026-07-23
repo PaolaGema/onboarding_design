@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import {
   Upload, FolderOpen, FileText, FileCheck, Loader2, AlertCircle,
   Plus, Trash2, RefreshCw, Search, X, ChevronLeft, ChevronRight, ChevronDown, Check,
+  HelpCircle,
   MoreVertical, Pencil, Video, Headphones, Link2, ExternalLink,
   LayoutGrid, List, Filter, CheckCircle2, Globe, Eye
 } from 'lucide-react'
@@ -72,7 +73,7 @@ function formatRelativeDate(ts) {
   return new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export default function RecursosLibrary({ categorias, setCategorias, title, subtitle, scopeLabel = 'onboarding' }) {
+export default function RecursosLibrary({ categorias, setCategorias, title, subtitle, scopeLabel = 'onboarding', enableQuiz = true }) {
   const { addFeedEntry } = useOnboardingData()
   const { currentUser } = useUser()
   const [selCat, setSelCat] = useState(null)
@@ -86,6 +87,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
   const [editingCat, setEditingCat] = useState(null)
   const [deleteCatConfirm, setDeleteCatConfirm] = useState(null)
   const [deleteDocConfirm, setDeleteDocConfirm] = useState(null)
+  const [quizEditor, setQuizEditor] = useState(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [viewMode, setViewMode] = useState('list')
   const [filterTipo, setFilterTipo] = useState('todos')
@@ -114,6 +116,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
 
   const hasBibFilters = filterTipo !== 'todos' || filterEstado !== 'todos' || filterGeneral !== 'todos'
   const filteredDocs = !cat ? [] : cat.docs.filter(d => {
+    if (d.tipo === 'quiz') return false
     if (!d.name.toLowerCase().includes(search.toLowerCase())) return false
     if (filterTipo === 'documentos' && d.tipo && d.tipo !== 'documento') return false
     if (filterTipo === 'videos' && d.tipo !== 'video') return false
@@ -194,6 +197,38 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
       return c
     }))
     addFeedEntry(`"${movedDoc.name}" movido a ${categorias[targetCatIdx].name}`)
+  }
+
+  function createQuiz(linkedDocId, linkedDocName) {
+    const newQuiz = {
+      id: ++docIdCounter,
+      name: linkedDocName ? `Prueba — ${linkedDocName.replace(/\.[^.]+$/, '')}` : 'Nueva prueba',
+      size: '-',
+      estado: 'procesado',
+      fecha: 'Ahora',
+      tipo: 'quiz',
+      linkedDocId: linkedDocId || null,
+      preguntas: [
+        { id: 1, texto: '', opciones: [{ id: 1, texto: '', correcta: true }, { id: 2, texto: '', correcta: false }] },
+      ],
+    }
+    setQuizEditor(newQuiz)
+  }
+
+  function getDocQuiz(docId) {
+    for (const c of categorias) {
+      const doc = c.docs.find(d => d.id === docId && d.quiz)
+      if (doc) return doc.quiz
+    }
+    return null
+  }
+
+  function saveQuiz(quiz) {
+    setCategorias(prev => prev.map(c => ({
+      ...c,
+      docs: c.docs.map(d => d.id === quiz.linkedDocId ? { ...d, quiz } : d),
+    })))
+    setQuizEditor(null)
   }
 
   function saveLink() {
@@ -769,13 +804,15 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
               {paginatedDocs.map(doc => {
                 const est = estadoConfig[doc.estado]
                 const EstIcon = est.icon
+                const isQuiz = doc.tipo === 'quiz'
                 const isMedia = doc.tipo === 'video' || doc.tipo === 'audio'
-                const ext = isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
-                const extColor = isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
+                const ext = isQuiz ? 'PRUEBA' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
+                const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
                 const MediaIcon = doc.tipo === 'video' ? Video : doc.tipo === 'audio' ? Headphones : null
-                const DocIcon = MediaIcon || FileText
-                const iconColor = isMedia ? '#3b82f6' : '#94a3b8'
-                const iconBg = isMedia ? '#eff6ff' : '#f8fafc'
+                const DocIcon = isQuiz ? HelpCircle : MediaIcon || FileText
+                const iconColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : '#94a3b8'
+                const iconBg = isQuiz ? '#fef3c7' : isMedia ? '#eff6ff' : '#f8fafc'
+                const linkedQuiz = !isQuiz ? getDocQuiz(doc.id) : null
                 return (
                   <div
                     key={doc.id}
@@ -837,6 +874,17 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                               <Globe size={8} /> General
                             </span>
                           )}
+                          {linkedQuiz && (
+                            <span
+                              onClick={() => setQuizEditor(linkedQuiz)}
+                              style={{
+                                fontSize: 9, fontWeight: 600, color: '#b45309',
+                                background: '#fef3c7', padding: '1px 6px', borderRadius: 4,
+                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3,
+                              }}>
+                              <HelpCircle size={8} /> Prueba vinculada
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -877,6 +925,24 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                             <div>
                               <div style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Reprocesar</div>
                               <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Volver a procesar el documento</div>
+                            </div>
+                          </button>
+                        )}
+                        {enableQuiz && !isQuiz && (doc.estado === 'procesado' || isMedia) && !linkedQuiz && (
+                          <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <HelpCircle size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Crear prueba</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Genera preguntas para evaluar si el colaborador leyó el contenido</div>
+                            </div>
+                          </button>
+                        )}
+                        {enableQuiz && !isQuiz && linkedQuiz && (
+                          <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background .1s' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <Pencil size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Editar prueba</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Modificar las preguntas de la prueba vinculada</div>
                             </div>
                           </button>
                         )}
@@ -986,12 +1052,14 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                   {paginatedDocs.map(doc => {
                     const est = estadoConfig[doc.estado]
                     const EstIcon = est.icon
+                    const isQuiz = doc.tipo === 'quiz'
                     const isMedia = doc.tipo === 'video' || doc.tipo === 'audio'
-                    const ext = isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
-                    const extColor = isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
+                    const ext = isQuiz ? 'PRUEBA' : isMedia ? (doc.tipo === 'video' ? 'VIDEO' : 'AUDIO') : doc.name.split('.').pop().toUpperCase()
+                    const extColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : ext === 'PDF' ? '#ef4444' : ext === 'DOCX' || ext === 'DOC' ? '#3b82f6' : ext === 'PPTX' || ext === 'PPT' ? '#f97316' : '#64748b'
                     const MediaIcon = doc.tipo === 'video' ? Video : doc.tipo === 'audio' ? Headphones : null
-                    const DocIcon = MediaIcon || FileText
-                    const iconColor = isMedia ? '#3b82f6' : '#94a3b8'
+                    const DocIcon = isQuiz ? HelpCircle : MediaIcon || FileText
+                    const iconColor = isQuiz ? '#f59e0b' : isMedia ? '#3b82f6' : '#94a3b8'
+                    const linkedQuiz = !isQuiz ? getDocQuiz(doc.id) : null
                     return (
                       <tr
                         key={doc.id}
@@ -1002,8 +1070,8 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                           <div className="as-person">
                             <div style={{
                               width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                              background: isMedia ? '#eff6ff' : '#f8fafc',
-                              border: `1px solid ${isMedia ? '#bfdbfe' : '#e2e8f0'}`,
+                              background: isQuiz ? '#fef3c7' : isMedia ? '#eff6ff' : '#f8fafc',
+                              border: `1px solid ${isQuiz ? '#fde68a' : isMedia ? '#bfdbfe' : '#e2e8f0'}`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
                               <DocIcon size={15} style={{ color: iconColor }} />
@@ -1014,6 +1082,11 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                                 {doc.general && (
                                   <span style={{ fontSize: 9, fontWeight: 600, color: '#0d9488', background: '#f0fdfa', padding: '1px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                                     <Globe size={8} /> General
+                                  </span>
+                                )}
+                                {linkedQuiz && (
+                                  <span onClick={() => setQuizEditor(linkedQuiz)} style={{ fontSize: 9, fontWeight: 600, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <HelpCircle size={8} /> Cuest.
                                   </span>
                                 )}
                               </div>
@@ -1056,6 +1129,24 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                                   <div>
                                     <div style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Reprocesar</div>
                                     <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Volver a procesar el documento</div>
+                                  </div>
+                                </button>
+                              )}
+                              {enableQuiz && !isQuiz && (doc.estado === 'procesado' || isMedia) && !linkedQuiz && (
+                                <button onClick={() => { createQuiz(doc.id, doc.name); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                  <HelpCircle size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Crear prueba</div>
+                                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Evalúa si el colaborador leyó el contenido</div>
+                                  </div>
+                                </button>
+                              )}
+                              {enableQuiz && !isQuiz && linkedQuiz && (
+                                <button onClick={() => { setQuizEditor(linkedQuiz); setDocMenu(null) }} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = '#fefce8'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                  <Pencil size={12} style={{ color: '#f59e0b', marginTop: 1, flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b' }}>Editar prueba</div>
+                                    <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>Modificar las preguntas de la prueba</div>
                                   </div>
                                 </button>
                               )}
@@ -1446,6 +1537,226 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
           </div>
         </div>
       )}
+
+      {/* QUIZ EDITOR */}
+      {quizEditor && (() => {
+        const quiz = quizEditor
+
+        function updateQuizName(name) {
+          setQuizEditor(prev => ({ ...prev, name }))
+        }
+
+        function addPregunta() {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: [...prev.preguntas, {
+              id: Date.now(),
+              texto: '',
+              opciones: [{ id: Date.now() + 1, texto: '', correcta: true }, { id: Date.now() + 2, texto: '', correcta: false }],
+            }],
+          }))
+        }
+
+        function updatePregunta(pIdx, texto) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.map((p, i) => i === pIdx ? { ...p, texto } : p),
+          }))
+        }
+
+        function deletePregunta(pIdx) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.filter((_, i) => i !== pIdx),
+          }))
+        }
+
+        function addOpcion(pIdx) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.map((p, i) => i === pIdx ? {
+              ...p,
+              opciones: [...p.opciones, { id: Date.now(), texto: '', correcta: false }],
+            } : p),
+          }))
+        }
+
+        function updateOpcion(pIdx, oIdx, texto) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.map((p, i) => i === pIdx ? {
+              ...p,
+              opciones: p.opciones.map((o, j) => j === oIdx ? { ...o, texto } : o),
+            } : p),
+          }))
+        }
+
+        function setCorrecta(pIdx, oIdx) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.map((p, i) => i === pIdx ? {
+              ...p,
+              opciones: p.opciones.map((o, j) => ({ ...o, correcta: j === oIdx })),
+            } : p),
+          }))
+        }
+
+        function deleteOpcion(pIdx, oIdx) {
+          setQuizEditor(prev => ({
+            ...prev,
+            preguntas: prev.preguntas.map((p, i) => i === pIdx ? {
+              ...p,
+              opciones: p.opciones.filter((_, j) => j !== oIdx),
+            } : p),
+          }))
+        }
+
+        return (
+          <div className="pl-overlay" onClick={() => setQuizEditor(null)}>
+            <div className="pl-modal jb-modal" style={{ maxWidth: 580, maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+              <div className="pl-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <HelpCircle size={16} style={{ color: '#fff' }} />
+                  </div>
+                  <h2 style={{ margin: 0 }}>Editor de prueba</h2>
+                </div>
+                <button className="pl-modal-close" onClick={() => setQuizEditor(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '60vh' }}>
+                <label className="pl-label">
+                  Nombre de la prueba
+                  <input type="text" className="pl-input" value={quiz.name} onChange={e => updateQuizName(e.target.value)} />
+                </label>
+
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40', marginBottom: 12 }}>
+                    Preguntas ({quiz.preguntas.length})
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {quiz.preguntas.map((pregunta, pIdx) => (
+                      <div key={pregunta.id} style={{
+                        background: '#f8fafc', borderRadius: 10, padding: '14px 16px',
+                        border: '1px solid #e2e8f0',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                          <span style={{
+                            width: 22, height: 22, borderRadius: 6, background: '#0C2D40', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 10, fontWeight: 800, flexShrink: 0,
+                          }}>{pIdx + 1}</span>
+                          <input
+                            type="text"
+                            placeholder="Escribe la pregunta..."
+                            value={pregunta.texto}
+                            onChange={e => updatePregunta(pIdx, e.target.value)}
+                            style={{
+                              flex: 1, padding: '7px 10px', border: '1px solid #e2e8f0',
+                              borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                              background: '#fff',
+                            }}
+                          />
+                          {quiz.preguntas.length > 1 && (
+                            <button
+                              onClick={() => deletePregunta(pIdx)}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }}
+                              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 30 }}>
+                          {pregunta.opciones.map((opcion, oIdx) => (
+                            <div key={opcion.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <button
+                                onClick={() => setCorrecta(pIdx, oIdx)}
+                                style={{
+                                  width: 20, height: 20, borderRadius: '50%',
+                                  border: `2px solid ${opcion.correcta ? '#00E091' : '#d1d5db'}`,
+                                  background: opcion.correcta ? '#00E091' : '#fff',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0, padding: 0,
+                                }}
+                              >
+                                {opcion.correcta && <Check size={11} style={{ color: '#fff' }} />}
+                              </button>
+                              <input
+                                type="text"
+                                placeholder={`Opción ${oIdx + 1}`}
+                                value={opcion.texto}
+                                onChange={e => updateOpcion(pIdx, oIdx, e.target.value)}
+                                style={{
+                                  flex: 1, padding: '6px 10px', border: '1px solid #e2e8f0',
+                                  borderRadius: 7, fontSize: 11, fontFamily: 'inherit', outline: 'none',
+                                  background: '#fff',
+                                }}
+                              />
+                              {pregunta.opciones.length > 2 && (
+                                <button
+                                  onClick={() => deleteOpcion(pIdx, oIdx)}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: '#cbd5e1' }}
+                                  onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                  onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => addOpcion(pIdx)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              border: 'none', background: 'none', cursor: 'pointer',
+                              fontSize: 10, fontWeight: 600, color: '#94a3b8', fontFamily: 'inherit',
+                              padding: '4px 0',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#0C2D40'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                          >
+                            <Plus size={11} />
+                            Agregar opción
+                          </button>
+                        </div>
+
+                        <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 8, paddingLeft: 30 }}>
+                          Haz clic en el círculo para marcar la respuesta correcta
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={addPregunta}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      width: '100%', marginTop: 12, padding: '10px',
+                      border: '1.5px dashed #cbd5e1', borderRadius: 10,
+                      background: 'transparent', cursor: 'pointer',
+                      fontSize: 11, fontWeight: 600, color: '#64748b', fontFamily: 'inherit',
+                    }}
+                  >
+                    <Plus size={13} />
+                    Agregar pregunta
+                  </button>
+                </div>
+              </div>
+
+              <div className="pl-modal-footer">
+                <button className="pl-btn-cancel" onClick={() => setQuizEditor(null)}>Cancelar</button>
+                <button className="pl-btn-save" onClick={() => saveQuiz(quiz)}>Guardar prueba</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* MODAL VISTA PREVIA */}
       {previewDoc && (() => {

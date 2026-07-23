@@ -10,6 +10,7 @@ export default function RecursosPersonas() {
       title="Recursos de gestión de personas"
       subtitle="Archivos y materiales del área de Gestión de personas"
       scopeLabel="gestión de personas"
+      enableQuiz={false}
     />
   )
 }
