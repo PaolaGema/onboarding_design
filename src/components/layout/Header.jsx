@@ -39,7 +39,10 @@ export default function Header({ floating }) {
   const isInicio = location.pathname.startsWith('/inicio')
   const isMiDia = location.pathname === '/inicio/mi-dia'
   const isCalendario = location.pathname.startsWith('/calendario')
+  // La ficha de una asignación sigue siendo Seguimiento: la barra no cambia de nombre al
+  // entrar a una persona, el "volver" de la pantalla es el que ubica.
   const pageInfo = pageHeaders[location.pathname]
+    ?? (location.pathname.startsWith('/onboarding/asignaciones/') ? pageHeaders['/onboarding/asignaciones'] : undefined)
   const headerTitle = pageInfo?.title
     ?? (currentUser.role === 'admin' ? 'Dashboard' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding')
   const headerSubtitle = isMiDia ? 'Tu espacio personal' : isCalendario ? 'Eventos y actividades programadas' : isInicio ? 'Vista general de la plataforma' : isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'

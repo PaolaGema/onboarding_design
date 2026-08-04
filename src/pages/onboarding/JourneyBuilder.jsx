@@ -5,21 +5,23 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
+import { rutasEnConflicto, etiquetaActivar, marcarDesplazada, limpiarDesplazada, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
 import { tiposTarea, tipoMap, toEmbedUrl, ACCEPT_POR_TIPO, FORMATOS_LEGIBLES, tipoDeArchivo, pesoLegible } from '../../utils/tareaTipos'
 import { nuevaClaveArchivo, guardarArchivo } from '../../utils/archivosLocales'
 import { useArchivoLocal } from '../../hooks/useArchivoLocal'
-import { colaboradoresData, departamentos } from '../personas/colaboradoresData'
+import { colaboradoresData } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
-  UserCheck, Users, Calendar, ExternalLink,
-  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle
+  UserCheck, Calendar, ExternalLink,
+  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, ArrowLeftRight
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
+import ActivarRutaModal from '../../components/onboarding/ActivarRutaModal'
 
 const pulsoPreguntasSugeridas = [
   '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
@@ -40,6 +42,10 @@ const CONTENT_RESOURCE_DESC = { video: 'Elige un video ya guardado por tu equipo
 const CONTENT_LINK_DESC = { video: 'Pega el enlace de un video de YouTube, Vimeo, Google Drive, etc.', audio: 'Pega el enlace de un audio o podcast (Spotify, Drive, etc.)', lectura: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', documento: 'Pega el enlace a un documento (Drive, Notion, PDF, etc.)', enlace: 'Pega cualquier enlace externo' }
 const CONTENT_LINK_PLACEHOLDER = { video: 'Pega aquí el link de tu video (YouTube, Vimeo...)', audio: 'Pega aquí el link de tu audio o podcast', lectura: 'Pega aquí el link de tu documento (Drive, PDF...)', documento: 'Pega aquí el link de tu documento (Drive, PDF...)', enlace: 'Pega aquí tu enlace' }
 const CONTENT_ITEM_LABEL = { video: 'este video', audio: 'este audio', lectura: 'este documento', documento: 'este documento', enlace: 'este enlace' }
+// Formatos que se pueden pedir en una tarea de "Subida de archivo". Se eligen de esta lista
+// —no se escriben a mano— para que el colaborador vea siempre extensiones válidas y no un
+// texto libre con erratas.
+const FORMATOS_SUBIDA = ['PDF', 'JPG', 'PNG', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'ZIP']
 // Tipos de contenido que se pueden subir desde el equipo. Los formatos de cada uno salen de
 // `ACCEPT_POR_TIPO`, la misma lista que usa la biblioteca de Recursos corporativos.
 const TIPOS_SUBIBLES = ['documento', 'lectura', 'video', 'audio']
@@ -173,7 +179,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      que asome por su borde. El nativo además tarda un segundo en salir y usa la tipografía
      del sistema operativo, que es justo lo que desentona. */
   const [tipPaleta, setTipPaleta] = useState(null)
-  const ESTADOS_EN_CURSO = ['pendiente', 'en-curso', 'atrasado', 'en-riesgo', 'pausado']
+  /* Rutas que este guardado va a desplazar del puesto, pendientes de confirmación (RN-M60). */
+  const [activarModal, setActivarModal] = useState(null)
+  /* Las opciones de guardado dependen del estado de la ruta (RN-M64): una ruta en
+     borrador se guarda como borrador o se activa; una ruta ya activa solo tiene
+     "Guardar cambios". Ahí no se ofrece borrador porque `saveDraft` escribe sobre
+     `etapasData` —de donde salen los snapshots de las asignaciones nuevas—, así que
+     guardar a medias publicaría en vivo y se saltaría el modal de versionado. */
+  const esBorrador = empty || plantilla.status === 'borrador'
+  /* Destino pendiente cuando se sale del constructor con "Guardar y salir": en una ruta
+     activa el guardado pasa antes por el modal de alcance, así que la navegación no puede
+     ocurrir al confirmar el aviso sino al final de `commitSave`. */
+  const exitNavRef = useRef(null)
 
   const [rutaState, setRutaState] = useState(() => {
     const src = empty
@@ -209,6 +226,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [quizPreview, setQuizPreview] = useState(null)
   const [addPickerTarget, setAddPickerTarget] = useState(null)
   const [formTipoDropOpen, setFormTipoDropOpen] = useState(null)
+  // Fila del documento (subida de archivo) cuyo selector de formatos está abierto.
+  const [formatoDropOpen, setFormatoDropOpen] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false)
   const [contentChooserOpen, setContentChooserOpen] = useState(false)
@@ -263,10 +282,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     else etapaRefs.current[ei]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   const initialRutaSnapshot = useRef({ rutaState, rutaConfig })
-  // Baseline de "lo publicado" (versión vigente). El botón de publicar se
-  // habilita solo cuando el borrador difiere de esto — guardar borrador NO lo
-  // modifica, así que publicar sigue disponible tras guardar un borrador.
-  const publishedBaseline = useRef(JSON.stringify(rutaState.etapas.filter(e => !e.locked)))
   const [floatLeftOffset, setFloatLeftOffset] = useState(320)
 
   // El panel "Etapas" es position:fixed (para quedar visible al scrollear el canvas),
@@ -302,10 +317,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     setHasUnsavedChanges(false)
   }
 
-  // Colaboradores en curso de esta ruta (para decidir si preguntamos al guardar).
+  // Colaboradores que siguen recorriendo una ruta —la que se edita o cualquier
+  // otra—: deciden si preguntamos al guardar, y el impacto que muestra el modal
+  // de unicidad al desplazar a la anterior (RN-M65).
+  const enCursoDe = (r) => asignaciones.filter(a =>
+    (a.rutaId === r.id || a.ruta === r.name) && ESTADOS_EN_CURSO.includes(a.status))
+
   function asignadosEnCurso() {
-    return asignaciones.filter(a =>
-      (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status))
+    return enCursoDe(plantilla)
   }
 
   // Guardado real de la estructura, con versionado.
@@ -324,12 +343,22 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     const crearVersion = asignaciones.some(a => a.rutaId === plantilla.id || a.ruta === plantilla.name)
     const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+    /* Este guardado es el que activa la ruta, así que en el mismo paso desplaza a
+       la que ocupaba el puesto (RN-M60): en dos pasos el cargo quedaría un momento
+       con dos rutas vigentes. Ya viene confirmado desde `handleGuardar`. */
+    const desplazadas = esBorrador ? rutasEnConflicto(plantillas, plantilla) : []
+    const idsDesplazadas = new Set(desplazadas.map(r => r.id))
+
     setPlantillas(prev => prev.map(p => {
-      if (p.id !== plantilla.id) return p
+      if (p.id !== plantilla.id) return idsDesplazadas.has(p.id) ? marcarDesplazada(p, plantilla, hoy) : p
       const versiones = (p.versiones && p.versiones.length)
         ? p.versiones
         : [{ v: 1, etapasData: p.etapasData || [], etapas: (p.etapasData || []).length, tareas: 0, fecha: p.creadoEl || '—', autor: p.creador || '—' }]
-      const base = { ...p, status: 'activa', etapasData: etapasPropias, etapas: etapasPropias.length, tareas: tareasCount, updated: 'Ahora', config: rutaConfig }
+      // Guardar una ruta en borrador es lo que la activa; en cualquier otro estado el
+      // guardado no lo mueve (activa sigue activa; archivada no se reactiva sola).
+      // `limpiarDesplazada` sostiene el invariante en un solo lugar: solo una ruta
+      // en No activo puede llevar el motivo por el que la reemplazaron.
+      const base = limpiarDesplazada({ ...p, status: esBorrador ? 'activa' : p.status, etapasData: etapasPropias, etapas: etapasPropias.length, tareas: tareasCount, updated: 'Ahora', config: rutaConfig })
       if (crearVersion) {
         const nextV = (p.versionActual || versiones.length || 1) + 1
         return {
@@ -361,25 +390,53 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
     const scopeMsg = !crearVersion ? ''
       : scope === 'todos' ? ' — aplicada a todos los colaboradores en curso'
-      : scope === 'no-iniciados' ? ' — aplicada a los que aún no iniciaron'
-      : ' — solo para nuevas asignaciones'
-    addFeedEntry(`Ruta "${plantilla.name}" ${editing ? 'actualizada' : 'activada'}${scopeMsg}`)
-    publishedBaseline.current = JSON.stringify(etapasPropias)
+      : scope === 'no-iniciados' ? ' — aplicada a los que aún no habían empezado'
+      : ' — solo para asignaciones nuevas'
+    addFeedEntry(`Ruta "${plantilla.name}" ${!esBorrador ? 'actualizada' : desplazadas.length ? 'quedó vigente en reemplazo de la anterior' : 'activada'}${scopeMsg}`)
+    desplazadas.forEach(r => addFeedEntry(`Ruta "${r.name}" pasó a No activo — reemplazada por "${plantilla.name}"`))
     setHasUnsavedChanges(false)
     setApplyModal(null)
-    onBack()
+    setActivarModal(null)
+    // Si se llegó acá desde "Guardar y salir", el destino es el que pidió el usuario.
+    const salida = exitNavRef.current
+    exitNavRef.current = null
+    ;(salida || onBack)()
   }
 
   // Dispara el guardado: si es una ruta activa en edición con gente en curso,
   // pregunta a quién aplicar; si no, guarda directo (nueva versión para futuras).
   function handleGuardar() {
+    /* Este guardado activa la ruta. Si el puesto ya tiene una vigente hay que
+       confirmar el desplazamiento antes de escribir nada (RN-M60). */
+    if (esBorrador) {
+      const anteriores = rutasEnConflicto(plantillas, plantilla)
+      if (anteriores.length) {
+        setActivarModal(anteriores.map(r => ({ ...r, enCurso: enCursoDe(r).length })))
+        return
+      }
+      commitSave('futuras')
+      return
+    }
     const enCurso = asignadosEnCurso()
-    if (editing && enCurso.length > 0) {
+    if (enCurso.length > 0) {
+      // Se abre el modal de alcance; si el usuario lo cancela, `cerrarApplyModal`
+      // suelta también la salida pendiente para no navegar en el próximo guardado.
       setApplyScope('futuras')
-      setApplyModal({ count: enCurso.length, noIniciados: enCurso.filter(a => a.status === 'pendiente').length })
+      setApplyModal({
+        count: enCurso.length,
+        noIniciados: enCurso.filter(a => a.status === 'pendiente').length,
+        nextV: (plantilla.versionActual || (plantilla.versiones?.length) || 1) + 1,
+      })
     } else {
       commitSave('futuras')
     }
+  }
+
+  // Cerrar el modal sin aplicar deja al usuario en el constructor: la salida que venía
+  // de "Guardar y salir" se descarta con él.
+  function cerrarApplyModal() {
+    exitNavRef.current = null
+    setApplyModal(null)
   }
 
   // Marca la ruta como "con cambios sin guardar" — el guardado real solo ocurre
@@ -405,7 +462,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // módulo, no solo con el botón "atrás" de acá abajo). Se reasigna en cada
   // render para que siempre guarde el rutaState más reciente.
   useEffect(() => {
-    setSaveHandler(saveDraft)
+    setSaveHandler((salida) => {
+      if (esBorrador) return saveDraft()
+      /* Una ruta activa no tiene borrador: guardar es el guardado real, que puede
+         abrir antes el modal de alcance. Por eso el aviso no navega —lo hace
+         `commitSave` cuando el usuario ya eligió a quiénes aplicar los cambios. */
+      exitNavRef.current = salida
+      handleGuardar()
+      return 'diferido'
+    })
   })
 
   // Solo al desmontar de verdad: libera el handler y limpia el aviso global.
@@ -880,11 +945,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   }
 
   const draftEtapas = rutaState.etapas.filter(e => !e.locked)
-  // ¿El borrador difiere de la versión publicada? (para habilitar "Publicar").
-  const hasUnpublishedChanges = JSON.stringify(draftEtapas) !== publishedBaseline.current
-  // Habilitación del botón primario: al editar existente, cuando hay cambios sin
-  // publicar; al crear una ruta nueva, cuando ya tiene contenido.
-  const primaryDisabled = editing ? !hasUnpublishedChanges : draftEtapas.length === 0
+  // Para activar basta UNA tarea (RN-M66): la jerarquía etapa → actividad → tarea ya
+  // implica las otras dos, y una actividad vacía es solo un título sin contenido real.
+  const totalTareas = draftEtapas.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
+  // Habilitación del botón primario: en borrador, cuando la ruta ya tiene con qué
+  // activarse; en una ruta activa, cuando hay algo que guardar.
+  const primaryDisabled = esBorrador ? totalTareas === 0 : !hasUnsavedChanges
+  const primaryReason = esBorrador
+    ? 'Agrega al menos una tarea para poder activar esta ruta'
+    : 'No hay cambios sin guardar'
+  /* Si el puesto ya tiene ruta vigente, el botón lo dice desde antes de apretarlo:
+     "Activar ruta" promete un acto aislado y el modal que sigue tiene entonces que
+     desmentirlo. Nombrar el reemplazo acá hace que el modal confirme, no sorprenda. */
+  const reemplaza = esBorrador && rutasEnConflicto(plantillas, plantilla).length > 0
 
   return (
     <div className="jb">
@@ -920,35 +993,42 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             <span className="jb-save-state jb-save-state--dirty">
               <span className="jb-save-dot" /> Sin guardar
             </span>
-          ) : (editing && hasUnpublishedChanges) ? (
-            <span className="jb-save-state" style={{ color: '#b45309' }}>
-              <span className="jb-save-dot" style={{ background: '#f59e0b' }} /> Sin publicar
-            </span>
           ) : draftSavedAt ? (
             <span className="jb-save-state jb-save-state--saved">
               <CheckCircle2 size={12} /> Guardado
             </span>
           ) : null}
-          {/* Guardar borrador: acción secundaria discreta (guarda avance sin publicar). */}
-          <button
-            className="jb-btn-ghost"
-            disabled={!hasUnsavedChanges}
-            onClick={saveDraft}
-            style={!hasUnsavedChanges ? { opacity: 0.4, cursor: 'default' } : undefined}
-            title={hasUnsavedChanges ? 'Guarda tu avance sin publicar la ruta' : 'No hay cambios sin guardar'}
-          >
-            Guardar borrador
-          </button>
-          {/* Publicar: acción principal. */}
+          {/* Guardar borrador: solo mientras la ruta lo es. En una activa no existe
+              borrador —el guardado es directo y pasa por el modal de versionado. */}
+          {esBorrador && (
+            <button
+              className="jb-btn-ghost"
+              disabled={!hasUnsavedChanges}
+              onClick={saveDraft}
+              style={!hasUnsavedChanges ? { opacity: 0.4, cursor: 'default' } : undefined}
+              title={hasUnsavedChanges ? 'Guarda tu avance sin activar la ruta' : 'No hay cambios sin guardar'}
+            >
+              Guardar borrador
+            </button>
+          )}
+          {/* La razón del bloqueo va a la vista, no a un tooltip: si el botón está apagado
+              sin decir por qué, el usuario no tiene forma de saber qué le falta (RN-M66). */}
+          {esBorrador && totalTareas === 0 && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: '#b45309' }}>
+              <AlertTriangle size={13} />
+              Agrega al menos una tarea para activarla
+            </span>
+          )}
+          {/* Acción principal: activar (borrador) o guardar los cambios (ruta activa). */}
           <button
             className="jb-btn-primary"
             onClick={handleGuardar}
             disabled={primaryDisabled}
             style={primaryDisabled ? { opacity: 0.45, cursor: 'default' } : undefined}
-            title={primaryDisabled ? (editing ? 'No hay cambios sin publicar' : 'Agrega contenido a la ruta para guardarla') : ''}
+            title={primaryDisabled ? primaryReason : ''}
           >
-            <Save size={14} />
-            {editing ? 'Publicar cambios' : 'Guardar ruta'}
+            {!esBorrador ? <Save size={14} /> : reemplaza ? <ArrowLeftRight size={14} /> : <CheckCircle2 size={14} />}
+            {esBorrador ? etiquetaActivar(reemplaza) : 'Guardar cambios'}
           </button>
         </div>
       </div>
@@ -1413,7 +1493,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 </div>
               </div>
 
-              <div className="pl-modal-body" style={{ padding: '20px 24px' }}>
+              <div className="pl-modal-body" style={{ padding: '20px 24px' }} onClick={() => setFormatoDropOpen(null)}>
                 <div className="jb-modal-2col">
                 <div className="jb-modal-col">
                 <div className="jb-modal-col-title">1. Información básica</div>
@@ -1955,10 +2035,25 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                     updateDocumentos(documentos.filter((_, i) => i !== idx))
                   }
 
+                  // El formato se guarda como texto ("PDF, JPG") para que la vista del colaborador
+                  // lo muestre tal cual, pero se elige desde el selector, no se escribe.
+                  function formatosDe(doc) {
+                    return (doc.formato || '').split(',').map(s => s.trim()).filter(Boolean)
+                  }
+                  function toggleFormato(idx, fmt) {
+                    const actuales = formatosDe(documentos[idx])
+                    const next = actuales.includes(fmt) ? actuales.filter(f => f !== fmt) : [...actuales, fmt]
+                    // Se guardan en el orden del catálogo, no en el de clic, para que se lean parejo.
+                    const ordenados = FORMATOS_SUBIDA.filter(f => next.includes(f))
+                    updateDocumento(idx, 'formato', ordenados.join(', '))
+                  }
+
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Documentos a subir</span>
-                      {documentos.map((doc, idx) => (
+                      {documentos.map((doc, idx) => {
+                        const seleccionados = formatosDe(doc)
+                        return (
                         <div key={doc.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                           <input
                             type="text" className="pl-input" style={{ flex: 2 }}
@@ -1966,12 +2061,39 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             value={doc.nombre}
                             onChange={e => updateDocumento(idx, 'nombre', e.target.value)}
                           />
-                          <input
-                            type="text" className="pl-input" style={{ flex: 1 }}
-                            placeholder="Formato: PDF, JPG"
-                            value={doc.formato}
-                            onChange={e => updateDocumento(idx, 'formato', e.target.value)}
-                          />
+                          {/* Selector de formatos: admite varios (PDF y JPG, etc.). */}
+                          <div className="pl-dropdown-wrap" style={{ flex: 1, position: 'relative' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={`pl-dropdown-trigger${formatoDropOpen === doc.id ? ' open' : ''}${seleccionados.length === 0 ? ' placeholder' : ''}`}
+                              onClick={() => setFormatoDropOpen(formatoDropOpen === doc.id ? null : doc.id)}
+                              style={{ height: 36, fontSize: 11.5, padding: '0 32px 0 12px', justifyContent: 'flex-start' }}
+                            >
+                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {seleccionados.length ? seleccionados.join(', ') : 'Formato'}
+                              </span>
+                              <ChevronDown size={13} className="pl-dropdown-chevron" />
+                            </button>
+                            {formatoDropOpen === doc.id && (
+                              <div className="pl-dropdown-menu" style={{ padding: 4, maxHeight: 220, overflowY: 'auto' }}>
+                                {FORMATOS_SUBIDA.map(fmt => {
+                                  const on = seleccionados.includes(fmt)
+                                  return (
+                                    <button
+                                      key={fmt}
+                                      type="button"
+                                      className={`pl-dropdown-item${on ? ' selected' : ''}`}
+                                      onClick={() => toggleFormato(idx, fmt)}
+                                      style={{ padding: '7px 10px', fontSize: 11.5 }}
+                                    >
+                                      <span>{fmt}</span>
+                                      {on && <Check size={13} />}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeDocumento(idx)}
@@ -1986,7 +2108,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             <Trash2 size={14} />
                           </button>
                         </div>
-                      ))}
+                        )
+                      })}
                       <button
                         type="button"
                         onClick={addDocumento}
@@ -2005,130 +2128,42 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 })()}
 
                 {tareaForm.tipo === 'tarea-otro' && (() => {
-                  const pasos = tareaForm.checklist?.length ? tareaForm.checklist : [{ id: 1, text: '', contraAccion: '', contraArea: '', contraPersona: '' }]
-                  const areas = departamentos.filter(d => d !== 'Todos')
+                  // Misma estructura que las paradas del "Recorrido por área": una lista simple de
+                  // ítems de texto. Cada tarea guarda solo `text`; la contraparte/persona ya no se
+                  // define por línea (el responsable se hereda por rol en la ruta general).
+                  const pasos = tareaForm.checklist?.length ? tareaForm.checklist : [{ id: 1, text: '' }]
 
                   function updatePasos(next) { updateForm('checklist', next) }
-                  function updatePaso(idx, patch) { updatePasos(pasos.map((p, i) => i === idx ? { ...p, ...patch } : p)) }
-                  function addPaso() { updatePasos([...pasos, { id: Date.now(), text: '', contraAccion: '', contraArea: '', contraPersona: '' }]) }
+                  function updatePaso(idx, value) { updatePasos(pasos.map((p, i) => i === idx ? { ...p, text: value } : p)) }
+                  function addPaso() { updatePasos([...pasos, { id: Date.now(), text: '' }]) }
                   function removePaso(idx) { updatePasos(pasos.filter((_, i) => i !== idx)) }
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Lista de tareas</span>
-                      <div style={{ fontSize: 10, color: '#94a3b8', margin: '-4px 0 2px' }}>
-                        La tarea del colaborador puede tener una contraparte: una acción a cargo de otra área/persona.
-                      </div>
-                      {pasos.map((p, idx) => {
-                        const q = (p._perSearch || '').toLowerCase()
-                        const personas = p.contraArea
-                          ? colaboradoresData.filter(c => c.status === 'activo' && c.depto === p.contraArea && (c.name.toLowerCase().includes(q) || (c.cargo || '').toLowerCase().includes(q))).slice(0, 8)
-                          : []
-                        const personaSel = colaboradoresData.find(c => c.name === p.contraPersona)
-                        return (
-                          <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 10, display: 'flex', flexDirection: 'column', gap: 8, background: '#fff' }}>
-                            {/* Tarea del colaborador */}
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <div style={{ width: 24, height: 24, borderRadius: 7, background: '#10b98112', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Tarea del colaborador">
-                                <UserCheck size={13} style={{ color: '#10b981' }} />
-                              </div>
-                              <input
-                                type="text" className="pl-input" style={{ flex: 1, margin: 0 }}
-                                placeholder="Tarea del colaborador — ej: Firmar contrato"
-                                value={p.text}
-                                onChange={e => updatePaso(idx, { text: e.target.value })}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removePaso(idx)}
-                                disabled={pasos.length === 1}
-                                style={{
-                                  width: 34, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0,
-                                  background: '#fff', cursor: pasos.length === 1 ? 'default' : 'pointer',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: pasos.length === 1 ? '#cbd5e1' : '#ef4444',
-                                }}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                            {/* Contraparte: acción */}
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <div style={{ width: 24, height: 24, borderRadius: 7, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Contraparte (otra área)">
-                                <Users size={13} style={{ color: '#2563eb' }} />
-                              </div>
-                              <input
-                                type="text" className="pl-input" style={{ flex: 1, margin: 0, fontSize: 11.5 }}
-                                placeholder="Contraparte (opcional) — ej: Entregar contrato"
-                                value={p.contraAccion || ''}
-                                onChange={e => updatePaso(idx, { contraAccion: e.target.value })}
-                              />
-                            </div>
-                            {/* Contraparte: área → persona filtrada */}
-                            {(p.contraAccion || p.contraArea) && (
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', paddingLeft: 32 }}>
-                                <select
-                                  className="pl-input"
-                                  style={{ margin: 0, width: 130, fontSize: 11, flexShrink: 0, cursor: 'pointer' }}
-                                  value={p.contraArea || ''}
-                                  onChange={e => updatePaso(idx, { contraArea: e.target.value, contraPersona: '', _perSearch: '', _perOpen: false })}
-                                >
-                                  <option value="">Área…</option>
-                                  {areas.map(a => <option key={a} value={a}>{a}</option>)}
-                                </select>
-                                <div style={{ flex: 1, position: 'relative' }}>
-                                  {personaSel || p.contraPersona ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: personaSel?.color || '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 8.5, fontWeight: 700 }}>{personaSel?.initials || '?'}</div>
-                                      <span style={{ flex: 1, fontSize: 11.5, fontWeight: 600, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.contraPersona}</span>
-                                      <button type="button" onClick={() => updatePaso(idx, { contraPersona: '', _perSearch: '' })} title="Cambiar persona" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, display: 'flex', flexShrink: 0 }}>
-                                        <X size={13} />
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <Search size={12} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-                                      <input
-                                        type="text"
-                                        className="pl-input"
-                                        style={{ margin: 0, paddingLeft: 28, fontSize: 11.5, opacity: p.contraArea ? 1 : 0.6 }}
-                                        placeholder={p.contraArea ? 'Buscar persona…' : 'Elige un área primero'}
-                                        disabled={!p.contraArea}
-                                        value={p._perSearch || ''}
-                                        onChange={e => updatePaso(idx, { _perSearch: e.target.value, _perOpen: true })}
-                                        onFocus={() => updatePaso(idx, { _perOpen: true })}
-                                        onBlur={() => setTimeout(() => updatePaso(idx, { _perOpen: false }), 150)}
-                                      />
-                                      {p._perOpen && p.contraArea && (
-                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', borderRadius: 10, padding: 4, boxShadow: '0 8px 30px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', zIndex: 30, maxHeight: 200, overflowY: 'auto' }}>
-                                          {personas.length === 0 ? (
-                                            <div style={{ padding: 10, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Sin personas en {p.contraArea}</div>
-                                          ) : personas.map(c => (
-                                            <button
-                                              key={c.id}
-                                              type="button"
-                                              onMouseDown={e => { e.preventDefault(); updatePaso(idx, { contraPersona: c.name, _perOpen: false, _perSearch: '' }) }}
-                                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '6px 9px', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-                                              onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                            >
-                                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 9, fontWeight: 700 }}>{c.initials}</div>
-                                              <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                                                <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{c.cargo}</div>
-                                              </div>
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                      {pasos.map((p, idx) => (
+                        <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                          <input
+                            type="text" className="pl-input" style={{ flex: 1 }}
+                            placeholder="Ej: Firmar contrato"
+                            value={p.text}
+                            onChange={e => updatePaso(idx, e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePaso(idx)}
+                            disabled={pasos.length === 1}
+                            style={{
+                              width: 36, height: 36, borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0,
+                              background: '#fff', cursor: pasos.length === 1 ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: pasos.length === 1 ? '#cbd5e1' : '#ef4444',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
                       <button
                         type="button"
                         onClick={addPaso}
@@ -3012,36 +3047,50 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       )}
 
       {/* MODAL: ¿A QUIÉNES APLICAN LOS CAMBIOS? */}
+      {/* El puesto ya tiene ruta vigente: se confirma el desplazamiento antes de activar (RN-M60) */}
+      {activarModal && (
+        <ActivarRutaModal
+          ruta={plantilla}
+          anteriores={activarModal}
+          onConfirmar={() => commitSave('futuras')}
+          /* Cancelar deja al usuario en el constructor: la salida que venía de
+             "Guardar y salir" se descarta con el modal, igual que en el de alcance. */
+          onCancelar={() => { exitNavRef.current = null; setActivarModal(null) }}
+        />
+      )}
+
       {applyModal && (
-        <div className="pl-overlay" onClick={() => setApplyModal(null)}>
+        <div className="pl-overlay" onClick={cerrarApplyModal}>
           <div className="pl-modal" style={{ maxWidth: 470 }} onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <UserCheck size={15} style={{ color: '#fff' }} />
                 </div>
-                <h2>Aplicar cambios</h2>
+                <h2>¿Quién recibe los cambios?</h2>
               </div>
-              <button className="pl-modal-close" onClick={() => setApplyModal(null)}><X size={18} /></button>
+              <button className="pl-modal-close" onClick={cerrarApplyModal}><X size={18} /></button>
             </div>
             <div className="pl-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 13px', borderRadius: 10, background: '#f0f9ff', border: '1px solid #dbeafe' }}>
                 <Info size={15} style={{ color: '#1e40af', flexShrink: 0, marginTop: 1 }} />
                 <p style={{ margin: 0, fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
-                  Esta ruta está asignada a <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador' : 'colaboradores'}. Se guardará como una <strong>versión nueva</strong>. Elige a quiénes aplicar los cambios:
+                  Al guardar se crea la <strong>versión {applyModal.nextV}</strong>, y todas las asignaciones nuevas usarán esa versión. Decide qué pasa con {applyModal.count === 1 ? 'el' : 'los'} <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador que ya está' : 'colaboradores que ya están'} haciendo esta ruta:
                 </p>
               </div>
               {[
-                { key: 'futuras', icon: CheckCircle2, title: 'Solo para nuevas asignaciones', badge: 'Recomendado', accent: '#16a34a', desc: 'Los colaboradores en curso conservan su versión. Nadie se ve afectado.' },
-                { key: 'no-iniciados', icon: UserCheck, title: 'También a los que aún no iniciaron', accent: '#0C2D40', desc: applyModal.noIniciados > 0 ? `${applyModal.noIniciados} ${applyModal.noIniciados === 1 ? 'colaborador está' : 'colaboradores están'} en día 0 — es seguro, no pierden avance.` : 'Ahora mismo ninguno está sin iniciar.' },
-                { key: 'todos', icon: AlertTriangle, title: 'A todos los que están en curso', accent: '#b45309', warn: true, desc: 'Actualiza la ruta de todos ahora. Puede alterar su progreso.' },
+                { key: 'futuras', icon: CheckCircle2, title: 'Dejarlos en su versión actual', badge: 'Recomendado', accent: '#16a34a', desc: `${applyModal.count === 1 ? 'Sigue' : 'Siguen'} con la ruta tal como se ${applyModal.count === 1 ? 'le' : 'les'} asignó. Los cambios solo se verán en asignaciones nuevas.` },
+                { key: 'no-iniciados', icon: UserCheck, title: 'Actualizar solo a los que no han empezado', accent: '#0C2D40', disabled: applyModal.noIniciados === 0, desc: applyModal.noIniciados > 0 ? `${applyModal.noIniciados} de ${applyModal.count} ${applyModal.noIniciados === 1 ? 'está' : 'están'} en día 0: ${applyModal.noIniciados === 1 ? 'pasa' : 'pasan'} a la versión ${applyModal.nextV} sin perder avance.` : `Nadie está en día 0: ${applyModal.count === 1 ? 'el colaborador ya empezó' : 'todos ya empezaron'} la ruta.` },
+                { key: 'todos', icon: AlertTriangle, title: `Actualizar a ${applyModal.count === 1 ? 'el colaborador' : `los ${applyModal.count}`} en curso`, accent: '#b45309', warn: true, desc: `Incluye a quienes ya avanzaron: sus tareas y su progreso pueden cambiar.` },
               ].map(opt => {
                 const sel = applyScope === opt.key
                 const AIcon = opt.icon
                 return (
-                  <button key={opt.key} type="button" onClick={() => setApplyScope(opt.key)} style={{
+                  <button key={opt.key} type="button" disabled={opt.disabled} onClick={() => setApplyScope(opt.key)} style={{
+                    opacity: opt.disabled ? 0.5 : 1,
+                    cursor: opt.disabled ? 'not-allowed' : 'pointer',
                     display: 'flex', alignItems: 'flex-start', gap: 12, textAlign: 'left', width: '100%',
-                    padding: '13px 14px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                    padding: '13px 14px', borderRadius: 12, fontFamily: 'inherit',
                     border: sel ? `1.5px solid ${opt.accent}` : '1px solid var(--border-soft)',
                     background: sel ? `${opt.accent}0f` : '#fff',
                     boxShadow: sel ? `0 0 0 3px ${opt.accent}1f` : 'none',
@@ -3063,8 +3112,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               })}
             </div>
             <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setApplyModal(null)}>Cancelar</button>
-              <button className="pl-btn-save" onClick={() => commitSave(applyScope)}>Aplicar</button>
+              <button className="pl-btn-cancel" onClick={cerrarApplyModal}>Cancelar</button>
+              <button className="pl-btn-save" onClick={() => commitSave(applyScope)}>Guardar cambios</button>
             </div>
           </div>
         </div>

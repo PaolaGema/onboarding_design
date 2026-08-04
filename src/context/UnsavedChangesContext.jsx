@@ -21,11 +21,14 @@ export function UnsavedChangesProvider({ children }) {
     fn?.()
   }
 
+  /* El handler recibe el destino porque puede necesitar un paso más antes de salir
+     (elegir a quiénes aplicar los cambios de una ruta activa, por ejemplo). Si devuelve
+     'diferido' se queda él con la navegación y con limpiar el aviso; si no, se sale acá. */
   function confirmSave() {
-    saveHandlerRef.current?.()
     const fn = pendingNav
-    setDirty(false)
     setPendingNav(null)
+    if (saveHandlerRef.current?.(fn) === 'diferido') return
+    setDirty(false)
     fn?.()
   }
 

@@ -1,37 +1,20 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, MoreVertical, Pause, Play, Trash2, Info, CheckCircle2, Check,
-  Send, MessageCircle, Bell,
-  Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, PlayCircle,
-  BookOpen, Link2, Award, LayoutGrid, List
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, MoreVertical, Pause, Play, Trash2, Info, Check,
+  Send, UserCheck, LayoutGrid, List
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
-import { buildDetalleEtapas as construirEtapas } from '../../utils/detalleEtapas'
+import EnviarRecordatorioModal from '../../components/onboarding/EnviarRecordatorioModal'
+import PausarOnboardingModal from '../../components/onboarding/PausarOnboardingModal'
+import { statusLabels, statusCls, barColor } from '../../utils/estadoAsignacion'
 import ColaboradorCard from '../../components/onboarding/ColaboradorCard'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
-
-const statusLabels = {
-  'en-curso': 'En curso',
-  'completado': 'Completado',
-  'pendiente': 'Programado',
-  'atrasado': 'Atrasado',
-  'en-riesgo': 'En riesgo',
-  'pausado': 'Pausado',
-}
-
-const statusCls = {
-  'en-curso': 'as-st-curso',
-  'completado': 'as-st-completado',
-  'pendiente': 'as-st-pendiente',
-  'atrasado': 'as-st-atrasado',
-  'en-riesgo': 'as-st-riesgo',
-  'pausado': 'as-st-pausado',
-}
 
 const tiposRuta = ['Onboarding', 'Reboarding']
 
@@ -40,95 +23,8 @@ const tiposRuta = ['Onboarding', 'Reboarding']
 const ALTO_MENU_ACCIONES = 250
 const MARGEN_MENU_ACCIONES = 24
 
-const tareaIconMap = {
-  video: Video, audio: Headphones, documento: FileText, quiz: HelpCircle,
-  'completar-perfil': ClipboardList, 'form-custom': ClipboardList, subida: Upload,
-  'tarea-otro': UserCheck, recorrido: MapPin, pulso: Smile,
-  lectura: BookOpen, enlace: Link2, confirmacion: Award,
-}
-// Respaldo para cualquier tipo no mapeado: mejor un icono genérico que un nodo en blanco.
-const TAREA_ICON_FALLBACK = FileText
-
-// Estadísticas de reproducción del video — derivadas de forma estable a partir del id de la tarea
-function videoStats(taskId, done) {
-  const seed = String(taskId).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
-  if (done) return { veces: 1 + (seed % 3), completo: true }
-  return { veces: seed % 3, completo: false }
-}
-
-/* PROTOTIPO — respuestas del colaborador.
-   Hoy las respuestas reales no se guardan: viven en el estado local de la vista del
-   colaborador (MiOnboarding) y se pierden al salir. Hasta que se persistan en la
-   asignación, esta vista las simula de forma DETERMINISTA (misma persona + tarea →
-   mismas respuestas), con la misma semilla por suma de char-codes que videoStats, para
-   que RH pueda validar cómo se verá el panel. Si la tarea trae preguntas propias
-   (quizPreguntas/formCampos, creadas en el builder) se usan esas; si no, un banco genérico. */
-const QUIZ_BANCO = [
-  { q: '¿Cuál es uno de los valores centrales de la empresa?', opts: ['Transparencia', 'Individualismo', 'Jerarquía estricta'], correcta: 0 },
-  { q: '¿A quién acudes ante una duda sobre tu rol?', opts: ['A un cliente', 'A tu buddy o líder', 'A nadie'], correcta: 1 },
-  { q: '¿Dónde encuentras el manual de tu cargo?', opts: ['En Recursos corporativos', 'En redes sociales', 'No existe'], correcta: 0 },
-  { q: '¿Qué debes completar en tu primera semana?', opts: ['La evaluación final', 'Tu perfil y la bienvenida', 'Un reporte anual'], correcta: 1 },
-  { q: '¿Cada cuánto es el check-in con tu líder?', opts: ['Nunca', 'Solo el primer día', 'De forma quincenal'], correcta: 2 },
-]
-const FORM_BANCO = [
-  { q: '¿Cómo te has sentido en tu primera semana?', a: ['Muy acompañado/a, el equipo fue muy abierto.', 'Bien en general, con algunas dudas al inicio.', 'Algo perdido/a los primeros días, luego mejor.'] },
-  { q: '¿Qué tema te gustaría reforzar?', a: ['Las herramientas internas del área.', 'El proceso de aprobación de contenido.', 'Conocer mejor a las otras áreas.'] },
-  { q: '¿Tuviste todo lo necesario para empezar (accesos, equipo)?', a: ['Sí, todo listo desde el día uno.', 'Casi todo; faltó un acceso que ya se resolvió.', 'Tardaron algunos accesos la primera semana.'] },
-  { q: 'Un comentario para tu líder', a: ['Gracias por el acompañamiento.', 'Me gustaría un poco más de feedback semanal.', 'Todo claro por ahora, ¡con muchas ganas!'] },
-]
-
-function respuestasSimuladas(asignacion, tarea) {
-  const seed = String(asignacion.id).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
-             + String(tarea.id).split('').reduce((s, c) => s + c.charCodeAt(0), 0)
-  // Falla ~1 de cada 4 preguntas calificables, para que el acierto no sea siempre perfecto.
-  const fallaEn = i => (seed + i) % 4 === 0
-
-  if (tarea.tipo === 'quiz') {
-    const reales = tarea.quizPreguntas?.length ? tarea.quizPreguntas : null
-    if (reales) {
-      return reales.map((p, i) => {
-        if (p.tipo === 'abierta') {
-          const banco = FORM_BANCO[(seed + i) % FORM_BANCO.length].a
-          return { q: p.texto, resp: banco[(seed + i) % banco.length] }
-        }
-        const correctaIdx = Math.max(0, p.opciones.findIndex(o => o.correcta))
-        const pickIdx = fallaEn(i) ? (correctaIdx + 1) % p.opciones.length : correctaIdx
-        return { q: p.texto, resp: p.opciones[pickIdx]?.texto || '—', ok: pickIdx === correctaIdx }
-      })
-    }
-    const n = 3 + (seed % 2) // 3 o 4 preguntas
-    return Array.from({ length: n }, (_, i) => {
-      const item = QUIZ_BANCO[(seed + i) % QUIZ_BANCO.length]
-      const pickIdx = fallaEn(i) ? (item.correcta + 1) % item.opts.length : item.correcta
-      return { q: item.q, resp: item.opts[pickIdx], ok: pickIdx === item.correcta }
-    })
-  }
-
-  // Formulario (completar-perfil): sin respuesta correcta, solo texto/opción elegida.
-  const reales = tarea.formCampos?.length ? tarea.formCampos : null
-  if (reales) {
-    return reales.map((c, i) => {
-      if (c.opciones?.length) return { q: c.etiqueta, resp: c.opciones[(seed + i) % c.opciones.length]?.texto || '—' }
-      const banco = FORM_BANCO[(seed + i) % FORM_BANCO.length].a
-      return { q: c.etiqueta, resp: banco[(seed + i) % banco.length] }
-    })
-  }
-  const n = 3 + (seed % 2)
-  return Array.from({ length: n }, (_, i) => {
-    const item = FORM_BANCO[(seed + i) % FORM_BANCO.length]
-    return { q: item.q, resp: item.a[(seed + i) % item.a.length] }
-  })
-}
-
-
-function barColor(status, pct) {
-  if (status === 'completado') return 'var(--green)'
-  if (status === 'atrasado' || status === 'en-riesgo') return 'var(--red)'
-  if (pct < 30) return 'var(--yellow)'
-  return 'var(--blue)'
-}
-
 export default function Asignaciones() {
+  const navigate = useNavigate()
   const { currentUser } = useUser()
   const isAreaRole = currentUser.role === 'manager' || currentUser.role === 'auxiliar'
   // El área sale del usuario: los roles de alcance acotado (líder, auxiliar) la traen consigo.
@@ -170,13 +66,7 @@ export default function Asignaciones() {
   const [menuOpen, setMenuOpen] = useState(null)
   const [showEstadoHelp, setShowEstadoHelp] = useState(false)
   const [recordatorio, setRecordatorio] = useState(null)
-  const [recCanal, setRecCanal] = useState('whatsapp')
-  const [recMensaje, setRecMensaje] = useState('')
-  const [recEnviado, setRecEnviado] = useState(false)
   const [menuPos, setMenuPos] = useState(null)
-  const [detalle, setDetalle] = useState(null)
-  // Tarea (quiz/formulario) cuyo detalle de respuestas se está viendo dentro de "Ver detalles".
-  const [verRespuestas, setVerRespuestas] = useState(null)
   const [buddyModal, setBuddyModal] = useState(null)
   const [desasignarBuddyTarget, setDesasignarBuddyTarget] = useState(null)
 
@@ -240,26 +130,16 @@ export default function Asignaciones() {
     setModal(false)
   }
 
-  function defaultMensaje(a) {
-    return `Hola ${a.nombre.split(' ')[0]}, notamos que tu onboarding "${a.ruta}" está ${statusLabels[a.status].toLowerCase()} (día ${a.dia}/${a.totalDias}). ¿Necesitas ayuda para ponerte al día? Cualquier duda, escríbenos.`
-  }
-
   function openRecordatorio(a) {
     setRecordatorio(a)
-    setRecCanal('whatsapp')
-    setRecMensaje(defaultMensaje(a))
-    setRecEnviado(false)
     setMenuOpen(null)
   }
 
-  function enviarRecordatorio() {
-    addFeedEntry(`Recordatorio enviado a ${recordatorio.nombre} por ${recCanal === 'whatsapp' ? 'WhatsApp' : 'la plataforma'}`)
-    setRecEnviado(true)
-    setTimeout(() => setRecordatorio(null), 1200)
+  // La ficha completa de la persona es una pantalla aparte: el recorrido, sus respuestas y
+  // las acciones de acompañamiento no entran en un modal sobre la tabla.
+  function verDetalles(a) {
+    navigate(`/onboarding/asignaciones/${a.id}`)
   }
-
-  // La regla de qué versión de la ruta aplica vive en utils: la comparte el celular del líder.
-  const buildDetalleEtapas = a => construirEtapas(a, allPlantillas)
 
   function confirmPausar(a) {
     setPausarTarget(a)
@@ -340,7 +220,7 @@ export default function Asignaciones() {
           }}
           onClick={e => e.stopPropagation()}
         >
-          <button className="as-menu-item" onClick={() => { setDetalle(a); setMenuOpen(null) }}>
+          <button className="as-menu-item" onClick={() => { verDetalles(a); setMenuOpen(null) }}>
             <Eye size={13} />
             Ver detalles
           </button>
@@ -659,7 +539,7 @@ export default function Asignaciones() {
                       />
                     </div>
                     <div>
-                      <div className="as-name">{a.nombre}</div>
+                      <button className="as-name as-name-btn" onClick={() => verDetalles(a)}>{a.nombre}</button>
                       <div className="as-area">{a.area}</div>
                     </div>
                   </div>
@@ -716,7 +596,7 @@ export default function Asignaciones() {
                     {a.ruta} · Día {a.dia}/{a.totalDias}
                   </span>
                 }
-                onVerDetalles={() => setDetalle(a)}
+                onVerDetalles={() => verDetalles(a)}
                 acciones={accionesMenu(a, true)}
               />
             ))}
@@ -816,29 +696,13 @@ export default function Asignaciones() {
         />
       )}
 
-      {/* MODAL DESASIGNAR */}
+      {/* MODAL PAUSAR / REANUDAR */}
       {pausarTarget && (
-        <div className="pl-overlay" onClick={() => setPausarTarget(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
-              <div className="pl-del-icon" style={{ background: 'rgba(59,130,246,.1)', color: 'var(--blue)' }}>
-                {pausarTarget.status === 'pausado' ? <Play size={26} /> : <Pause size={26} />}
-              </div>
-              <h2 className="pl-del-title">{pausarTarget.status === 'pausado' ? 'Reanudar onboarding' : 'Pausar onboarding'}</h2>
-              <p className="pl-del-desc">
-                {pausarTarget.status === 'pausado'
-                  ? <>¿Reanudar el onboarding de <strong>{pausarTarget.nombre}</strong>? Continuará desde donde lo dejó.</>
-                  : <>¿Pausar el onboarding de <strong>{pausarTarget.nombre}</strong>? Podrás reanudarlo cuando quieras.</>}
-              </p>
-            </div>
-            <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
-              <button className="pl-btn-cancel" onClick={() => setPausarTarget(null)}>Cancelar</button>
-              <button className="pl-btn-save" onClick={handlePausar}>
-                {pausarTarget.status === 'pausado' ? 'Reanudar' : 'Pausar'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PausarOnboardingModal
+          asignacion={pausarTarget}
+          onClose={() => setPausarTarget(null)}
+          onConfirm={handlePausar}
+        />
       )}
 
       {desasignarBuddyTarget && (
@@ -865,332 +729,13 @@ export default function Asignaciones() {
         />
       )}
 
-      {/* MODAL ENVIAR RECORDATORIO */}
       {recordatorio && (
-        <div className="pl-overlay" onClick={() => setRecordatorio(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Send size={16} style={{ color: '#fff' }} />
-                </div>
-                <h2>Enviar recordatorio</h2>
-              </div>
-              <button className="pl-modal-close" onClick={() => setRecordatorio(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              {recEnviado ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '20px 0' }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle2 size={24} style={{ color: 'var(--green)' }} />
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40' }}>Recordatorio enviado</div>
-                </div>
-              ) : (
-                <>
-                  <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>
-                    Para <strong style={{ color: '#0C2D40' }}>{recordatorio.nombre}</strong> — {recordatorio.ruta}
-                  </p>
-                  <div className="pl-label">
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Canal</span>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      {[
-                        { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
-                        { key: 'plataforma', label: 'Notificación en plataforma', icon: Bell, color: '#3b82f6' },
-                      ].map(c => (
-                        <button
-                          key={c.key}
-                          type="button"
-                          onClick={() => setRecCanal(c.key)}
-                          style={{
-                            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                            padding: '10px 12px', borderRadius: 10,
-                            border: `1.5px solid ${recCanal === c.key ? c.color : '#e2e8f0'}`,
-                            background: recCanal === c.key ? `${c.color}0f` : '#fff',
-                            cursor: 'pointer', fontFamily: 'inherit', transition: 'all .12s',
-                          }}
-                        >
-                          <c.icon size={16} style={{ color: recCanal === c.key ? c.color : '#94a3b8' }} />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: recCanal === c.key ? c.color : '#64748b' }}>{c.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <label className="pl-label" style={{ marginTop: 14 }}>
-                    Mensaje
-                    <textarea
-                      className="pl-input"
-                      rows={4}
-                      value={recMensaje}
-                      onChange={e => setRecMensaje(e.target.value)}
-                      style={{ resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
-                    />
-                  </label>
-                </>
-              )}
-            </div>
-            {!recEnviado && (
-              <div className="pl-modal-footer">
-                <button className="pl-btn-cancel" onClick={() => setRecordatorio(null)}>Cancelar</button>
-                <button
-                  className="pl-btn-save"
-                  disabled={!recMensaje.trim()}
-                  onClick={enviarRecordatorio}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <Send size={13} />
-                  Enviar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <EnviarRecordatorioModal
+          asignacion={recordatorio}
+          onClose={() => setRecordatorio(null)}
+          onEnviar={canal => addFeedEntry(`Recordatorio enviado a ${recordatorio.nombre} por ${canal === 'whatsapp' ? 'WhatsApp' : 'la plataforma'}`)}
+        />
       )}
-
-      {/* MODAL VER DETALLE */}
-      {detalle && (() => {
-        const etapasDetalle = buildDetalleEtapas(detalle)
-        return (
-          <div className="pl-overlay" onClick={() => setDetalle(null)}>
-            <div className="pl-modal" style={{ maxWidth: 520, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                    background: detalle.color || '#0C2D40', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700, color: '#fff',
-                  }}>
-                    {detalle.nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0 }}>{detalle.nombre}</h2>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>{detalle.ruta} — {detalle.area}</div>
-                  </div>
-                </div>
-                <button className="pl-modal-close" onClick={() => setDetalle(null)}>
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="pl-modal-body" style={{ overflowY: 'auto', flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                  <span className={`as-status ${statusCls[detalle.status]}`}>{statusLabels[detalle.status]}</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Día {detalle.dia} / {detalle.totalDias}</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>· Inicio {detalle.fechaInicio}</span>
-                  {detalle.buddy && (
-                    <span style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      · Buddy: <strong style={{ color: '#334155', fontWeight: 600 }}>{detalle.buddy.name}</strong>
-                    </span>
-                  )}
-                </div>
-                <div className="pr-progress" style={{ marginBottom: 20 }}>
-                  <div className="pr-pct">{detalle.pct}%</div>
-                  <div className="pr-bar">
-                    <div className="pr-fill" style={{ width: `${detalle.pct}%`, background: barColor(detalle.status, detalle.pct) }} />
-                  </div>
-                </div>
-                {/* Recorrido como nodos, igual que la vista previa de la ruta, pero cada
-                    nodo se pinta según si el colaborador ya completó esa tarea. */}
-                <div style={{ borderRadius: 12, padding: '20px 0', background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)' }}>
-                  {etapasDetalle.map((etapa, i) => {
-                    const completa = etapa.doneLocal === etapa.tareas.length && etapa.tareas.length > 0
-                    return (
-                      <div key={i}>
-                        {/* Cabecera de etapa */}
-                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}>
-                            <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>{i + 1}</div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{etapa.name}</span>
-                            <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{etapa.days}</span>
-                            <span style={{ fontSize: 9.5, fontWeight: 700, color: completa ? '#16a34a' : '#64748b', background: completa ? '#f0fdf4' : '#f1f5f9', padding: '1px 8px', borderRadius: 20 }}>{etapa.doneLocal}/{etapa.tareas.length}</span>
-                          </div>
-                        </div>
-
-                        {/* Nodos del camino */}
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          {etapa.tareas.map((t, ti) => {
-                            const TIcon = tareaIconMap[t.tipo] || TAREA_ICON_FALLBACK
-                            const offsets = [0, 34, 48, 34, 0, -34, -48, -34]
-                            const xOff = offsets[ti % offsets.length]
-                            const vs = t.tipo === 'video' ? videoStats(t.id, t.done) : null
-                            return (
-                              <div key={t.id}>
-                                {ti > 0 && (
-                                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                    <div style={{ width: 2, height: 14, background: '#cbd5e1', borderRadius: 1 }} />
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `translateX(${xOff}px)`, transition: 'transform .2s' }}>
-                                  <div style={{ position: 'relative' }}>
-                                    <div style={{
-                                      width: 44, height: 44, borderRadius: '50%',
-                                      background: t.done ? '#00E091' : '#fff',
-                                      border: t.done ? 'none' : '2px solid #e2e8f0',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      boxShadow: t.done ? '0 2px 8px rgba(0,224,145,.3)' : '0 1px 4px rgba(0,0,0,.06)',
-                                    }}>
-                                      {TIcon && <TIcon size={17} style={{ color: t.done ? '#fff' : '#94a3b8' }} />}
-                                    </div>
-                                    {t.done && (
-                                      <div style={{ position: 'absolute', bottom: -2, right: -3, width: 16, height: 16, borderRadius: '50%', background: '#16a34a', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Check size={9} style={{ color: '#fff' }} />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div style={{
-                                    fontSize: 10, fontWeight: 600, color: t.done ? '#0C2D40' : '#94a3b8',
-                                    marginTop: 5, textAlign: 'center', maxWidth: 120, lineHeight: 1.2,
-                                    overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                                  }}>
-                                    {t.name}
-                                  </div>
-                                  {vs && (
-                                    <span style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8.5, fontWeight: 700,
-                                      padding: '1px 6px', borderRadius: 20, marginTop: 3,
-                                      background: vs.completo ? '#f0fdf4' : vs.veces > 0 ? '#fef3c7' : '#f1f5f9',
-                                      color: vs.completo ? '#16a34a' : vs.veces > 0 ? '#b45309' : '#94a3b8',
-                                    }}>
-                                      <PlayCircle size={9} />
-                                      {vs.veces === 0 ? 'No visto' : `${vs.veces}×${vs.completo ? ' · completo' : ' · incompleto'}`}
-                                    </span>
-                                  )}
-                                  {/* Prueba y Formulario completados: RH abre aquí lo que respondió la persona. */}
-                                  {t.done && (t.tipo === 'quiz' || t.tipo === 'completar-perfil') && (
-                                    <button
-                                      onClick={() => setVerRespuestas(t)}
-                                      style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8.5, fontWeight: 700,
-                                        padding: '2px 8px', borderRadius: 20, marginTop: 3, cursor: 'pointer',
-                                        border: '1px solid #dbeafe', background: '#eff6ff', color: '#1d4ed8', fontFamily: 'inherit',
-                                      }}
-                                      onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'}
-                                      onMouseLeave={e => e.currentTarget.style.background = '#eff6ff'}
-                                    >
-                                      <Eye size={9} /> Ver respuestas
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                          {etapa.tareas.length === 0 && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Sin tareas</div>
-                          )}
-                        </div>
-
-                        {/* Separador entre etapas */}
-                        {i < etapasDetalle.length - 1 && (
-                          <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
-                            <div style={{ width: 2, height: 24, background: '#cbd5e1', borderRadius: 1 }} />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className="pl-modal-footer">
-                <button className="pl-btn-cancel" onClick={() => setDetalle(null)}>Cerrar</button>
-                {(detalle.status === 'atrasado' || detalle.status === 'en-riesgo') && (
-                  <button
-                    className="pl-btn-save"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => { const a = detalle; setDetalle(null); openRecordatorio(a) }}
-                  >
-                    <Send size={13} />
-                    Enviar recordatorio
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* RESPUESTAS DE LA TAREA (Prueba / Formulario) — se abre sobre "Ver detalles" */}
-      {verRespuestas && detalle && (() => {
-        const t = verRespuestas
-        const esQuiz = t.tipo === 'quiz'
-        const items = respuestasSimuladas(detalle, t)
-        const calificables = items.filter(it => it.ok !== undefined)
-        const aciertos = calificables.filter(it => it.ok).length
-        const HeaderIcon = esQuiz ? HelpCircle : ClipboardList
-        return (
-          <div className="pl-overlay" style={{ zIndex: 1200 }} onClick={() => setVerRespuestas(null)}>
-            <div className="pl-modal" style={{ maxWidth: 480, maxHeight: '82vh' }} onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <HeaderIcon size={16} style={{ color: '#fff' }} />
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <h2 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</h2>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      Respuestas de {detalle.nombre}
-                    </div>
-                  </div>
-                </div>
-                <button className="pl-modal-close" onClick={() => setVerRespuestas(null)}><X size={18} /></button>
-              </div>
-
-              <div className="pl-modal-body" style={{ overflowY: 'auto', maxHeight: '62vh' }}>
-                {/* Nota de prototipo: dejar claro que aún no son respuestas reales. */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', marginBottom: 14 }}>
-                  <Info size={14} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 11, color: '#92400e', lineHeight: 1.45 }}>
-                    Vista previa: respuestas de ejemplo. Aún no se guarda lo que responde el colaborador.
-                  </span>
-                </div>
-
-                {esQuiz && calificables.length > 0 && (
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 14,
-                    padding: '6px 12px', borderRadius: 20,
-                    background: aciertos === calificables.length ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${aciertos === calificables.length ? '#bbf7d0' : '#fecaca'}`,
-                  }}>
-                    <Award size={13} style={{ color: aciertos === calificables.length ? '#16a34a' : '#dc2626' }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: aciertos === calificables.length ? '#16a34a' : '#dc2626' }}>
-                      {aciertos}/{calificables.length} correctas
-                    </span>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {items.map((it, i) => (
-                    <div key={i} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', gap: 8, marginBottom: 7 }}>
-                        <span style={{ width: 20, height: 20, borderRadius: 6, background: '#0C2D40', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#0C2D40', lineHeight: 1.35 }}>{it.q}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>
-                        {it.ok !== undefined && (
-                          <span style={{
-                            width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: it.ok ? '#16a34a' : '#dc2626',
-                          }}>
-                            {it.ok ? <Check size={11} style={{ color: '#fff' }} /> : <X size={11} style={{ color: '#fff' }} />}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 12, color: it.ok === false ? '#b91c1c' : '#334155', lineHeight: 1.4 }}>
-                          {it.resp}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pl-modal-footer">
-                <button className="pl-btn-cancel" onClick={() => setVerRespuestas(null)}>Cerrar</button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
     </div>
   )
 }

@@ -4,17 +4,19 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle,
   LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye, History
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye, History, Power, PowerOff, ArchiveRestore, ArrowLeftRight
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewModal'
 import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
+import ActivarRutaModal from '../../components/onboarding/ActivarRutaModal'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 import { rutaPlantillas } from '../../data/rutaPlantillas'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
+import { estadoRuta, rutasEnConflicto, describirPuesto, etiquetaActivar, marcarDesplazada, limpiarDesplazada, motivoDesplazo, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
@@ -33,6 +35,32 @@ const cargosPorArea = {
 const areas = Object.keys(cargosPorArea)
 const sucursales = ['La Paz', 'Cochabamba', 'Santa Cruz (Central)', 'Tarija']
 const tiposRuta = ['Onboarding', 'Reboarding']
+
+/* Ítem del menú de acciones de una ruta. Lo comparten la cuadrícula y la tabla:
+   escrito dos veces, el estado apagado de "Activar" existía solo en una. */
+function AccionItem({ accion }) {
+  const Icono = accion.icon
+  return (
+    <button
+      onClick={accion.fn}
+      disabled={accion.disabled}
+      title={accion.title}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 10px', border: 'none', borderRadius: 7,
+        background: 'transparent', fontSize: 12,
+        cursor: accion.disabled ? 'default' : 'pointer',
+        opacity: accion.disabled ? 0.45 : 1,
+        fontWeight: 500, color: accion.color, fontFamily: 'inherit', textAlign: 'left',
+        transition: 'background .1s',
+      }}
+      onMouseEnter={e => { if (!accion.disabled) e.currentTarget.style.background = accion.color === '#ef4444' ? '#fef2f2' : '#f8fafc' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+    >
+      <Icono size={13} /> {accion.label}
+    </button>
+  )
+}
 
 
 export default function Plantillas() {
@@ -98,6 +126,8 @@ export default function Plantillas() {
   const [selectedTpl, setSelectedTpl] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [asignadosModal, setAsignadosModal] = useState(null)
+  // Ruta que se está activando cuando el puesto ya está ocupado (RN-M60).
+  const [activarModal, setActivarModal] = useState(null)
   const [asignadosSearch, setAsignadosSearch] = useState('')
   const [etapasModal, setEtapasModal] = useState(null)
   const [tareasModal, setTareasModal] = useState(null)
@@ -184,7 +214,15 @@ export default function Plantillas() {
   const totalPages = Math.ceil(filtered.length / perPage)
   const paginated = filtered.slice((page - 1) * perPage, page * perPage)
 
+  /* El choque de puesto se detecta ya en el formulario y no solo al activar: si
+     el aviso llega recién al final, la persona se entera después de haber armado
+     la ruta entera. Acá informa, no bloquea — el cambio se confirma al activar. */
+  const conflictoForm = modal
+    ? rutasEnConflicto(allPlantillas, { id: form.id, cargo: form.cargo, sucursal: form.sucursal })
+    : []
+
   const totalActivas = plantillas.filter(p => p.status === 'activa').length
+  const totalInactivas = plantillas.filter(p => p.status === 'inactiva').length
   const totalBorrador = plantillas.filter(p => p.status === 'borrador').length
   const totalArchivadas = plantillas.filter(p => p.status === 'archivada').length
 
@@ -349,19 +387,103 @@ export default function Plantillas() {
     setDeleteTarget(null)
   }
 
-  // Archiva / desarchiva una ruta. Al archivar recuerda el estado previo; al
-  // desarchivar lo restaura (Activa si tuvo asignados, si no Borrador — como
-  // respaldo para datos sin `statusPrevio`).
-  function toggleArchivar(p) {
-    setPlantillas(prev => prev.map(x => {
-      if (x.id !== p.id) return x
-      if (x.status === 'archivada') {
-        const restore = x.statusPrevio || (asignaciones.some(a => a.rutaId === x.id || a.ruta === x.name) ? 'activa' : 'borrador')
-        const { statusPrevio, ...rest } = x
-        return { ...rest, status: restore }
-      }
-      return { ...x, statusPrevio: x.status, status: 'archivada' }
+  // Cuánta gente sigue recorriendo una ruta. Al salir de Activo nadie se
+  // interrumpe: solo se cortan las asignaciones nuevas (RN-M65).
+  function enCursoDe(p) {
+    return asignaciones.filter(a =>
+      (a.rutaId === p.id || a.ruta === p.name) && ESTADOS_EN_CURSO.includes(a.status)).length
+  }
+
+  /* Los cambios de estado escriben sobre la lista completa y no sobre la vista
+     filtrada por área: la unicidad es una regla del sistema, y un líder que
+     activa una ruta puede estar desplazando a otra que su filtro no le muestra. */
+  /* Todo cambio de estado hecho a mano borra el motivo del desplazamiento: si la
+     ruta llegó a No activo porque otra le ganó el puesto pero después se la mueve
+     por cualquier otro camino, el motivo dejaría de ser cierto y seguiría escrito. */
+  function cambiarStatus(id, status) {
+    setAllPlantillas(allPlantillas.map(x => x.id === id ? limpiarDesplazada({ ...x, status }) : x))
+  }
+
+  /* Activar. Lo que decide el flujo no es desde qué estado se venga sino si el
+     puesto (cargo + sucursal) ya tiene una ruta vigente: libre → se activa
+     directo; ocupado → es un reemplazo y hay que confirmarlo (RN-M60). */
+  function pedirActivacion(p) {
+    const anteriores = rutasEnConflicto(allPlantillas, p)
+    if (!anteriores.length) { activarRuta(p, []); return }
+    setActivarModal({ ruta: p, anteriores: anteriores.map(a => ({ ...a, enCurso: enCursoDe(a) })) })
+  }
+
+  function activarRuta(p, anteriores) {
+    const desplazadas = new Set(anteriores.map(a => a.id))
+    const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    setAllPlantillas(allPlantillas.map(x => {
+      if (x.id === p.id) return limpiarDesplazada({ ...x, status: 'activa' })
+      return desplazadas.has(x.id) ? marcarDesplazada(x, p, hoy) : x
     }))
+    addFeedEntry(`Ruta "${p.name}" ${anteriores.length ? 'quedó vigente en reemplazo de la anterior' : 'activada'}`)
+    anteriores.forEach(a => addFeedEntry(`Ruta "${a.name}" pasó a No activo — reemplazada por "${p.name}"`))
+    setActivarModal(null)
+  }
+
+  function desactivarRuta(p) {
+    cambiarStatus(p.id, 'inactiva')
+    addFeedEntry(`Ruta "${p.name}" pasó a No activo`)
+  }
+
+  function archivarRuta(p) {
+    cambiarStatus(p.id, 'archivada')
+    addFeedEntry(`Ruta "${p.name}" archivada`)
+  }
+
+  /* Recuperar es la única salida del archivo y siempre desemboca en No activo,
+     nunca en Activo (RN-M62): sacar algo del histórico y volver a ponerlo en
+     producción son dos decisiones distintas, y juntarlas hace que una ruta vieja
+     vuelva a recibir gente por accidente. */
+  function recuperarRuta(p) {
+    cambiarStatus(p.id, 'inactiva')
+    addFeedEntry(`Ruta "${p.name}" recuperada del archivo`)
+  }
+
+  /* Menú de acciones de una ruta. Vive en una sola función porque se dibuja en
+     dos vistas —cuadrícula y tabla— y el alto del menú de la tabla se calcula a
+     partir de su largo: tres copias del mismo criterio que se desincronizan.
+     Las transiciones que ofrece son las permitidas desde el estado actual
+     (RN-M62); las prohibidas ni siquiera aparecen. */
+  function accionesRuta(p) {
+    const esActiva = p.status === 'activa'
+    const esArchivada = p.status === 'archivada'
+    const esBorrador = p.status === 'borrador'
+    // RN-M66: sin una sola tarea la ruta no tiene con qué activarse. El ítem se
+    // muestra apagado y con el motivo: si se escondiera, nadie sabría qué falta.
+    const sinTareas = esBorrador && !p.tareas
+    const cerrar = fn => () => { fn(p); setCardMenu(null) }
+    /* El ítem se llama por lo que va a pasar, no por el estado al que lleva: si el
+       puesto ya tiene vigente, "Activar" oculta que hay otra ruta que se apaga y la
+       consecuencia recién aparece en el modal, cuando ya se hizo clic (RN-M60). */
+    const reemplaza = (esBorrador || p.status === 'inactiva') && rutasEnConflicto(allPlantillas, p).length > 0
+    return [
+      ...(esActiva && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: cerrar(setAsignarModal) }] : []),
+      { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: cerrar(setPreviewRuta) },
+      ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: cerrar(openEdit) }] : []),
+      { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: cerrar(handleDuplicate) },
+      { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: cerrar(setHistorialRuta) },
+      ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: cerrar(setRutaGeneralConfirm) }] : []),
+      ...(esActiva ? [{ icon: PowerOff, label: 'Desactivar', color: 'var(--text-muted)', fn: cerrar(desactivarRuta) }] : []),
+      ...(esBorrador || p.status === 'inactiva' ? [{
+        icon: reemplaza ? ArrowLeftRight : Power,
+        label: etiquetaActivar(reemplaza),
+        color: 'var(--green)',
+        disabled: sinTareas,
+        title: sinTareas
+          ? 'Agrega al menos una tarea para poder activar esta ruta'
+          : reemplaza ? `${describirPuesto(p)} ya tiene una ruta vigente: al confirmar, esa pasa a No activo` : undefined,
+        fn: cerrar(pedirActivacion),
+      }] : []),
+      esArchivada
+        ? { icon: ArchiveRestore, label: 'Recuperar', color: 'var(--text-muted)', fn: cerrar(recuperarRuta) }
+        : { icon: Archive, label: 'Archivar', color: 'var(--text-muted)', fn: cerrar(archivarRuta) },
+      ...(esBorrador ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: cerrar(confirmDelete) }] : []),
+    ]
   }
 
   if (activeJourney) {
@@ -388,25 +510,27 @@ export default function Plantillas() {
 
       {/* KPI STRIP */}
       <div className="kpi-strip">
-        <div className="kpi-card" style={{ '--kpi-accent': 'var(--blue)' }}>
-          <div className="kpi-title" style={{ color: 'var(--blue)' }}>Rutas totales</div>
-          <div className="kpi-val">{plantillas.length}</div>
-          <div className="kpi-lbl">Creadas en la plataforma</div>
-        </div>
+        {/* Un contador por estado oficial (RN-M55). El total salió de la tira: es la
+            suma de estos cuatro y no dice nada que no digan ellos. */}
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
-          <div className="kpi-title" style={{ color: 'var(--green)' }}>Activas</div>
+          <div className="kpi-title" style={{ color: 'var(--green)' }}>Activo</div>
           <div className="kpi-val">{totalActivas}</div>
-          <div className="kpi-lbl">En uso actualmente</div>
+          <div className="kpi-lbl">Vigentes para su cargo</div>
+        </div>
+        <div className="kpi-card" style={{ '--kpi-accent': 'var(--navy)' }}>
+          <div className="kpi-title" style={{ color: 'var(--navy)' }}>No activo</div>
+          <div className="kpi-val">{totalInactivas}</div>
+          <div className="kpi-lbl">Listas, en espera</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--yellow)' }}>
-          <div className="kpi-title" style={{ color: 'var(--yellow)' }}>En borrador</div>
+          <div className="kpi-title" style={{ color: 'var(--yellow)' }}>Borrador</div>
           <div className="kpi-val">{totalBorrador}</div>
-          <div className="kpi-lbl">Pendientes de activar</div>
+          <div className="kpi-lbl">En construcción</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--text-muted)' }}>
-          <div className="kpi-title" style={{ color: 'var(--text-muted)' }}>Archivadas</div>
+          <div className="kpi-title" style={{ color: 'var(--text-muted)' }}>Archivado</div>
           <div className="kpi-val">{totalArchivadas}</div>
-          <div className="kpi-lbl">Fuera de uso</div>
+          <div className="kpi-lbl">Histórico, fuera de uso</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': rutaGeneral ? '#475569' : 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: rutaGeneral ? '#475569' : 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -416,7 +540,7 @@ export default function Plantillas() {
             {rutaGeneral ? rutaGeneral.name : 'Sin definir'}
           </div>
           <div className="kpi-lbl">
-            {!rutaGeneral ? 'Ninguna ruta se aplica a todas' : rutaGeneral.status === 'activa' ? 'Se antepone a todas las rutas' : 'No propaga (está inactiva)'}
+            {!rutaGeneral ? 'Ninguna ruta se aplica a todas' : rutaGeneral.status === 'activa' ? 'Se antepone a todas las rutas' : `No propaga (${estadoRuta(rutaGeneral.status).label})`}
           </div>
         </div>
       </div>
@@ -529,8 +653,8 @@ export default function Plantillas() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <span className={`pl-status ${p.status === 'activa' ? 'pl-st-activa' : p.status === 'archivada' ? 'pl-st-archivada' : 'pl-st-borrador'}`}>
-                    {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                  <span className={`pl-status ${estadoRuta(p.status).clase}`}>
+                    {estadoRuta(p.status).label}
                   </span>
                   <div style={{ position: 'relative' }}>
                     <button
@@ -551,35 +675,7 @@ export default function Plantillas() {
                         boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid #e2e8f0',
                         zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
                       }}>
-                        {([
-                          ...(p.status === 'activa' && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                          { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                          ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
-                          { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
-                          { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
-                          ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
-                          { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { toggleArchivar(p); setCardMenu(null) } },
-                          ...(p.status === 'borrador' ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } }] : []),
-                        ]).map(a => {
-                          const AIcon = a.icon
-                          return (
-                            <button
-                              key={a.label}
-                              onClick={a.fn}
-                              style={{
-                                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '7px 10px', border: 'none', borderRadius: 7,
-                                background: 'transparent', cursor: 'pointer', fontSize: 12,
-                                fontWeight: 500, color: a.color, fontFamily: 'inherit', textAlign: 'left',
-                                transition: 'background .1s',
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.background = a.color === '#ef4444' ? '#fef2f2' : '#f8fafc'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >
-                              <AIcon size={13} /> {a.label}
-                            </button>
-                          )
-                        })}
+                        {accionesRuta(p).map(a => <AccionItem key={a.label} accion={a} />)}
                       </div>
                     )}
                   </div>
@@ -594,6 +690,17 @@ export default function Plantillas() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                     <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.cargo}</span>
+                  </div>
+                )}
+                {/* Por qué está apagada. "No activo" describe la situación pero no
+                    cómo se llegó, y a la semana nadie recuerda si la desactivaron a
+                    propósito o si otra ruta le ganó el puesto. */}
+                {motivoDesplazo(p) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title={motivoDesplazo(p)}>
+                    <ArrowLeftRight size={10} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Reemplazada por {p.desplazadaPor.name}
+                    </span>
                   </div>
                 )}
               </div>
@@ -799,7 +906,7 @@ export default function Plantillas() {
                   </button>
                   {rfDropStatus && statusHeaderPos && (
                     <div className="pl-dropdown-menu" style={{ position: 'fixed', top: statusHeaderPos.top, left: statusHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
-                      {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activas' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivadas' }].map(f => (
+                      {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activo' }, { key: 'inactiva', label: 'No activo' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivado' }].map(f => (
                         <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false); setPage(1) }}>
                           <span>{f.label}</span>
                           {filterStatus === f.key && <Check size={13} />}
@@ -847,12 +954,21 @@ export default function Plantillas() {
                     )}
                   </td>
                   <td>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                      background: p.status === 'activa' ? '#f0fdf4' : p.status === 'archivada' ? 'var(--surface-hover)' : '#fef3c7',
-                      color: p.status === 'activa' ? '#16a34a' : p.status === 'archivada' ? '#64748b' : '#b45309',
-                    }}>
-                      {{ activa: 'Activa', borrador: 'Borrador', archivada: 'Archivada' }[p.status]}
+                    {/* En la tabla el motivo no entra como línea aparte sin apretar la
+                        fila, así que va al tooltip de la píldora, que es justo donde
+                        se lo busca: sobre el estado que no se entiende. */}
+                    <span
+                      title={motivoDesplazo(p) || undefined}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                        background: estadoRuta(p.status).bg,
+                        color: estadoRuta(p.status).color,
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        cursor: motivoDesplazo(p) ? 'help' : undefined,
+                      }}
+                    >
+                      {estadoRuta(p.status).label}
+                      {motivoDesplazo(p) && <ArrowLeftRight size={9} style={{ opacity: 0.7 }} />}
                     </span>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
@@ -861,8 +977,7 @@ export default function Plantillas() {
                         onClick={(e) => {
                           if (cardMenu === p.id) { setCardMenu(null); return }
                           const rect = e.currentTarget.getBoundingClientRect()
-                          const itemCount = 4 + (canEditRuta(p) ? 1 : 0) + (p.status === 'activa' ? 1 : 0) + (isAdmin ? 1 : 0) + (p.status === 'borrador' ? 1 : 0)
-                          const menuH = itemCount * 34 + 8
+                          const menuH = accionesRuta(p).length * 34 + 8
                           const margin = 10
                           const top = (rect.bottom + 4 + menuH > window.innerHeight - margin)
                             ? Math.max(margin, rect.top - menuH - 4)
@@ -887,35 +1002,7 @@ export default function Plantillas() {
                           zIndex: 20, minWidth: 180, maxHeight: 'calc(100vh - 20px)', overflowY: 'auto',
                           animation: 'plSlideUp .12s',
                         }}>
-                          {([
-                            ...(p.status === 'activa' && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: () => { setAsignarModal(p); setCardMenu(null) } }] : []),
-                            { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: () => { setPreviewRuta(p); setCardMenu(null) } },
-                            ...(canEditRuta(p) ? [{ icon: Pencil, label: 'Editar', color: 'var(--text-muted)', fn: () => { openEdit(p); setCardMenu(null) } }] : []),
-                            { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: () => { handleDuplicate(p); setCardMenu(null) } },
-                          { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: () => { setHistorialRuta(p); setCardMenu(null) } },
-                            ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: () => { setRutaGeneralConfirm(p); setCardMenu(null) } }] : []),
-                            { icon: Archive, label: p.status === 'archivada' ? 'Desarchivar' : 'Archivar', color: 'var(--text-muted)', fn: () => { toggleArchivar(p); setCardMenu(null) } },
-                            ...(p.status === 'borrador' ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: () => { confirmDelete(p); setCardMenu(null) } }] : []),
-                          ]).map(a => {
-                            const AIcon = a.icon
-                            return (
-                              <button
-                                key={a.label}
-                                onClick={a.fn}
-                                style={{
-                                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                                  padding: '7px 10px', border: 'none', borderRadius: 7,
-                                  background: 'transparent', cursor: 'pointer', fontSize: 12,
-                                  fontWeight: 500, color: a.color, fontFamily: 'inherit', textAlign: 'left',
-                                  transition: 'background .1s',
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = a.color === '#ef4444' ? '#fef2f2' : '#f8fafc'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                              >
-                                <AIcon size={13} /> {a.label}
-                              </button>
-                            )
-                          })}
+                          {accionesRuta(p).map(a => <AccionItem key={a.label} accion={a} />)}
                         </div>
                       )}
                     </div>
@@ -1363,6 +1450,24 @@ export default function Plantillas() {
                 </div>
               </div>
 
+              {conflictoForm.length > 0 && (
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
+                  padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a',
+                }}>
+                  <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 10.5, color: '#92400e', lineHeight: 1.5 }}>
+                    <strong>{describirPuesto({ cargo: form.cargo, sucursal: form.sucursal })}</strong> ya tiene
+                    {conflictoForm.length > 1 ? ` ${conflictoForm.length} rutas vigentes` : ' una ruta vigente'}:{' '}
+                    <strong>{conflictoForm.map(c => c.name).join(', ')}</strong>. Puedes crear esta igual: nace en
+                    Borrador y no cambia nada todavía. Al activarla{' '}
+                    {conflictoForm.length > 1 ? 'reemplazará a esas rutas' : 'reemplazará a esa ruta'}, que
+                    {conflictoForm.length > 1 ? ' quedarán' : ' quedará'} en No activo y{' '}
+                    {conflictoForm.length > 1 ? 'podrás reactivarlas' : 'podrás reactivarla'} cuando quieras.
+                  </span>
+                </div>
+              )}
+
               {isAdmin && modal === 'crear' && (
                 <div style={{
                   display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
@@ -1501,6 +1606,16 @@ export default function Plantillas() {
         />
       )}
 
+      {/* MODAL DE UNICIDAD — el puesto ya tiene ruta vigente (RN-M60) */}
+      {activarModal && (
+        <ActivarRutaModal
+          ruta={activarModal.ruta}
+          anteriores={activarModal.anteriores}
+          onConfirmar={() => activarRuta(activarModal.ruta, activarModal.anteriores)}
+          onCancelar={() => setActivarModal(null)}
+        />
+      )}
+
       {/* MODAL CONFIRMAR RUTA GENERAL */}
       {rutaGeneralConfirm && (() => {
         const willBeGlobal = !rutaGeneralConfirm.esGlobal
@@ -1606,7 +1721,7 @@ export default function Plantillas() {
               </div>
               <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
                 <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={() => { setPlantillas(prev => prev.map(x => x.id === deleteTarget.id ? { ...x, statusPrevio: x.status, status: 'archivada' } : x)); addFeedEntry(`Ruta "${deleteTarget.name}" archivada`); setDeleteTarget(null) }}>Archivar ruta</button>
+                <button className="pl-btn-save" onClick={() => { archivarRuta(deleteTarget); setDeleteTarget(null) }}>Archivar ruta</button>
               </div>
             </div>
           </div>

@@ -11,6 +11,7 @@ import MiDia from './pages/inicio/MiDia'
 import Calendario from './pages/calendario/Calendario'
 import Dashboard from './pages/onboarding/Dashboard'
 import Asignaciones from './pages/onboarding/Asignaciones'
+import DetalleAsignacion from './pages/onboarding/DetalleAsignacion'
 import Plantillas from './pages/onboarding/Plantillas'
 import Conocimiento from './pages/onboarding/Conocimiento'
 import Configuracion from './pages/onboarding/Configuracion'
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/onboarding" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="asignaciones" element={<Asignaciones />} />
+            <Route path="asignaciones/:id" element={<DetalleAsignacion />} />
             <Route path="plantillas" element={<Plantillas />} />
             <Route path="conocimiento" element={<Conocimiento />} />
             <Route path="configuracion" element={<Configuracion />} />

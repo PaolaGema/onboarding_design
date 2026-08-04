@@ -19,12 +19,16 @@ const STATUS_COLORS = {
   'completado': '#00E091',
   'atrasado': '#f59e0b',
   'en-riesgo': '#ef4444',
+  'pendiente': '#94a3b8',
+  'pausado': '#64748b',
 }
 const STATUS_LABELS = {
   'en-curso': 'En curso',
   'completado': 'Completados',
   'atrasado': 'Atrasados',
   'en-riesgo': 'En riesgo',
+  'pendiente': 'Programados',
+  'pausado': 'Pausados',
 }
 const AREA_COLORS = ['#0C2D40', '#0D6B4E', '#0D9463', '#00C27E', '#00E091', '#7EF0C0']
 const RANK_COLORS = AREA_COLORS.slice(0, 3)
@@ -418,7 +422,10 @@ export default function Dashboard() {
 
       {/* ── ANALYTICS: DONUT + BARRAS ────────── */}
       {(() => {
-        const statusData = ['en-curso', 'completado', 'atrasado', 'en-riesgo']
+        // Se incluyen todos los estados posibles —también Programado y Pausado— para que la
+        // suma de la leyenda cuadre con el total del centro; el filtro de abajo oculta los
+        // que estén en cero.
+        const statusData = ['en-curso', 'completado', 'atrasado', 'en-riesgo', 'pendiente', 'pausado']
           .map(status => ({
             status,
             label: STATUS_LABELS[status],

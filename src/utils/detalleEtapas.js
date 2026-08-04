@@ -23,14 +23,23 @@ export function buildDetalleEtapas(a, plantillas) {
   let seen = 0
 
   return fuente.map(etapa => {
-    const tareas = etapa.actividades.flatMap(act => act.tareas).map(t => {
-      const done = seen < doneCount
-      seen += 1
-      return { ...t, done }
-    })
+    // Se conserva el nivel de actividad —no solo la tarea plana— porque el recorrido que ve
+    // el colaborador agrupa por actividad ("Primer día", "Accesos"), y la ficha de RH debe
+    // mostrar la misma estructura. `tareas`/`doneLocal` se dejan aplanados además del árbol
+    // para no romper las vistas móviles que ya los consumen así.
+    const actividades = etapa.actividades.map(act => ({
+      name: act.name,
+      tareas: act.tareas.map(t => {
+        const done = seen < doneCount
+        seen += 1
+        return { ...t, done }
+      }),
+    }))
+    const tareas = actividades.flatMap(act => act.tareas)
     return {
       name: etapa.name,
       days: etapa.days || (etapa.duracion ? `${etapa.duracion} días` : ''),
+      actividades,
       tareas,
       doneLocal: tareas.filter(t => t.done).length,
     }

@@ -98,7 +98,10 @@ export default function Layout() {
   useEffect(() => {
     const isPersonas = location.pathname.startsWith('/personas') && location.pathname !== '/personas/organigrama'
     const isArchivos = location.pathname.startsWith('/archivos')
+    // La ficha de una asignación cuelga de Seguimiento (/onboarding/asignaciones/:id): entra
+    // por prefijo, si no un colaborador podría quedarse ahí escribiendo la URL a mano.
     const isAdminRoute = ['/onboarding', '/onboarding/asignaciones', '/onboarding/plantillas', '/onboarding/conocimiento', '/onboarding/configuracion'].includes(location.pathname)
+      || location.pathname.startsWith('/onboarding/asignaciones/')
 
     // El buddy tiene los mismos permisos que un colaborador: acompañar no da acceso a
     // administración. Su única pantalla extra es /onboarding/acompanados.

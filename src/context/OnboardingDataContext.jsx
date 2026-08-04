@@ -54,7 +54,9 @@ const samplePlantillas = samplePlantillasBase.map(p => {
 /* El `cargo` no es decorativo: además de mostrarse en la ficha, alimenta el filtro por cargo
    de Seguimiento, que queda vacío en cuanto una asignación no lo trae. */
 const sampleAsignaciones = [
-  { id: 1, nombre: 'Diego Morales', area: 'Tecnología', cargo: 'Desarrollador Backend', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 68, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
+  // 75% = 6 de 8 tareas: incluye "Prueba de arquitectura" (la 6ª), para que en el detalle
+  // aparezca completada y se puedan ver sus respuestas simuladas.
+  { id: 1, nombre: 'Diego Morales', area: 'Tecnología', cargo: 'Desarrollador Backend', ruta: 'Onboarding Tech — Backend', dia: 14, totalDias: 30, pct: 75, status: 'en-curso', fechaInicio: '03 Jun 2026', color: '#3b82f6' },
   { id: 2, nombre: 'Camila Herrera', area: 'Ventas', cargo: 'Ejecutiva Comercial', ruta: 'Onboarding Ventas — Pasante', dia: 18, totalDias: 30, pct: 42, status: 'en-curso', fechaInicio: '30 May 2026', color: '#f97316' },
   { id: 3, nombre: 'Valentina Cruz', area: 'Diseño', cargo: 'Diseñadora UX/UI', ruta: 'Onboarding Diseño & UX', dia: 20, totalDias: 30, pct: 25, status: 'atrasado', fechaInicio: '28 May 2026', color: '#ec4899' },
   { id: 4, nombre: 'Facundo Medina', area: 'Tecnología', cargo: 'QA Engineer', ruta: 'Onboarding Tech — Backend', dia: 21, totalDias: 30, pct: 15, status: 'en-riesgo', fechaInicio: '27 May 2026', color: '#ef4444' },

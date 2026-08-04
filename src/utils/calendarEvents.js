@@ -84,4 +84,5 @@ export const CALENDAR_LEGEND = [
   { label: 'Reconocimiento', color: 'var(--blue)' },
 ]
 
-export const avatarUrl = (name) => `https://i.pravatar.cc/40?u=${encodeURIComponent(name)}`
+// `size` para las fichas que muestran la foto más grande: pedir 40 px y estirarlos se ve borroso.
+export const avatarUrl = (name, size = 40) => `https://i.pravatar.cc/${size}?u=${encodeURIComponent(name)}`

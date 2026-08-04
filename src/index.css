@@ -1023,6 +1023,9 @@ button.chip-link {
 }
 
 .pl-st-activa { background: rgba(0,224,145,.1); color: var(--green); }
+/* No activo lleva el navy de la marca —y no otro gris— porque es la única espera
+   reutilizable de las tres: si se pareciera a Archivado se leería como descarte. */
+.pl-st-inactiva { background: rgba(12,45,64,.08); color: var(--navy); }
 .pl-st-borrador { background: rgba(245,158,11,.1); color: var(--yellow); }
 .pl-st-archivada { background: var(--surface-hover); color: var(--text-muted); }
 
@@ -1444,7 +1447,11 @@ select.pl-input:focus {
 }
 
 .as-name { font-size: 12px; font-weight: 600; color: var(--text-heading); }
-.as-area { font-size: 10.5px; color: var(--text-muted); }
+
+/* Variante clicable del nombre en Seguimiento: entrar a la ficha de la persona es lo que
+   más se hace desde la tabla y no debería obligar a pasar por el menú de acciones. */
+.as-name-btn { padding: 0; border: none; background: none; font-family: inherit; text-align: left; cursor: pointer; }
+.as-name-btn:hover { color: var(--blue); text-decoration: underline; }
 
 .as-ruta {
   font-size: 11.5px;
@@ -3115,3 +3122,243 @@ select.pl-input:focus {
 .og-drop span { font-size: 11px; color: var(--text-muted); }
 .og-drop:hover { border-color: var(--navy); background: var(--surface-hover); }
 
+
+/* ══════════════════════════════════════════════════
+   DETALLE DE UNA ASIGNACIÓN
+   ══════════════════════════════════════════════════ */
+
+/* Volver al listado: es navegación, no una acción sobre la persona, así que va discreto y
+   arriba de todo. */
+.det-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .12s;
+}
+
+.det-back:hover { color: var(--text-heading); }
+
+/* El recorrido manda y ocupa el ancho; la ficha y las acciones quedan fijas a la derecha.
+   Por debajo de 1180 px el rail no cabe sin apretar las tarjetas de tarea, y entonces
+   pasa a apilarse. */
+.det-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .det-grid { grid-template-columns: 1fr; }
+}
+
+/* Recorrido como camino de nodos: el mismo que ve el colaborador (clases jb-duo-*), sobre
+   un lienzo suave para separarlo del resto de la ficha. */
+.det-path-canvas {
+  padding: 18px 12px 8px;
+  background: linear-gradient(180deg, var(--surface-hover) 0%, var(--bg-secondary) 100%);
+}
+
+/* Tira de datos de la cabecera: celdas de igual ancho separadas por una línea fina, sin
+   iconos. En pantallas angostas se parte en dos columnas y las líneas se reacomodan. */
+.det-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border-soft);
+}
+
+.det-stat {
+  padding: 15px 22px;
+  min-width: 0;
+}
+.det-stat + .det-stat { border-left: 1px solid var(--border-soft); }
+
+.det-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.det-stat-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+  line-height: 1.3;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.det-stat-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .det-stats { grid-template-columns: 1fr 1fr; }
+  /* En dos columnas, la línea izquierda sobra en la primera de cada fila. */
+  .det-stat:nth-child(odd) { border-left: none; }
+  .det-stat:nth-child(n+3) { border-top: 1px solid var(--border-soft); }
+}
+
+.det-etapa-block { position: relative; }
+
+.det-etapa-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--sh-sm);
+  max-width: 100%;
+}
+
+.det-etapa-pill.actual { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-bg); }
+
+.det-etapa-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.det-etapa-name { font-size: 12px; font-weight: 700; color: var(--text-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.det-etapa-days { font-size: 9.5px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
+.det-etapa-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+.det-etapa-count {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.det-etapa-count.done { background: var(--green-bg); color: var(--green); }
+
+/* Divisor de actividad: el nivel intermedio entre la etapa y sus tareas. */
+.det-act-divider {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 10px;
+}
+
+.det-act-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 12px;
+  border-radius: 8px;
+  background: rgba(12,45,64,.05);
+  border: 1px solid rgba(12,45,64,.08);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+:root[data-theme="dark"] .det-act-pill { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.08); }
+
+.det-act-pill svg { color: var(--text-muted); }
+
+.det-act-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-card);
+  border-radius: 20px;
+  padding: 0 6px;
+}
+
+/* La etiqueta bajo el nodo es el segundo punto de clic hacia la misma tarea, para que no
+   haya que apuntar al círculo. */
+.det-node-labelbtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.det-node-labelbtn:hover .jb-duo-label { color: var(--blue); }
+
+/* Nodo pendiente: círculo hueco con el icono del tipo apagado, en contraste con el verde
+   lleno de los completados. Sin la animación de "activo" del colaborador: acá son muchos
+   nodos a la vez y pulsar todos distrae. */
+.jb-duo-node.det-pend { animation: none; }
+.jb-duo-node.det-pend .jb-duo-circle {
+  background: var(--surface-card);
+  border: 2px solid var(--border-dark);
+  color: var(--text-muted);
+  box-shadow: 0 1px 4px rgba(12,45,64,.08);
+}
+.jb-duo-node.det-pend:hover .jb-duo-circle { border-color: var(--blue); color: var(--blue); }
+
+/* Insignia de completado en la esquina del nodo verde. */
+.det-node-check {
+  position: absolute;
+  bottom: -2px;
+  right: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #16a34a;
+  border: 2px solid var(--surface-card);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.det-accion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-card);
+  color: var(--text-heading);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.det-accion:hover { background: var(--surface-hover); border-color: var(--border-dark); }
