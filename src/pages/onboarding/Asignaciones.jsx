@@ -4,7 +4,7 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, UserPlus, X, AlertTriangle, Eye, Users,
-  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, MoreVertical, Pause, Play, Trash2, Info, Check,
+  ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, MoreVertical, Pause, Play, UserMinus, Info, Check,
   Send, UserCheck, LayoutGrid, List
 } from 'lucide-react'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
@@ -12,7 +12,7 @@ import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
 import EnviarRecordatorioModal from '../../components/onboarding/EnviarRecordatorioModal'
 import PausarOnboardingModal from '../../components/onboarding/PausarOnboardingModal'
 import { statusLabels, statusCls, barColor } from '../../utils/estadoAsignacion'
-import ColaboradorCard from '../../components/onboarding/ColaboradorCard'
+import OnboardingCard from '../../components/onboarding/OnboardingCard'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 
@@ -61,7 +61,7 @@ export default function Asignaciones() {
   const [page, setPage] = useState(1)
   const perPage = 8
   const [modal, setModal] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [desasignarTarget, setDesasignarTarget] = useState(null)
   const [pausarTarget, setPausarTarget] = useState(null)
   const [menuOpen, setMenuOpen] = useState(null)
   const [showEstadoHelp, setShowEstadoHelp] = useState(false)
@@ -173,14 +173,14 @@ export default function Asignaciones() {
     setDesasignarBuddyTarget(null)
   }
 
-  function confirmDelete(a) {
-    setDeleteTarget(a)
+  function confirmDesasignar(a) {
+    setDesasignarTarget(a)
     setMenuOpen(null)
   }
 
-  function handleDelete() {
-    setAsignaciones(asignaciones.filter(a => a.id !== deleteTarget.id))
-    setDeleteTarget(null)
+  function handleDesasignar() {
+    setAsignaciones(asignaciones.filter(a => a.id !== desasignarTarget.id))
+    setDesasignarTarget(null)
   }
 
   /* Las acciones son las mismas se vea tabla o tarjetas: si se agrega una, tiene que
@@ -244,9 +244,12 @@ export default function Asignaciones() {
             {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
             {a.status === 'pausado' ? 'Reanudar' : 'Pausar'}
           </button>
-          <button className="as-menu-item as-menu-del" onClick={() => confirmDelete(a)}>
-            <Trash2 size={13} />
-            Desasignar
+          {/* Dice de qué se desasigna. Compartía menú con "Desasignar buddy" y las dos
+              empezaban igual, así que se elegía por la posición y no por lo que dicen.
+              Tampoco lleva el bote de basura: no borra a la persona, le quita la ruta. */}
+          <button className="as-menu-item as-menu-del" onClick={() => confirmDesasignar(a)}>
+            <UserMinus size={13} />
+            Desasignar ruta de onboarding
           </button>
         </div>
       )}
@@ -583,7 +586,7 @@ export default function Asignaciones() {
         ) : paginated.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14, padding: 16 }}>
             {paginated.map(a => (
-              <ColaboradorCard
+              <OnboardingCard
                 key={a.id}
                 nombre={a.nombre}
                 cargo={a.cargo}
@@ -717,14 +720,14 @@ export default function Asignaciones() {
         />
       )}
 
-      {deleteTarget && (
+      {desasignarTarget && (
         <ConfirmarAccionModal
           titulo="Desasignar ruta"
-          descripcion={<>¿Desasignar a <strong>{deleteTarget.nombre}</strong> de <strong>{deleteTarget.ruta}</strong>? Se perderá el progreso actual.</>}
+          descripcion={<>¿Desasignar a <strong>{desasignarTarget.nombre}</strong> de <strong>{desasignarTarget.ruta}</strong>? Se perderá el progreso actual.</>}
           palabra="desasignar"
           textoConfirmar="Desasignar"
-          onConfirmar={handleDelete}
-          onCancelar={() => setDeleteTarget(null)}
+          onConfirmar={handleDesasignar}
+          onCancelar={() => setDesasignarTarget(null)}
           icono={AlertTriangle}
         />
       )}

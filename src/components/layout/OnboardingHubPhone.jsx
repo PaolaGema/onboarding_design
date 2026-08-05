@@ -1,7 +1,6 @@
 import { Rocket, Users, HeartHandshake, ChevronRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
-import { tareasBuddyDe } from '../../data/tareasBuddy'
 
 function Pildora({ children, fondo = '#f1f5f9', texto = '#0C2D40', Icon }) {
   return (
@@ -43,7 +42,6 @@ export default function OnboardingHubPhone({ currentUser, onIr }) {
   if (esBuddy) {
     const acompanados = colaboradoresData.filter(c => c.buddy?.name === currentUser.name)
     const enRiesgo = acompanados.filter(c => c.onb === 'en-riesgo').length
-    const pendientes = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
 
     tarjetas = [
       {
@@ -54,11 +52,6 @@ export default function OnboardingHubPhone({ currentUser, onIr }) {
         pie: (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 6 }}>
             <Pildora>{acompanados.length} {acompanados.length === 1 ? 'persona' : 'personas'}</Pildora>
-            {pendientes > 0 && (
-              <Pildora fondo="#fefce8" texto="#b45309">
-                {pendientes} {pendientes === 1 ? 'tarea mía' : 'tareas mías'}
-              </Pildora>
-            )}
             {enRiesgo > 0 && (
               <Pildora fondo="#fef2f2" texto="#dc2626" Icon={AlertTriangle}>
                 {enRiesgo} en riesgo
@@ -96,18 +89,10 @@ export default function OnboardingHubPhone({ currentUser, onIr }) {
 
   return (
     <div style={{ padding: '2px 2px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#0C2D40' }}>Onboarding</div>
-          <div style={{ fontSize: 6.5, color: '#94a3b8', marginTop: 1 }}>
-            {esBuddy ? 'Tu ruta y tu gente.' : 'Tu ruta y la de tu equipo.'}
-          </div>
-        </div>
-        <div style={{
-          width: 22, height: 22, borderRadius: '50%', background: currentUser.color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{ color: '#fff', fontSize: 6, fontWeight: 700 }}>{currentUser.initials}</span>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: '#0C2D40' }}>Onboarding</div>
+        <div style={{ fontSize: 6.5, color: '#94a3b8', marginTop: 1 }}>
+          {esBuddy ? 'Tu ruta y tu gente.' : 'Tu ruta y la de tu equipo.'}
         </div>
       </div>
 

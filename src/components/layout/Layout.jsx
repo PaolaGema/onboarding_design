@@ -8,7 +8,6 @@ import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { Home, MessageCircle, Bell, User, Users, LayoutGrid, Route, Calendar, MapPin, Sun, Gift, Info, HeartHandshake } from 'lucide-react'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
-import { tareasBuddyDe } from '../../data/tareasBuddy'
 import ZonaHRPhone from './ZonaHRPhone'
 import OrganigramaPhone from './OrganigramaPhone'
 import SeguimientoPhone from './SeguimientoPhone'
@@ -58,8 +57,8 @@ export default function Layout() {
   const irAPestana = key => { setOrigenHR(false); setMobileTab(key) }
 
   /* El banner de Inicio es el atajo al onboarding desde el muro, y cada perfil llega con un
-     trabajo distinto: el colaborador sigue su ruta, el líder mira a su área y el buddy va a
-     sus tareas. Escrito como un objeto y no con ternarios repetidos en el ícono, el título y
+     trabajo distinto: el colaborador sigue su ruta, el líder mira a su área y el buddy mira a
+     su gente. Escrito como un objeto y no con ternarios repetidos en el ícono, el título y
      el pie: así el día que se agregue un cuarto perfil se toca un solo lugar.
 
      Quien no tiene pestaña propia entra por `abrirDesdeHR`, aunque venga del muro: el atajo
@@ -67,14 +66,14 @@ export default function Layout() {
      llegado por Zona HR. Si entrara por `irAPestana` quedaría en una pantalla sin pestaña
      encendida y sin salida hacia atrás. */
   const acompanados = esBuddy ? colaboradoresData.filter(c => c.buddy?.name === currentUser.name) : []
-  const tareasBuddyPend = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
+  const buddyEnRiesgo = acompanados.filter(c => c.onb === 'en-riesgo').length
 
   const banner = esBuddy
     ? {
         icon: HeartHandshake,
         titulo: 'Acompañar a mi gente',
         detalle: `${acompanados.length} ${acompanados.length === 1 ? 'persona' : 'personas'}`
-          + (tareasBuddyPend > 0 ? ` · ${tareasBuddyPend} ${tareasBuddyPend === 1 ? 'tarea tuya' : 'tareas tuyas'} →` : ' →'),
+          + (buddyEnRiesgo > 0 ? ` · ${buddyEnRiesgo} en riesgo →` : ' →'),
         ir: () => abrirDesdeHR('acompanados'),
       }
     : esLider
@@ -379,7 +378,7 @@ export default function Layout() {
 
                 {/* ── Banner Onboarding ── */}
                 {/* Ni el líder ni el buddy tienen una ruta propia que continuar: su atajo es
-                    su gente. Y el buddy, además, entra a hacer sus tareas — no a mirar. */}
+                    su gente, y el pie dice si alguno necesita atención. */}
                 <div
                   onClick={banner.ir}
                   style={{

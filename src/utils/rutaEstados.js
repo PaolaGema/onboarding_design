@@ -1,26 +1,40 @@
 /* Estado de una ruta y regla de unicidad ruta↔cargo (RN-M55 / RN-M60).
 
-   Las claves internas quedaron en femenino de cuando el catálogo eran tres
-   ('activa' / 'borrador' / 'archivada') y se conservan para no migrar los datos;
-   las etiquetas visibles sí son las oficiales, en masculino, porque nombran el
-   estado de la ruta y no a la ruta. */
+   Las claves internas quedaron en femenino ('activa' / 'inactiva' / 'borrador') de cuando
+   se escribieron y se conservan para no migrar lo que ya está guardado; las etiquetas
+   visibles sí son las oficiales, en masculino, porque nombran el estado de la ruta y no a
+   la ruta. */
 
 export const SUCURSAL_TODAS = 'Todas las sucursales'
 
-/* Los cuatro estados oficiales, en el orden del ciclo de vida
-   (Borrador → No activo → Activo, y Archivado como salida lateral).
-   Los tres "no está en uso" se distinguen por el motivo: Borrador todavía no
-   está lista, No activo está lista pero no es la vigente, Archivado ya no se
-   usará. Por eso No activo lleva el navy de la marca y no otro gris: es la
-   única espera reutilizable y no debe leerse como descarte. */
+/* Tres estados y ninguno más. Cada uno se define por lo que hace el sistema con él, no por
+   la intención de quien lo puso: Borrador no se asigna porque todavía se está construyendo,
+   Activo es el que reciben los ingresos nuevos del puesto, Inactivo dejó de asignarse.
+
+   Antes existía además "Archivado", y para el sistema hacía exactamente lo mismo que
+   Inactivo —ninguno de los dos se asigna—: la diferencia era la intención de quien lo
+   apretaba, que es justo lo que nadie sabe en el momento de decidir. Dos etiquetas para un
+   solo comportamiento obligan a elegir entre sinónimos. Quedó una. */
 export const ESTADOS_RUTA = {
   activa: { label: 'Activo', clase: 'pl-st-activa', bg: '#f0fdf4', color: '#16a34a' },
-  inactiva: { label: 'No activo', clase: 'pl-st-inactiva', bg: 'rgba(12,45,64,.08)', color: '#0C2D40' },
+  inactiva: { label: 'Inactivo', clase: 'pl-st-inactiva', bg: 'rgba(12,45,64,.08)', color: '#0C2D40' },
   borrador: { label: 'Borrador', clase: 'pl-st-borrador', bg: '#fef3c7', color: '#b45309' },
-  archivada: { label: 'Archivado', clase: 'pl-st-archivada', bg: 'var(--surface-hover)', color: '#64748b' },
 }
 
-export const estadoRuta = (status) => ESTADOS_RUTA[status] || ESTADOS_RUTA.borrador
+/* Qué hace el sistema en cada estado. Se muestra al elegirlo: el nombre solo no dice si
+   entra gente nueva o no, y esa es la única pregunta que importa al cambiarlo. */
+export const REGLA_ESTADO = {
+  activa: 'Los ingresos nuevos de este cargo la reciben, y se puede asignar a mano.',
+  inactiva: 'Deja de asignarse. Quienes ya la están haciendo la terminan igual.',
+  borrador: 'En construcción. No se asigna a nadie, ni a mano ni automáticamente.',
+}
+
+/* Las rutas guardadas antes de que Archivado desapareciera siguen teniendo ese estado
+   escrito. Se traduce al leerlo en vez de migrar el almacenamiento: un dato viejo no debería
+   obligar a tocar lo que ya está guardado, y así la lectura es válida venga de donde venga. */
+export const normalizarStatus = (status) => (status === 'archivada' ? 'inactiva' : status)
+
+export const estadoRuta = (status) => ESTADOS_RUTA[normalizarStatus(status)] || ESTADOS_RUTA.borrador
 
 /* Una asignación "en curso" es la que todavía no terminó: su colaborador sigue
    recorriendo la versión que le tocó y por eso no se ve afectado si la ruta
@@ -42,10 +56,42 @@ export function rutasEnConflicto(plantillas, ruta) {
   if (!ruta?.cargo || ruta.esGlobal) return []
   return (plantillas || []).filter(p =>
     p.id !== ruta.id &&
-    p.status === 'activa' &&
+    normalizarStatus(p.status) === 'activa' &&
     !p.esGlobal &&
     p.cargo === ruta.cargo &&
     sucursalDe(p) === sucursalDe(ruta))
+}
+
+/* Mapa de transiciones. Solo tres son posibles:
+
+     Borrador → Activo     terminaste de armarla y la publicás para que el motor la use.
+     Activo   → Inactivo   la empresa pausa o cierra ese proceso de onboarding.
+     Inactivo → Activo     la pausa era temporal y se vuelve a encender.
+
+   Nadie vuelve a Borrador: una ruta que llegó a Activo ya es oficial y pasó filtros, y una
+   Inactiva ya está terminada. Además "volver a borrador" haría exactamente lo mismo que
+   Inactivo —dejar de asignarse—, y tendríamos dos nombres para un solo comportamiento.
+
+   Devuelve los tres estados siempre —también el actual y los imposibles— porque un selector
+   que esconde opciones no enseña la regla: quien busca "volver a borrador" y no lo encuentra
+   cree que se equivocó de menú, no que no existe. */
+export function transicionesDe(ruta) {
+  const actual = normalizarStatus(ruta?.status)
+  const sinTareas = !ruta?.tareas
+  return Object.keys(ESTADOS_RUTA).map(key => {
+    let motivo = null
+    if (key === actual) motivo = 'Es el estado actual'
+    else if (key === 'borrador') {
+      motivo = actual === 'activa'
+        ? 'Es una ruta oficial que ya pasó filtros: no vuelve a borrador. Para pausarla, ponla en Inactivo.'
+        : 'Ya es una ruta terminada: no vuelve a borrador. Para volver a usarla, ponla en Activo.'
+    } else if (key === 'inactiva' && actual === 'borrador') {
+      motivo = 'Un borrador todavía no se asigna a nadie, así que no hay nada que pausar.'
+    } else if (key === 'activa' && sinTareas) {
+      motivo = 'Agrega al menos una tarea antes de ponerla en uso.'
+    }
+    return { key, ...ESTADOS_RUTA[key], regla: REGLA_ESTADO[key], actual: key === actual, motivo }
+  })
 }
 
 /* Cómo se nombra el puesto que se disputa, para los textos del modal y del aviso:
@@ -57,18 +103,11 @@ export function describirPuesto(ruta) {
     : `${ruta.cargo} en ${suc}`
 }
 
-/* El verbo con el que se ofrece la activación depende de si el puesto está libre.
-   Llamar "Activar" a las dos situaciones es lo que produce el "al activar, pasa a
-   No activo": una sola frase con dos rutas distintas adentro, imposible de leer.
-   Con el puesto ocupado la acción real es reemplazar, y nombrarla así hace que el
-   efecto sobre la anterior deje de ser una sorpresa y pase a ser lo esperado. */
-export const etiquetaActivar = (hayConflicto) => hayConflicto ? 'Reemplazar ruta' : 'Activar ruta'
-
-/* Motivo del No activo. Se llega ahí por dos caminos —alguien la desactivó a mano,
-   o la desplazó otra al ocupar su puesto (RN-M60)— y el estado solo no distingue
-   cuál: la ruta aparece apagada y nadie recuerda por qué. El motivo se escribe al
-   desplazar y se borra al salir de No activo, para que no sobreviva a la situación
-   que describe y quede afirmando algo que ya no es cierto. */
+/* Motivo del Inactivo. Se llega ahí por dos caminos —alguien lo cambió a mano, o la desplazó
+   otra al ocupar su puesto (RN-M60)— y el estado solo no distingue cuál: la ruta aparece
+   apagada y nadie recuerda por qué. El motivo se escribe al desplazar y se borra al salir de
+   Inactivo, para que no sobreviva a la situación que describe y quede afirmando algo que ya
+   no es cierto. */
 export const marcarDesplazada = (ruta, porRuta, fecha) => ({
   ...ruta,
   status: 'inactiva',
@@ -82,6 +121,6 @@ export function limpiarDesplazada(ruta) {
 }
 
 export const motivoDesplazo = (ruta) =>
-  ruta?.status === 'inactiva' && ruta.desplazadaPor
+  normalizarStatus(ruta?.status) === 'inactiva' && ruta.desplazadaPor
     ? `Reemplazada por "${ruta.desplazadaPor.name}" el ${ruta.desplazadaPor.fecha}`
     : ''

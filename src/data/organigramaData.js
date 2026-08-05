@@ -28,7 +28,7 @@ export const COLORES_UNIDAD = [
 
 /* `corto` es la etiqueta de la píldora "Pertenece a" en la tabla, donde el nombre largo
    no entra. */
-const unidades = [
+export const unidades = [
   { id: 'direccion', nombre: 'Dirección General', corto: 'Dir. General', padreId: null, color: '#0C2D40' },
   { id: 'tecnologia', nombre: 'Tecnología', corto: 'Tecnología', padreId: 'direccion', color: '#06b6d4' },
   { id: 'rrhh', nombre: 'Recursos Humanos', corto: 'RRHH', padreId: 'direccion', color: '#d946ef' },
@@ -43,7 +43,7 @@ const unidades = [
 
 /* `tipo: 'staff'` cuelga de lado con línea punteada en vez de bajar en la línea de mando:
    asesora a su jefe pero no tiene gente a cargo debajo. */
-const cargos = [
+export const cargos = [
   { id: 'gg', nombre: 'Gerente General', unidadId: 'direccion', reportaA: null, ocupanteId: 28, destacado: true },
   { id: 'asist-dir', nombre: 'Asistente de Dirección', unidadId: 'direccion', reportaA: 'gg', ocupanteId: 29, tipo: 'staff' },
 

@@ -230,7 +230,7 @@ export const rutasSeedEtapas = {
     ] },
   ],
 
-  // 10 — Onboarding Legal 2025 (archivada)
+  // 10 — Onboarding Legal 2025 (inactiva)
   10: [
     { name: 'Bienvenida', duracion: 5, actividades: [
       { name: 'Primer día', tareas: [

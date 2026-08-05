@@ -1,4 +1,4 @@
-import { Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, IdCard } from 'lucide-react'
+import { Video, Headphones, FileText, HelpCircle, ClipboardList, Upload, UserCheck, MapPin, Smile, IdCard, BookOpen, Link2, Award } from 'lucide-react'
 
 /* `unicaPorRuta` marca las tareas que no llevan contenido propio: su "hecho" no vive en la
    tarea sino en el registro del colaborador. Completar el perfil es un estado de la persona
@@ -21,6 +21,20 @@ export const tiposTarea = [
 ]
 
 export const tipoMap = Object.fromEntries(tiposTarea.map(t => [t.key, t]))
+
+/* Tipos que existen en las rutas sembradas pero no en el catálogo del constructor. Viven acá
+   y no en la pantalla que los dibuja porque el mismo recorrido se pinta en la ficha de RH y
+   en el celular del buddy: con dos mapas, un nodo saldría en blanco en una vista y no en la
+   otra. */
+const TIPOS_EXTRA = {
+  lectura: { label: 'Lectura', icon: BookOpen, color: '#0ea5e9' },
+  enlace: { label: 'Enlace', icon: Link2, color: '#6366f1' },
+  confirmacion: { label: 'Confirmación', icon: Award, color: '#22c55e' },
+  'form-custom': { label: 'Formulario', icon: ClipboardList, color: '#10b981' },
+}
+const TIPO_FALLBACK = { label: 'Tarea', icon: FileText, color: '#64748b' }
+
+export const infoTipo = tipo => tipoMap[tipo] || TIPOS_EXTRA[tipo] || TIPO_FALLBACK
 
 /* Formatos que se pueden subir desde el equipo. Viven acá y no en cada pantalla porque la
    biblioteca de Recursos corporativos y el modal de contenido de una tarea tienen que aceptar

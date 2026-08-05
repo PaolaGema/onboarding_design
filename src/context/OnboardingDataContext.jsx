@@ -39,7 +39,7 @@ const samplePlantillasBase = [
   { id: 7, name: 'Onboarding Diseño & UX', area: 'Diseño', cargo: 'Diseñadora UX/UI', tipo: 'Onboarding', etapas: 11, tareas: 30, asignados: 2, status: 'activa', updated: 'Hace 4 días', updatedFecha: '27/06/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '08/03/2026', color: '#ec4899' },
   { id: 8, name: 'Onboarding RRHH — Generalista', area: 'Recursos Humanos', cargo: 'Generalista RRHH', tipo: 'Onboarding', etapas: 6, tareas: 15, asignados: 0, status: 'borrador', updated: 'Hace 2 semanas', updatedFecha: '17/06/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '01/06/2026', color: '#0d9488' },
   { id: 9, name: 'Onboarding Marketing Digital', area: 'Marketing', cargo: 'Content Creator', tipo: 'Onboarding', etapas: 10, tareas: 26, asignados: 1, status: 'activa', updated: 'Hace 6 días', updatedFecha: '25/06/2026', creador: 'Ana Martínez Ruiz', creadorRole: 'Líder de Área — Marketing', creadoEl: '20/04/2026', color: '#d946ef' },
-  { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', tipo: 'Onboarding', etapas: 5, tareas: 12, asignados: 0, status: 'archivada', updated: 'Hace 3 meses', updatedFecha: '01/04/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '15/11/2025', color: '#64748b' },
+  { id: 10, name: 'Onboarding Legal 2025', area: 'Legal', cargo: 'Abogado Corporativo', tipo: 'Onboarding', etapas: 5, tareas: 12, asignados: 0, status: 'inactiva', updated: 'Hace 3 meses', updatedFecha: '01/04/2026', creador: 'Juan Pérez Gómez', creadorRole: 'Administrador HR', creadoEl: '15/11/2025', color: '#64748b' },
 ]
 
 // Adjunta las etapas de ejemplo a las rutas que las tienen y recalcula sus

@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Users, Check, Send, UserCheck, Pause, Play, PlayCircle,
-  AlertTriangle, BookOpen, Link2, Award, ClipboardList, FileText, Layers,
+  ArrowLeft, Users, Check, Send, UserCheck, UserMinus, Pause, Play, PlayCircle,
+  AlertTriangle, Layers,
 } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { buildDetalleEtapas } from '../../utils/detalleEtapas'
 import { statusLabels, statusCls, barColor } from '../../utils/estadoAsignacion'
-import { tipoMap } from '../../utils/tareaTipos'
+import { infoTipo } from '../../utils/tareaTipos'
 import { avatarUrl } from '../../utils/calendarEvents'
 import EmptyState from '../../components/layout/EmptyState'
+import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
 import EnviarRecordatorioModal from '../../components/onboarding/EnviarRecordatorioModal'
 import RespuestasTareaModal from '../../components/onboarding/RespuestasTareaModal'
@@ -25,17 +26,6 @@ import { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
    nodo cuelgan los datos que solo RH necesita (cuántas veces vio el video, abrir sus
    respuestas). La ficha —datos y acciones— vive fija a la derecha, y la pantalla tiene URL
    propia: se puede compartir o volver con el navegador. */
-
-// Tipos que existen en las rutas pero no están en el catálogo del builder: se les da icono y
-// color acá para que ningún nodo salga en blanco.
-const TIPOS_EXTRA = {
-  lectura: { label: 'Lectura', icon: BookOpen, color: '#0ea5e9' },
-  enlace: { label: 'Enlace', icon: Link2, color: '#6366f1' },
-  confirmacion: { label: 'Confirmación', icon: Award, color: '#22c55e' },
-  'form-custom': { label: 'Formulario', icon: ClipboardList, color: '#10b981' },
-}
-const TIPO_FALLBACK = { label: 'Tarea', icon: FileText, color: '#64748b' }
-const infoTipo = tipo => tipoMap[tipo] || TIPOS_EXTRA[tipo] || TIPO_FALLBACK
 
 // Tareas cuyo contenido respondió el colaborador y Recursos Humanos puede abrir.
 const CON_RESPUESTAS = ['quiz', 'completar-perfil']
@@ -84,6 +74,7 @@ export default function DetalleAsignacion() {
   const [buddyModal, setBuddyModal] = useState(false)
   const [recordatorio, setRecordatorio] = useState(false)
   const [pausarConfirm, setPausarConfirm] = useState(false)
+  const [desasignarConfirm, setDesasignarConfirm] = useState(false)
 
   /* Al tocar un nodo se ve su detalle: una prueba/formulario que la persona ya completó abre
      lo que respondió (con sus intentos); cualquier otra tarea —o una aún pendiente— abre su
@@ -141,6 +132,15 @@ export default function DetalleAsignacion() {
     actualizar({ buddy: { name: candidato.name, initials: candidato.initials, color: candidato.color } })
     addFeedEntry(`${candidato.name} fue asignado/a como buddy de ${a.nombre}`)
     setBuddyModal(false)
+  }
+
+  /* Al desasignar, la ficha se queda sin sujeto: la asignación que le da sentido a esta URL
+     deja de existir. Por eso vuelve a la lista en vez de quedarse mostrando el vacío. */
+  function desasignar() {
+    setAsignaciones(asignaciones.filter(x => x.id !== a.id))
+    addFeedEntry(`${a.nombre} fue desasignado/a de ${a.ruta}`)
+    setDesasignarConfirm(false)
+    volver()
   }
 
   return (
@@ -390,8 +390,9 @@ export default function DetalleAsignacion() {
             </div>
           </div>
 
-          {/* Solo lo que se hace acompañando a esta persona. Desasignarle la ruta es
-              administrar la lista, y por eso sigue viviendo en Seguimiento. */}
+          {/* Todo lo que se puede hacer con esta persona, acá. Desasignar vivía solo en la
+              lista, y eso obligaba a volver atrás y buscarla de nuevo justo cuando la ficha
+              es donde se ve el motivo para hacerlo. */}
           <div className="sec-card">
             <div className="sc-hd"><h3>Acciones</h3></div>
             <div className="sc-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -403,6 +404,11 @@ export default function DetalleAsignacion() {
               <button className="det-accion" onClick={() => setPausarConfirm(true)}>
                 {a.status === 'pausado' ? <Play size={13} /> : <Pause size={13} />}
                 {a.status === 'pausado' ? 'Reanudar onboarding' : 'Pausar onboarding'}
+              </button>
+              {/* Separada del resto y en rojo: es la única de las tres que no se deshace.
+                  Pausar y cambiar de buddy se revierten en un clic; esto borra el proceso. */}
+              <button className="det-accion det-accion-riesgo" onClick={() => setDesasignarConfirm(true)}>
+                <UserMinus size={13} /> Desasignar ruta de onboarding
               </button>
             </div>
           </div>
@@ -422,6 +428,20 @@ export default function DetalleAsignacion() {
 
       {buddyModal && (
         <AsignarBuddyModal colaborador={a} onClose={() => setBuddyModal(false)} onConfirm={asignarBuddy} />
+      )}
+
+      {/* Pide escribir "desasignar": el progreso no se recupera, y es la misma confirmación
+          que ya usa la lista para que la acción se sienta igual desde donde se dispare. */}
+      {desasignarConfirm && (
+        <ConfirmarAccionModal
+          titulo="Desasignar ruta"
+          descripcion={<>¿Desasignar a <strong>{a.nombre}</strong> de <strong>{a.ruta}</strong>? Se perderá el progreso actual.</>}
+          palabra="desasignar"
+          textoConfirmar="Desasignar"
+          onConfirmar={desasignar}
+          onCancelar={() => setDesasignarConfirm(false)}
+          icono={AlertTriangle}
+        />
       )}
 
       {pausarConfirm && (

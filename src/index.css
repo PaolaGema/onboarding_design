@@ -991,27 +991,42 @@ button.chip-link {
 
 /* ── GRID ──────────────────────────────────────── */
 
+/* La misma cuadrícula que Seguimiento y Mis acompañados: son vistas hermanas del módulo y
+   con topes distintos las tarjetas de rutas quedaban más angostas que las de personas. */
 .pl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 280px));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
 }
 
-.pl-card {
+/* La tarjeta del módulo de Onboarding: una persona en Seguimiento y Mis acompañados, una
+   ruta en Rutas. Un solo bloque de estilo para que las cuadrículas hermanas no se separen. */
+.onb-card {
   background: var(--surface-card);
-  border-radius: var(--r-lg);
-  padding: 16px 18px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  transition: box-shadow .3s, transform .2s;
+  border-radius: 14px;
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-card);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow .25s, transform .18s;
 }
 
-.pl-card:hover {
+.onb-card:hover {
   box-shadow: 0 12px 32px rgba(12,45,64,.1);
   transform: translateY(-2px);
+}
+
+/* Destacada (hoy, la ruta general): el navy de la marca y no un color propio, para que se
+   lea como "esta manda" y no como un estado más. */
+.onb-card.destacada {
+  border: 1.5px solid var(--navy);
+  box-shadow: var(--shadow-card), 0 0 0 3px rgba(12,45,64,.06);
+}
+
+.onb-card.destacada:hover {
+  box-shadow: 0 12px 32px rgba(12,45,64,.12), 0 0 0 3px rgba(12,45,64,.06);
 }
 
 .pl-status {
@@ -1023,11 +1038,10 @@ button.chip-link {
 }
 
 .pl-st-activa { background: rgba(0,224,145,.1); color: var(--green); }
-/* No activo lleva el navy de la marca —y no otro gris— porque es la única espera
-   reutilizable de las tres: si se pareciera a Archivado se leería como descarte. */
+/* Inactivo lleva el navy de la marca y no un gris apagado: la ruta sigue entera y se puede
+   volver a poner en uso en un clic, así que no debe leerse como descarte. */
 .pl-st-inactiva { background: rgba(12,45,64,.08); color: var(--navy); }
 .pl-st-borrador { background: rgba(245,158,11,.1); color: var(--yellow); }
-.pl-st-archivada { background: var(--surface-hover); color: var(--text-muted); }
 
 /* ── EMPTY STATE (inline "sin datos aún" boxes) ─── */
 
@@ -1592,6 +1606,39 @@ select.pl-input:focus {
 
 /* TOPBAR */
 
+/* Las caras de quienes están en curso, en la barra del constructor. Separadas del nombre de
+   la ruta por una línea fina: es un dato sobre la ruta, no parte de cómo se llama. */
+.jb-encurso-pila {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Aviso de "hay gente adentro de esta ruta". Cuelga de la barra superior, con el mismo azul
+   informativo del modal de alcance: es el mismo hecho contado antes de empezar. */
+.jb-aviso-encurso {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 9px 20px;
+  background: var(--blue-bg);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--blue);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.jb-aviso-encurso svg { margin-top: 1px; }
+.jb-aviso-encurso strong { font-weight: 700; }
+
 .jb-topbar {
   display: flex;
   align-items: center;
@@ -1758,17 +1805,21 @@ select.pl-input:focus {
 .jb-float-card::-webkit-scrollbar { width: 4px; }
 .jb-float-card::-webkit-scrollbar-thumb { background: var(--surface-hover); border-radius: 2px; }
 
+/* Las dos tarjetas flotan fijas respecto de la ventana, así que su `top` tiene que contar
+   todo lo que hay encima: cabecera, barra del constructor y —si aparece— el aviso de gente
+   en curso, cuyo alto depende de cuánto envuelva el texto. `--jb-float-top` lo mide el
+   constructor y lo escribe acá; el valor suelto es el caso sin aviso. */
 .jb-float-left {
   position: fixed;
   left: 320px;
-  top: 127px;
+  top: var(--jb-float-top, 127px);
   width: 200px;
 }
 
 .jb-float-right {
   position: fixed;
   right: 28px;
-  top: 127px;
+  top: var(--jb-float-top, 127px);
   width: 190px;
 }
 
@@ -3343,6 +3394,22 @@ select.pl-input:focus {
   pointer-events: none;
 }
 
+/* El mismo camino de nodos, a escala del teléfono. Es una clase propia y no reusa `.jb-mobile`
+   porque esa es la caja del constructor entero —flex a altura completa—, no un tamaño. */
+.det-path-phone .jb-duo-node { width: 40px; height: 40px; }
+/* `fit-content` + margen automático: sin esto el nodo ocupa todo el ancho de la columna y el
+   desplazamiento del zigzag lo empuja fuera del marco de 280 px en vez de correrlo dentro. */
+.det-path-phone .jb-duo-node-wrap { margin: 3px auto; width: fit-content; }
+.det-path-phone .jb-duo-label { font-size: 7px; max-width: 74px; margin-top: 4px; }
+.det-path-phone .jb-duo-node.det-pend .jb-duo-circle { border-width: 1.5px; }
+.det-path-phone .det-node-check {
+  width: 12px;
+  height: 12px;
+  bottom: -1px;
+  right: -2px;
+  border-width: 1.5px;
+}
+
 .det-accion {
   display: flex;
   align-items: center;
@@ -3362,3 +3429,8 @@ select.pl-input:focus {
 }
 
 .det-accion:hover { background: var(--surface-hover); border-color: var(--border-dark); }
+
+/* La acción que no se deshace. En rojo desde el principio y no recién en el modal: el color
+   es lo que hace que quien buscaba "pausar" no la apriete de paso. */
+.det-accion-riesgo { color: var(--red); border-color: rgba(239,68,68,.25); }
+.det-accion-riesgo:hover { background: var(--red-bg); border-color: var(--red); }

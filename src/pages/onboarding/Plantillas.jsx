@@ -3,20 +3,22 @@ import { useUser } from '../../context/UserContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, Plus, Copy, Pencil, Trash2, X, AlertTriangle,
-  LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Archive, Route,
-  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye, History, Power, PowerOff, ArchiveRestore, ArrowLeftRight
+  LayoutGrid, List, MoreHorizontal, ChevronDown, ChevronUp, Check, UserPlus, Users, Route,
+  Lock, ChevronLeft, ChevronRight, Info, ShieldCheck, Eye, History, ToggleLeft, ArrowLeftRight
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewModal'
 import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import ActivarRutaModal from '../../components/onboarding/ActivarRutaModal'
+import CambiarEstadoRutaModal from '../../components/onboarding/CambiarEstadoRutaModal'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
+import OnboardingCard from '../../components/onboarding/OnboardingCard'
 import { rutaPlantillas } from '../../data/rutaPlantillas'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
-import { estadoRuta, rutasEnConflicto, describirPuesto, etiquetaActivar, marcarDesplazada, limpiarDesplazada, motivoDesplazo, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
+import { estadoRuta, normalizarStatus, rutasEnConflicto, describirPuesto, marcarDesplazada, limpiarDesplazada, motivoDesplazo, ESTADOS_EN_CURSO, SUCURSAL_TODAS } from '../../utils/rutaEstados'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
@@ -77,7 +79,7 @@ export default function Plantillas() {
   // Alcance de la ruta general: como se antepone a todas las rutas, aplica a todos los
   // colaboradores en onboarding. Total real = suma de asignados de las rutas activas (no generales).
   const alcanceGeneral = allPlantillas
-    .filter(p => !p.esGlobal && p.status === 'activa')
+    .filter(p => !p.esGlobal && normalizarStatus(p.status) === 'activa')
     .reduce((s, p) => s + (p.asignados || 0), 0)
   const plantillas = isAreaRole ? allPlantillas.filter(p => p.area === managerArea) : allPlantillas
   function setPlantillas(next) {
@@ -128,6 +130,8 @@ export default function Plantillas() {
   const [asignadosModal, setAsignadosModal] = useState(null)
   // Ruta que se está activando cuando el puesto ya está ocupado (RN-M60).
   const [activarModal, setActivarModal] = useState(null)
+  // Ruta cuyo estado se está cambiando desde el selector. null = cerrado.
+  const [estadoModal, setEstadoModal] = useState(null)
   const [asignadosSearch, setAsignadosSearch] = useState('')
   const [etapasModal, setEtapasModal] = useState(null)
   const [tareasModal, setTareasModal] = useState(null)
@@ -201,7 +205,7 @@ export default function Plantillas() {
   const filtered = fuenteRutas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.area.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = filterStatus === 'todas' || p.status === filterStatus
+    const matchStatus = filterStatus === 'todas' || normalizarStatus(p.status) === filterStatus
     const matchTipo = filterTipo === 'todos' || (p.tipo || 'Onboarding') === filterTipo
     const matchArea = filterArea === 'todas' || p.area === filterArea
     const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
@@ -221,10 +225,12 @@ export default function Plantillas() {
     ? rutasEnConflicto(allPlantillas, { id: form.id, cargo: form.cargo, sucursal: form.sucursal })
     : []
 
-  const totalActivas = plantillas.filter(p => p.status === 'activa').length
-  const totalInactivas = plantillas.filter(p => p.status === 'inactiva').length
-  const totalBorrador = plantillas.filter(p => p.status === 'borrador').length
-  const totalArchivadas = plantillas.filter(p => p.status === 'archivada').length
+  // `normalizarStatus` para que una ruta guardada como "archivada" antes de que ese estado
+  // desapareciera cuente donde corresponde y no quede fuera de los tres contadores.
+  const cuantas = estado => plantillas.filter(p => normalizarStatus(p.status) === estado).length
+  const totalActivas = cuantas('activa')
+  const totalInactivas = cuantas('inactiva')
+  const totalBorrador = cuantas('borrador')
 
   function openCreate() {
     setCreateChooser(true)
@@ -394,14 +400,32 @@ export default function Plantillas() {
       (a.rutaId === p.id || a.ruta === p.name) && ESTADOS_EN_CURSO.includes(a.status)).length
   }
 
+  /* Cuántas veces se asignó esta ruta alguna vez, terminadas incluidas. Decide si se puede
+     eliminar: lo que bloquea el borrado no es que haya gente adentro hoy, es que exista
+     historial apuntando a ella. */
+  function vecesAsignada(p) {
+    return asignaciones.filter(a => a.rutaId === p.id || a.ruta === p.name).length
+  }
+
   /* Los cambios de estado escriben sobre la lista completa y no sobre la vista
      filtrada por área: la unicidad es una regla del sistema, y un líder que
      activa una ruta puede estar desplazando a otra que su filtro no le muestra. */
   /* Todo cambio de estado hecho a mano borra el motivo del desplazamiento: si la
-     ruta llegó a No activo porque otra le ganó el puesto pero después se la mueve
+     ruta llegó a Inactivo porque otra le ganó el puesto pero después se la mueve
      por cualquier otro camino, el motivo dejaría de ser cierto y seguiría escrito. */
   function cambiarStatus(id, status) {
     setAllPlantillas(allPlantillas.map(x => x.id === id ? limpiarDesplazada({ ...x, status }) : x))
+  }
+
+  /* Único camino para mover el estado: el menú abre el selector y de ahí sale el destino.
+     Antes había tres verbos sueltos que aparecían o no según el estado, así que el menú
+     cambiaba de forma entre una ruta y otra y nunca se veía el cuadro completo. */
+  function aplicarEstado(destino) {
+    const p = estadoModal
+    setEstadoModal(null)
+    if (destino === 'activa') { pedirActivacion(p); return }
+    cambiarStatus(p.id, destino)
+    addFeedEntry(`Ruta "${p.name}" pasó a ${estadoRuta(destino).label}`)
   }
 
   /* Activar. Lo que decide el flujo no es desde qué estado se venga sino si el
@@ -420,47 +444,31 @@ export default function Plantillas() {
       if (x.id === p.id) return limpiarDesplazada({ ...x, status: 'activa' })
       return desplazadas.has(x.id) ? marcarDesplazada(x, p, hoy) : x
     }))
-    addFeedEntry(`Ruta "${p.name}" ${anteriores.length ? 'quedó vigente en reemplazo de la anterior' : 'activada'}`)
-    anteriores.forEach(a => addFeedEntry(`Ruta "${a.name}" pasó a No activo — reemplazada por "${p.name}"`))
+    addFeedEntry(`Ruta "${p.name}" ${anteriores.length ? 'quedó vigente en reemplazo de la anterior' : 'pasó a Activo'}`)
+    anteriores.forEach(a => addFeedEntry(`Ruta "${a.name}" pasó a Inactivo — reemplazada por "${p.name}"`))
     setActivarModal(null)
   }
 
-  function desactivarRuta(p) {
-    cambiarStatus(p.id, 'inactiva')
-    addFeedEntry(`Ruta "${p.name}" pasó a No activo`)
-  }
+  /* Menú de acciones de una ruta. Vive en una sola función porque se dibuja en dos vistas
+     —cuadrícula y tabla— y el alto del menú de la tabla se calcula a partir de su largo:
+     tres copias del mismo criterio que se desincronizan.
 
-  function archivarRuta(p) {
-    cambiarStatus(p.id, 'archivada')
-    addFeedEntry(`Ruta "${p.name}" archivada`)
-  }
-
-  /* Recuperar es la única salida del archivo y siempre desemboca en No activo,
-     nunca en Activo (RN-M62): sacar algo del histórico y volver a ponerlo en
-     producción son dos decisiones distintas, y juntarlas hace que una ruta vieja
-     vuelva a recibir gente por accidente. */
-  function recuperarRuta(p) {
-    cambiarStatus(p.id, 'inactiva')
-    addFeedEntry(`Ruta "${p.name}" recuperada del archivo`)
-  }
-
-  /* Menú de acciones de una ruta. Vive en una sola función porque se dibuja en
-     dos vistas —cuadrícula y tabla— y el alto del menú de la tabla se calcula a
-     partir de su largo: tres copias del mismo criterio que se desincronizan.
-     Las transiciones que ofrece son las permitidas desde el estado actual
-     (RN-M62); las prohibidas ni siquiera aparecen. */
+     El estado se mueve por un solo ítem, "Cambiar estado", y las transiciones permitidas las
+     resuelve el selector (RN-M62). Antes había tres verbos sueltos que entraban y salían del
+     menú según el estado, así que el menú cambiaba de forma entre una ruta y otra. */
   function accionesRuta(p) {
-    const esActiva = p.status === 'activa'
-    const esArchivada = p.status === 'archivada'
-    const esBorrador = p.status === 'borrador'
-    // RN-M66: sin una sola tarea la ruta no tiene con qué activarse. El ítem se
-    // muestra apagado y con el motivo: si se escondiera, nadie sabría qué falta.
-    const sinTareas = esBorrador && !p.tareas
+    const estado = normalizarStatus(p.status)
+    const esActiva = estado === 'activa'
     const cerrar = fn => () => { fn(p); setCardMenu(null) }
-    /* El ítem se llama por lo que va a pasar, no por el estado al que lleva: si el
-       puesto ya tiene vigente, "Activar" oculta que hay otra ruta que se apaga y la
-       consecuencia recién aparece en el modal, cuando ya se hizo clic (RN-M60). */
-    const reemplaza = (esBorrador || p.status === 'inactiva') && rutasEnConflicto(allPlantillas, p).length > 0
+    /* Borrado físico, según la tabla de estados: se permite en Borrador y en Activo mientras
+       no haya historial —una asignación deja claves y métricas apuntando a la ruta—, y nunca
+       en Inactivo, que es el soft-delete del sistema y existe justamente para conservarlo. */
+    const usada = vecesAsignada(p) > 0
+    const esInactiva = estado === 'inactiva'
+    const noEliminable = usada || esInactiva
+    const motivoNoEliminar = esInactiva
+      ? 'Inactivo es el archivo del sistema: conserva el registro de la ruta, así que no se borra.'
+      : 'Esta ruta ya se asignó a alguien. Para sacarla de circulación, ponla en Inactivo desde "Cambiar estado".'
     return [
       ...(esActiva && !p.esGlobal ? [{ icon: UserPlus, label: 'Asignar ruta a colaboradores', color: 'var(--green)', fn: cerrar(setAsignarModal) }] : []),
       { icon: Eye, label: 'Ver detalles', color: 'var(--text-muted)', fn: cerrar(setPreviewRuta) },
@@ -468,22 +476,108 @@ export default function Plantillas() {
       { icon: Copy, label: 'Duplicar', color: 'var(--text-muted)', fn: cerrar(handleDuplicate) },
       { icon: History, label: 'Historial de versiones', color: 'var(--text-muted)', fn: cerrar(setHistorialRuta) },
       ...(isAdmin ? [{ icon: p.esGlobal ? Lock : ShieldCheck, label: p.esGlobal ? 'Quitar como ruta general' : 'Establecer como ruta general', color: 'var(--text-muted)', fn: cerrar(setRutaGeneralConfirm) }] : []),
-      ...(esActiva ? [{ icon: PowerOff, label: 'Desactivar', color: 'var(--text-muted)', fn: cerrar(desactivarRuta) }] : []),
-      ...(esBorrador || p.status === 'inactiva' ? [{
-        icon: reemplaza ? ArrowLeftRight : Power,
-        label: etiquetaActivar(reemplaza),
-        color: 'var(--green)',
-        disabled: sinTareas,
-        title: sinTareas
-          ? 'Agrega al menos una tarea para poder activar esta ruta'
-          : reemplaza ? `${describirPuesto(p)} ya tiene una ruta vigente: al confirmar, esa pasa a No activo` : undefined,
-        fn: cerrar(pedirActivacion),
-      }] : []),
-      esArchivada
-        ? { icon: ArchiveRestore, label: 'Recuperar', color: 'var(--text-muted)', fn: cerrar(recuperarRuta) }
-        : { icon: Archive, label: 'Archivar', color: 'var(--text-muted)', fn: cerrar(archivarRuta) },
-      ...(esBorrador ? [{ icon: Trash2, label: 'Eliminar', color: '#ef4444', fn: cerrar(confirmDelete) }] : []),
+      { icon: ToggleLeft, label: 'Cambiar estado', color: 'var(--text-muted)', fn: cerrar(setEstadoModal) },
+      {
+        icon: Trash2,
+        label: 'Eliminar',
+        color: '#ef4444',
+        disabled: noEliminable,
+        title: noEliminable ? motivoNoEliminar : undefined,
+        fn: cerrar(confirmDelete),
+      },
     ]
+  }
+
+  /* Responsables de una ruta: solo lo ve el líder de área. Sale del cuerpo de la tarjeta
+     porque ahí competía por espacio con los números de la ruta, que son lo que se mira
+     primero, y porque este bloque se despliega y la haría saltar de alto. */
+  function Responsables({ p }) {
+    const asignados = responsables[p.id] || []
+    const disponibles = equipoArea.filter(e => !asignados.find(r => r.name === e.name))
+    return (
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsables</span>
+          <button
+            onClick={e => { e.stopPropagation(); setShowResponsables(showResponsables === p.id ? null : p.id) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 3,
+              fontSize: 10, fontWeight: 600, color: 'var(--blue)',
+              background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <UserPlus size={11} /> Agregar
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {asignados.map(r => (
+            <div key={r.name} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 8px 3px 3px', borderRadius: 20,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border-soft)',
+            }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', background: r.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <span style={{ color: '#fff', fontSize: 7, fontWeight: 700 }}>{r.initials}</span>
+              </div>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)' }}>{r.name.split(' ')[0]}</span>
+              {r.role !== 'Líder de área' && (
+                <button onClick={e => { e.stopPropagation(); removeResponsable(p.id, r.name) }} style={{
+                  width: 12, height: 12, borderRadius: '50%', border: 'none',
+                  background: 'var(--surface-hover)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, marginLeft: -2,
+                }}>
+                  <X size={7} style={{ color: 'var(--text-muted)' }} />
+                </button>
+              )}
+            </div>
+          ))}
+          {asignados.length === 0 && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin responsables asignados</span>
+          )}
+        </div>
+
+        {showResponsables === p.id && (
+          <div style={{
+            marginTop: 6, padding: 6, borderRadius: 8,
+            background: 'var(--surface-card)', border: '1px solid var(--border-soft)',
+            boxShadow: '0 4px 12px rgba(0,0,0,.08)',
+          }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
+            {disponibles.map(e => (
+              <button
+                key={e.name}
+                onClick={ev => { ev.stopPropagation(); addResponsable(p.id, e) }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: 6, border: 'none', borderRadius: 6,
+                  background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                  textAlign: 'left', transition: 'background .1s',
+                }}
+                onMouseEnter={ev => ev.currentTarget.style.background = 'var(--bg-secondary)'}
+                onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%', background: e.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <span style={{ color: '#fff', fontSize: 8, fontWeight: 700 }}>{e.initials}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-heading)' }}>{e.name}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{e.cargo}</div>
+                </div>
+              </button>
+            ))}
+            {disponibles.length === 0 && (
+              <div style={{ fontSize: 9.5, color: 'var(--text-muted)', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
+            )}
+          </div>
+        )}
+      </div>
+    )
   }
 
   if (activeJourney) {
@@ -511,26 +605,21 @@ export default function Plantillas() {
       {/* KPI STRIP */}
       <div className="kpi-strip">
         {/* Un contador por estado oficial (RN-M55). El total salió de la tira: es la
-            suma de estos cuatro y no dice nada que no digan ellos. */}
+            suma de estos tres y no dice nada que no digan ellos. */}
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--green)' }}>
           <div className="kpi-title" style={{ color: 'var(--green)' }}>Activo</div>
           <div className="kpi-val">{totalActivas}</div>
           <div className="kpi-lbl">Vigentes para su cargo</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--navy)' }}>
-          <div className="kpi-title" style={{ color: 'var(--navy)' }}>No activo</div>
+          <div className="kpi-title" style={{ color: 'var(--navy)' }}>Inactivo</div>
           <div className="kpi-val">{totalInactivas}</div>
-          <div className="kpi-lbl">Listas, en espera</div>
+          <div className="kpi-lbl">Dejaron de asignarse</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: 'var(--yellow)' }}>Borrador</div>
           <div className="kpi-val">{totalBorrador}</div>
           <div className="kpi-lbl">En construcción</div>
-        </div>
-        <div className="kpi-card" style={{ '--kpi-accent': 'var(--text-muted)' }}>
-          <div className="kpi-title" style={{ color: 'var(--text-muted)' }}>Archivado</div>
-          <div className="kpi-val">{totalArchivadas}</div>
-          <div className="kpi-lbl">Histórico, fuera de uso</div>
         </div>
         <div className="kpi-card" style={{ '--kpi-accent': rutaGeneral ? '#475569' : 'var(--yellow)' }}>
           <div className="kpi-title" style={{ color: rutaGeneral ? '#475569' : 'var(--yellow)', display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -629,214 +718,116 @@ export default function Plantillas() {
       {viewMode === 'grid' && (
       <div className="pl-grid">
         {paginated.map((p) => (
-          <div key={p.id} className="pl-card" style={{ overflow: 'visible', position: 'relative', padding: 0, ...(p.esGlobal ? { border: '1.5px solid #0C2D40', boxShadow: '0 0 0 3px rgba(12,45,64,0.06)' } : {}) }}>
-            {/* HEADER */}
-            <div style={{ padding: '14px 16px 12px', background: p.esGlobal ? '#EEF1F5' : '#f8fafc', borderRadius: '14px 14px 0 0', borderBottom: '1px solid var(--surface-hover)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                  background: p.esGlobal ? 'rgba(12,45,64,0.1)' : 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Route size={16} style={{ color: p.esGlobal ? '#0C2D40' : 'var(--green)' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0C2D40', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    {p.esGlobal && (
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#475569', color: '#fff', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }} title="Ruta general — se antepone a todas las rutas">
-                        <ShieldCheck size={9} /> General
-                      </span>
-                    )}
-                    {p.versiones?.length > 1 && (
-                      <span title={`Versión actual ${p.versionActual} · ${p.versiones.length} versiones`} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: 'var(--surface-hover)', color: 'var(--text-muted)', flexShrink: 0 }}>v{p.versionActual}</span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <span className={`pl-status ${estadoRuta(p.status).clase}`}>
-                    {estadoRuta(p.status).label}
-                  </span>
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      onClick={e => { e.stopPropagation(); setCardMenu(cardMenu === p.id ? null : p.id) }}
-                      style={{
-                        width: 24, height: 24, borderRadius: 6, border: 'none',
-                        background: cardMenu === p.id ? 'var(--surface-hover)' : 'transparent',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'var(--text-muted)', fontFamily: 'inherit',
-                      }}
-                    >
-                      <MoreHorizontal size={14} />
-                    </button>
-                    {cardMenu === p.id && (
-                      <div style={{
-                        position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                        background: '#fff', borderRadius: 10, padding: 4,
-                        boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid #e2e8f0',
-                        zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
-                      }}>
-                        {accionesRuta(p).map(a => <AccionItem key={a.label} accion={a} />)}
-                      </div>
-                    )}
-                  </div>
-                </div>
+          <OnboardingCard
+            key={p.id}
+            nombre={p.name}
+            cargo={p.cargo}
+            area={p.area}
+            destacado={p.esGlobal}
+            avatar={
+              <div style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                background: p.esGlobal ? 'rgba(12,45,64,.1)' : 'var(--green-tint)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Route size={17} style={{ color: p.esGlobal ? 'var(--navy)' : 'var(--green)' }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="6" y="10" width="12" height="12" rx="2" ry="2"/></svg>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.area}</span>
-                </div>
-                {p.cargo && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.cargo}</span>
-                  </div>
-                )}
-                {/* Por qué está apagada. "No activo" describe la situación pero no
-                    cómo se llegó, y a la semana nadie recuerda si la desactivaron a
-                    propósito o si otra ruta le ganó el puesto. */}
-                {motivoDesplazo(p) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title={motivoDesplazo(p)}>
-                    <ArrowLeftRight size={10} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      Reemplazada por {p.desplazadaPor.name}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* MÉTRICAS */}
-            <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-              <div style={{ cursor: 'pointer' }} onClick={() => setEtapasModal(p)}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{p.etapas}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>Etapas</div>
-              </div>
-              <div style={{ width: 1, background: 'var(--surface-hover)' }} />
-              <div style={{ cursor: 'pointer' }} onClick={() => setTareasModal(p)}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{p.tareas}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>Tareas</div>
-              </div>
-              <div style={{ width: 1, background: 'var(--surface-hover)' }} />
-              {p.esGlobal ? (
-                <div title="Se incluye en todas las rutas de onboarding" style={{ cursor: 'default' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#0C2D40' }}>{alcanceGeneral}</div>
-                  <div style={{ fontSize: 9, color: '#0C2D40', fontWeight: 600 }}>Alcance</div>
-                </div>
-              ) : (
-                <div style={{ cursor: p.asignados > 0 ? 'pointer' : 'default' }} onClick={() => p.asignados > 0 && setAsignadosModal(p)}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: p.asignados > 0 ? '#0C2D40' : '#cbd5e1' }}>{p.asignados}</div>
-                  <div style={{ fontSize: 9, color: p.asignados > 0 ? '#3b82f6' : '#94a3b8', fontWeight: 600 }}>Asignados</div>
-                </div>
+            }
+            badge={<>
+              <span className={`pl-status ${estadoRuta(p.status).clase}`}>{estadoRuta(p.status).label}</span>
+              {p.esGlobal && (
+                <span title="Ruta general — se antepone a todas las rutas" style={{ fontSize: 9.5, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: '#475569', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <ShieldCheck size={9} /> General
+                </span>
               )}
-            </div>
-            {p.esGlobal && (
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', marginTop: 6, lineHeight: 1.4 }}>
-                Se incluye en todas las rutas
+              {p.versiones?.length > 1 && (
+                <span title={`Versión actual ${p.versionActual} · ${p.versiones.length} versiones`} style={{ fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 6, background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                  v{p.versionActual}
+                </span>
+              )}
+            </>}
+            acciones={
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setCardMenu(cardMenu === p.id ? null : p.id) }}
+                  style={{
+                    width: 26, height: 26, borderRadius: 7, border: 'none',
+                    background: cardMenu === p.id ? 'var(--surface-hover)' : 'transparent',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--text-muted)', fontFamily: 'inherit',
+                  }}
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+                {cardMenu === p.id && (
+                  <div style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                    background: 'var(--surface-card)', borderRadius: 10, padding: 4,
+                    boxShadow: '0 8px 30px rgba(0,0,0,.2)', border: '1px solid var(--border-soft)',
+                    zIndex: 20, minWidth: 150, animation: 'plSlideUp .12s',
+                  }}>
+                    {accionesRuta(p).map(a => <AccionItem key={a.label} accion={a} />)}
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* RESPONSABLES — solo visible para manager */}
-            {isManager && (
-              <div style={{ borderTop: '1px solid var(--surface-hover)', paddingTop: 8, marginTop: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Responsables</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowResponsables(showResponsables === p.id ? null : p.id) }}
+            }
+            /* Donde la tarjeta de una persona lleva su barra de avance, la de una ruta lleva
+               de qué está hecha. Los tres números se abren: son la puerta a las etapas, las
+               tareas y la gente que la está recorriendo. */
+            cuerpo={
+              <div style={{ display: 'flex', border: '1px solid var(--border-soft)', borderRadius: 10, overflow: 'hidden' }}>
+                {[
+                  { n: p.etapas, t: 'Etapas', fn: () => setEtapasModal(p) },
+                  { n: p.tareas, t: 'Tareas', fn: () => setTareasModal(p) },
+                  p.esGlobal
+                    ? { n: alcanceGeneral, t: 'Alcance', title: 'Se incluye en todas las rutas de onboarding' }
+                    : { n: p.asignados, t: 'Asignados', fn: p.asignados > 0 ? () => setAsignadosModal(p) : undefined, apagado: !p.asignados },
+                ].map((m, i) => (
+                  <div
+                    key={m.t}
+                    onClick={m.fn}
+                    title={m.title}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 3,
-                      fontSize: 9, fontWeight: 600, color: '#3b82f6',
-                      background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                      flex: 1, textAlign: 'center', padding: '8px 2px',
+                      borderLeft: i > 0 ? '1px solid var(--border-soft)' : 'none',
+                      cursor: m.fn ? 'pointer' : 'default',
                     }}
                   >
-                    <UserPlus size={10} /> Agregar
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {(responsables[p.id] || []).map(r => (
-                    <div key={r.name} style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '3px 8px 3px 3px', borderRadius: 20,
-                      background: '#f8fafc', border: '1px solid var(--surface-hover)',
-                    }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: '50%', background: r.color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      }}>
-                        <span style={{ color: '#fff', fontSize: 7, fontWeight: 700 }}>{r.initials}</span>
-                      </div>
-                      <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)' }}>{r.name.split(' ')[0]}</span>
-                      {r.role !== 'Líder de área' && (
-                        <button onClick={(e) => { e.stopPropagation(); removeResponsable(p.id, r.name) }} style={{
-                          width: 12, height: 12, borderRadius: '50%', border: 'none',
-                          background: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          padding: 0, marginLeft: -2,
-                        }}>
-                          <X size={7} style={{ color: 'var(--text-muted)' }} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {(!responsables[p.id] || responsables[p.id].length === 0) && (
-                    <span style={{ fontSize: 9, color: '#cbd5e1', fontStyle: 'italic' }}>Sin responsables asignados</span>
-                  )}
-                </div>
-
-                {showResponsables === p.id && (
-                  <div style={{
-                    marginTop: 6, padding: 6, borderRadius: 8,
-                    background: '#fff', border: '1px solid #e2e8f0',
-                    boxShadow: '0 4px 12px rgba(0,0,0,.08)',
-                  }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, padding: '0 4px' }}>Equipo de {managerArea}</div>
-                    {equipoArea.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).map(e => (
-                      <button
-                        key={e.name}
-                        onClick={(ev) => { ev.stopPropagation(); addResponsable(p.id, e) }}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '6px 6px', border: 'none', borderRadius: 6,
-                          background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
-                          textAlign: 'left', transition: 'background .1s',
-                        }}
-                        onMouseEnter={ev => ev.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{
-                          width: 22, height: 22, borderRadius: '50%', background: e.color,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        }}>
-                          <span style={{ color: '#fff', fontSize: 8, fontWeight: 700 }}>{e.initials}</span>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: '#334155' }}>{e.name}</div>
-                          <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>{e.cargo}</div>
-                        </div>
-                      </button>
-                    ))}
-                    {equipoArea.filter(e => !(responsables[p.id] || []).find(r => r.name === e.name)).length === 0 && (
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', padding: '6px 4px', textAlign: 'center' }}>Todos asignados</div>
-                    )}
+                    <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.1, color: m.apagado ? 'var(--text-muted)' : 'var(--text-heading)' }}>{m.n}</div>
+                    <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)', marginTop: 2 }}>{m.t}</div>
                   </div>
-                )}
+                ))}
               </div>
-            )}
-
-            {/* BADGE AUXILIAR — delegado por */}
-            {isAuxiliar && (
-              <div style={{
-                borderTop: '1px solid var(--surface-hover)', paddingTop: 8, marginTop: 2,
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <Users size={11} style={{ color: '#14b8a6' }} />
-                <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Acceso delegado por <strong style={{ color: '#0C2D40' }}>{currentUser.delegadoPor}</strong></span>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderTop: '1px solid var(--surface-hover)' }}>
-              <span style={{ fontSize: 10, color: '#b0b8c4' }}>{p.updated}</span>
-            </div>
-          </div>
+            }
+            extra={<>
+              {/* Por qué está apagada. "Inactivo" describe la situación pero no cómo se
+                  llegó, y a la semana nadie recuerda si la desactivaron a propósito o si
+                  otra ruta le ganó el puesto. */}
+              {motivoDesplazo(p) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }} title={motivoDesplazo(p)}>
+                  <ArrowLeftRight size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Reemplazada por {p.desplazadaPor.name}
+                  </span>
+                </div>
+              )}
+              {isManager && <Responsables p={p} />}
+              {isAuxiliar && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Users size={12} style={{ color: '#14b8a6', flexShrink: 0 }} />
+                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    Acceso delegado por <strong style={{ color: 'var(--text-heading)' }}>{currentUser.delegadoPor}</strong>
+                  </span>
+                </div>
+              )}
+            </>}
+            meta={
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {p.esGlobal ? 'Se incluye en todas las rutas' : p.sucursal || SUCURSAL_TODAS} · {p.updated}
+              </span>
+            }
+            onVerDetalles={() => setPreviewRuta(p)}
+          />
         ))}
       </div>
       )}
@@ -906,7 +897,7 @@ export default function Plantillas() {
                   </button>
                   {rfDropStatus && statusHeaderPos && (
                     <div className="pl-dropdown-menu" style={{ position: 'fixed', top: statusHeaderPos.top, left: statusHeaderPos.left, right: 'auto', minWidth: 160, textTransform: 'none', letterSpacing: 'normal' }} onClick={e => e.stopPropagation()}>
-                      {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activo' }, { key: 'inactiva', label: 'No activo' }, { key: 'borrador', label: 'Borrador' }, { key: 'archivada', label: 'Archivado' }].map(f => (
+                      {[{ key: 'todas', label: 'Todos los estados' }, { key: 'activa', label: 'Activo' }, { key: 'inactiva', label: 'Inactivo' }, { key: 'borrador', label: 'Borrador' }].map(f => (
                         <button key={f.key} type="button" className={`pl-dropdown-item${filterStatus === f.key ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setFilterStatus(f.key); setRfDropStatus(false); setPage(1) }}>
                           <span>{f.label}</span>
                           {filterStatus === f.key && <Check size={13} />}
@@ -1462,7 +1453,7 @@ export default function Plantillas() {
                     <strong>{conflictoForm.map(c => c.name).join(', ')}</strong>. Puedes crear esta igual: nace en
                     Borrador y no cambia nada todavía. Al activarla{' '}
                     {conflictoForm.length > 1 ? 'reemplazará a esas rutas' : 'reemplazará a esa ruta'}, que
-                    {conflictoForm.length > 1 ? ' quedarán' : ' quedará'} en No activo y{' '}
+                    {conflictoForm.length > 1 ? ' quedarán' : ' quedará'} en Inactivo y{' '}
                     {conflictoForm.length > 1 ? 'podrás reactivarlas' : 'podrás reactivarla'} cuando quieras.
                   </span>
                 </div>
@@ -1616,6 +1607,21 @@ export default function Plantillas() {
         />
       )}
 
+      {/* MODAL CAMBIAR ESTADO */}
+      {estadoModal && (
+        <CambiarEstadoRutaModal
+          ruta={estadoModal}
+          plantillas={allPlantillas}
+          enCurso={enCursoDe(estadoModal)}
+          onConfirmar={aplicarEstado}
+          /* Salida del callejón: al borrador vacío le falta una tarea para poder activarse,
+             y el constructor es donde se agrega. Va directo, sin pasar por el formulario de
+             datos, porque lo que falta no es el nombre ni el cargo. */
+          onEditarRuta={() => { setActiveJourney({ ...estadoModal, isEditingExisting: true }); setEstadoModal(null) }}
+          onCancelar={() => setEstadoModal(null)}
+        />
+      )}
+
       {/* MODAL CONFIRMAR RUTA GENERAL */}
       {rutaGeneralConfirm && (() => {
         const willBeGlobal = !rutaGeneralConfirm.esGlobal
@@ -1690,10 +1696,10 @@ export default function Plantillas() {
 
       {/* MODAL ELIMINAR */}
       {deleteTarget && (() => {
-        const asignadosCount = asignaciones.filter(a => a.rutaId === deleteTarget.id || a.ruta === deleteTarget.name).length
+        const asignadosCount = vecesAsignada(deleteTarget)
         const bloqueada = asignadosCount > 0
-        /* Cuando la ruta está asignada no hay borrado que confirmar: el diálogo explica por qué
-           no se puede y ofrece archivar, que es reversible. Por eso no usa el modal destructivo. */
+        /* Cuando la ruta ya se asignó no hay borrado que confirmar: el diálogo explica por qué
+           no se puede y ofrece Inactivo, que es reversible. Por eso no usa el modal destructivo. */
         if (!bloqueada) {
           return (
             <ConfirmarAccionModal
@@ -1712,16 +1718,25 @@ export default function Plantillas() {
             <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
               <div className="pl-modal-body" style={{ textAlign: 'center', padding: '32px 28px 20px' }}>
                 <div className="pl-del-icon" style={{ background: '#fffbeb', color: '#b45309' }}>
-                  <Archive size={26} />
+                  <ToggleLeft size={26} />
                 </div>
                 <h2 className="pl-del-title">No se puede eliminar</h2>
                 <p className="pl-del-desc">
-                  Esta ruta ya forma parte del historial del sistema. Al estar asignada a <strong>{asignadosCount}</strong> {asignadosCount === 1 ? 'colaborador' : 'colaboradores'}, no puede eliminarse. Puedes <strong>archivarla</strong> para que deje de estar disponible para nuevas asignaciones.
+                  Ya se asignó a <strong>{asignadosCount}</strong> {asignadosCount === 1 ? 'colaborador' : 'colaboradores'}, así que forma parte de su historial: borrarla dejaría esos procesos apuntando a una ruta que no existe. Ponla en <strong>Inactivo</strong> y deja de asignarse, sin perder el registro.
                 </p>
               </div>
               <div className="pl-modal-footer" style={{ justifyContent: 'center' }}>
                 <button className="pl-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                <button className="pl-btn-save" onClick={() => { archivarRuta(deleteTarget); setDeleteTarget(null) }}>Archivar ruta</button>
+                <button
+                  className="pl-btn-save"
+                  onClick={() => {
+                    cambiarStatus(deleteTarget.id, 'inactiva')
+                    addFeedEntry(`Ruta "${deleteTarget.name}" pasó a Inactivo`)
+                    setDeleteTarget(null)
+                  }}
+                >
+                  Poner en Inactivo
+                </button>
               </div>
             </div>
           </div>

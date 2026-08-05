@@ -1,27 +1,27 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react'
 import { useRutaActiva } from '../../context/RutaActivaContext'
 import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
-import { rutasEnConflicto, etiquetaActivar, marcarDesplazada, limpiarDesplazada, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
+import { ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
 import { tiposTarea, tipoMap, toEmbedUrl, ACCEPT_POR_TIPO, FORMATOS_LEGIBLES, tipoDeArchivo, pesoLegible } from '../../utils/tareaTipos'
 import { nuevaClaveArchivo, guardarArchivo } from '../../utils/archivosLocales'
 import { useArchivoLocal } from '../../hooks/useArchivoLocal'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
+import PilaAvatares from '../../components/onboarding/PilaAvatares'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, ArrowLeftRight
+  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, GitBranch
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
-import ActivarRutaModal from '../../components/onboarding/ActivarRutaModal'
 
 const pulsoPreguntasSugeridas = [
   '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
@@ -167,6 +167,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const { currentUser } = useUser()
   const { dirty: hasUnsavedChanges, setDirty: setHasUnsavedChanges, setSaveHandler, guardNavigate } = useUnsavedChanges()
 
+  /* Alto real del aviso de "hay gente en curso". Se mide en vez de estimarse porque el texto
+     envuelve distinto según el ancho, y de ese alto dependen las tarjetas flotantes, que van
+     fijas a la ventana y no se enteran solas de lo que aparece encima. */
+  const avisoRef = useRef(null)
+  const [avisoAlto, setAvisoAlto] = useState(0)
+
   // Aviso de "aplicar cambios a quién": se abre al guardar una ruta activa que
   // ya tiene colaboradores en curso. null = cerrado.
   const [applyModal, setApplyModal] = useState(null)
@@ -179,13 +185,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      que asome por su borde. El nativo además tarda un segundo en salir y usa la tipografía
      del sistema operativo, que es justo lo que desentona. */
   const [tipPaleta, setTipPaleta] = useState(null)
-  /* Rutas que este guardado va a desplazar del puesto, pendientes de confirmación (RN-M60). */
-  const [activarModal, setActivarModal] = useState(null)
-  /* Las opciones de guardado dependen del estado de la ruta (RN-M64): una ruta en
-     borrador se guarda como borrador o se activa; una ruta ya activa solo tiene
-     "Guardar cambios". Ahí no se ofrece borrador porque `saveDraft` escribe sobre
-     `etapasData` —de donde salen los snapshots de las asignaciones nuevas—, así que
-     guardar a medias publicaría en vivo y se saltaría el modal de versionado. */
+  /* De qué depende el guardado (RN-M64): una ruta en borrador no está en uso, así que guarda
+     en el lugar y se sigue editando. Una ruta ya activa alimenta los snapshots de las
+     asignaciones nuevas, así que su guardado crea versión y pregunta a quiénes aplica. */
   const esBorrador = empty || plantilla.status === 'borrador'
   /* Destino pendiente cuando se sale del constructor con "Guardar y salir": en una ruta
      activa el guardado pasa antes por el modal de alcance, así que la navegación no puede
@@ -327,6 +329,12 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     return enCursoDe(plantilla)
   }
 
+  /* Cuánta gente está adentro de esta ruta y qué versión va a nacer si se guarda. Lo miran el
+     aviso de la cabecera y el modal de alcance, que tienen que decir el mismo número. */
+  const enCursoAlEntrar = asignadosEnCurso().length
+  const proximaVersion = (plantilla.versionActual || plantilla.versiones?.length || 1) + 1
+  const mostrarAviso = !esBorrador && enCursoAlEntrar > 0
+
   // Guardado real de la estructura, con versionado.
   // - Si la ruta tiene colaboradores asignados: se crea una NUEVA versión (la
   //   anterior queda congelada para ellos) y, según `scope`, se mueve o no a
@@ -343,22 +351,15 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     const crearVersion = asignaciones.some(a => a.rutaId === plantilla.id || a.ruta === plantilla.name)
     const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-    /* Este guardado es el que activa la ruta, así que en el mismo paso desplaza a
-       la que ocupaba el puesto (RN-M60): en dos pasos el cargo quedaría un momento
-       con dos rutas vigentes. Ya viene confirmado desde `handleGuardar`. */
-    const desplazadas = esBorrador ? rutasEnConflicto(plantillas, plantilla) : []
-    const idsDesplazadas = new Set(desplazadas.map(r => r.id))
-
     setPlantillas(prev => prev.map(p => {
-      if (p.id !== plantilla.id) return idsDesplazadas.has(p.id) ? marcarDesplazada(p, plantilla, hoy) : p
+      if (p.id !== plantilla.id) return p
       const versiones = (p.versiones && p.versiones.length)
         ? p.versiones
         : [{ v: 1, etapasData: p.etapasData || [], etapas: (p.etapasData || []).length, tareas: 0, fecha: p.creadoEl || '—', autor: p.creador || '—' }]
-      // Guardar una ruta en borrador es lo que la activa; en cualquier otro estado el
-      // guardado no lo mueve (activa sigue activa; archivada no se reactiva sola).
-      // `limpiarDesplazada` sostiene el invariante en un solo lugar: solo una ruta
-      // en No activo puede llevar el motivo por el que la reemplazaron.
-      const base = limpiarDesplazada({ ...p, status: esBorrador ? 'activa' : p.status, etapasData: etapasPropias, etapas: etapasPropias.length, tareas: tareasCount, updated: 'Ahora', config: rutaConfig })
+      /* El guardado nunca mueve el estado: una ruta en borrador sigue en borrador por más
+         completa que quede, y ponerla en Activo se hace desde Rutas. Guardar y publicar eran
+         el mismo acto y por eso no se entendía ninguno de los dos. */
+      const base = { ...p, etapasData: etapasPropias, etapas: etapasPropias.length, tareas: tareasCount, updated: 'Ahora', config: rutaConfig }
       if (crearVersion) {
         const nextV = (p.versionActual || versiones.length || 1) + 1
         return {
@@ -392,31 +393,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       : scope === 'todos' ? ' — aplicada a todos los colaboradores en curso'
       : scope === 'no-iniciados' ? ' — aplicada a los que aún no habían empezado'
       : ' — solo para asignaciones nuevas'
-    addFeedEntry(`Ruta "${plantilla.name}" ${!esBorrador ? 'actualizada' : desplazadas.length ? 'quedó vigente en reemplazo de la anterior' : 'activada'}${scopeMsg}`)
-    desplazadas.forEach(r => addFeedEntry(`Ruta "${r.name}" pasó a No activo — reemplazada por "${plantilla.name}"`))
+    addFeedEntry(`Ruta "${plantilla.name}" guardada${scopeMsg}`)
     setHasUnsavedChanges(false)
     setApplyModal(null)
-    setActivarModal(null)
     // Si se llegó acá desde "Guardar y salir", el destino es el que pidió el usuario.
     const salida = exitNavRef.current
     exitNavRef.current = null
     ;(salida || onBack)()
   }
 
-  // Dispara el guardado: si es una ruta activa en edición con gente en curso,
-  // pregunta a quién aplicar; si no, guarda directo (nueva versión para futuras).
+  /* Guardado de una ruta que ya está en uso —el borrador va por `saveDraft`, que no versiona
+     ni pregunta nada porque no hay nadie adentro—. Si hay gente en curso se pregunta antes a
+     quiénes aplican los cambios: de eso depende si se les mueve el piso a mitad de camino. */
   function handleGuardar() {
-    /* Este guardado activa la ruta. Si el puesto ya tiene una vigente hay que
-       confirmar el desplazamiento antes de escribir nada (RN-M60). */
-    if (esBorrador) {
-      const anteriores = rutasEnConflicto(plantillas, plantilla)
-      if (anteriores.length) {
-        setActivarModal(anteriores.map(r => ({ ...r, enCurso: enCursoDe(r).length })))
-        return
-      }
-      commitSave('futuras')
-      return
-    }
     const enCurso = asignadosEnCurso()
     if (enCurso.length > 0) {
       // Se abre el modal de alcance; si el usuario lo cancela, `cerrarApplyModal`
@@ -425,7 +414,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       setApplyModal({
         count: enCurso.length,
         noIniciados: enCurso.filter(a => a.status === 'pendiente').length,
-        nextV: (plantilla.versionActual || (plantilla.versiones?.length) || 1) + 1,
+        nextV: (plantilla.versionActual || plantilla.versiones?.length || 1) + 1,
       })
     } else {
       commitSave('futuras')
@@ -475,6 +464,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
   // Solo al desmontar de verdad: libera el handler y limpia el aviso global.
   useEffect(() => () => { setSaveHandler(null); setHasUnsavedChanges(false) }, [])
+
+  /* Mide el aviso y vuelve a medirlo cuando cambia de alto (al redimensionar la ventana el
+     texto pasa de una línea a dos). `useLayoutEffect` y no `useEffect` para que las tarjetas
+     no se dibujen un frame en la posición vieja. */
+  useLayoutEffect(() => {
+    const el = avisoRef.current
+    if (!el) { setAvisoAlto(0); return }
+    setAvisoAlto(el.offsetHeight)
+    const ro = new ResizeObserver(() => setAvisoAlto(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [mostrarAviso])
 
   function handleBack() {
     guardNavigate(onBack)
@@ -947,20 +948,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const draftEtapas = rutaState.etapas.filter(e => !e.locked)
   // Para activar basta UNA tarea (RN-M66): la jerarquía etapa → actividad → tarea ya
   // implica las otras dos, y una actividad vacía es solo un título sin contenido real.
-  const totalTareas = draftEtapas.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
-  // Habilitación del botón primario: en borrador, cuando la ruta ya tiene con qué
-  // activarse; en una ruta activa, cuando hay algo que guardar.
-  const primaryDisabled = esBorrador ? totalTareas === 0 : !hasUnsavedChanges
-  const primaryReason = esBorrador
-    ? 'Agrega al menos una tarea para poder activar esta ruta'
-    : 'No hay cambios sin guardar'
-  /* Si el puesto ya tiene ruta vigente, el botón lo dice desde antes de apretarlo:
-     "Activar ruta" promete un acto aislado y el modal que sigue tiene entonces que
-     desmentirlo. Nombrar el reemplazo acá hace que el modal confirme, no sorprenda. */
-  const reemplaza = esBorrador && rutasEnConflicto(plantillas, plantilla).length > 0
+  /* El botón guarda, así que se habilita cuando hay algo que guardar y nada más. Ya no exige
+     tener una tarea: eso era un requisito para *activar*, y activar dejó de vivir acá. Una
+     ruta a medio armar se guarda igual, que es de lo que se trata un borrador. */
+  const primaryDisabled = !hasUnsavedChanges
+  const primaryReason = 'No hay cambios sin guardar'
 
   return (
-    <div className="jb">
+    <div className="jb" style={{ '--jb-float-top': `${127 + avisoAlto}px` }}>
       {/* BARRA SUPERIOR */}
       <div className="jb-topbar">
         <div className="jb-breadcrumb">
@@ -970,6 +965,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           <span className="jb-bc-text">{backLabel || 'Rutas'}</span>
           <ChevronRight size={14} className="jb-bc-sep" />
           <span className="jb-bc-current">{plantilla.name}</span>
+          {/* Quiénes están adentro, al lado del nombre de la ruta. Va acá y no solo en el
+              aviso de abajo porque el aviso es un párrafo y los párrafos no se leen: las
+              caras se ven de reojo, antes de tocar nada. */}
+          {mostrarAviso && (
+            <span className="jb-encurso-pila">
+              <PilaAvatares
+                personas={asignadosEnCurso()}
+                titulo={`${enCursoAlEntrar} ${enCursoAlEntrar === 1 ? 'colaborador está haciendo' : 'colaboradores están haciendo'} esta ruta: ${asignadosEnCurso().map(a => a.nombre).join(', ')}`}
+              />
+              <span>{enCursoAlEntrar} en curso</span>
+            </span>
+          )}
         </div>
         <div className="jb-topbar-actions">
           {/* Herramientas de la vista (no modifican la ruta) */}
@@ -998,40 +1005,44 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               <CheckCircle2 size={12} /> Guardado
             </span>
           ) : null}
-          {/* Guardar borrador: solo mientras la ruta lo es. En una activa no existe
-              borrador —el guardado es directo y pasa por el modal de versionado. */}
-          {esBorrador && (
-            <button
-              className="jb-btn-ghost"
-              disabled={!hasUnsavedChanges}
-              onClick={saveDraft}
-              style={!hasUnsavedChanges ? { opacity: 0.4, cursor: 'default' } : undefined}
-              title={hasUnsavedChanges ? 'Guarda tu avance sin activar la ruta' : 'No hay cambios sin guardar'}
-            >
-              Guardar borrador
-            </button>
-          )}
-          {/* La razón del bloqueo va a la vista, no a un tooltip: si el botón está apagado
-              sin decir por qué, el usuario no tiene forma de saber qué le falta (RN-M66). */}
-          {esBorrador && totalTareas === 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: '#b45309' }}>
-              <AlertTriangle size={13} />
-              Agrega al menos una tarea para activarla
-            </span>
-          )}
-          {/* Acción principal: activar (borrador) o guardar los cambios (ruta activa). */}
+          {/* Un solo botón, y guarda. El constructor no cambia el estado de la ruta: dos
+              botones —"Guardar borrador" y "Activar ruta"— ponían en la misma barra una
+              acción de archivo y una de publicación, y la segunda incluía a la primera, así
+              que era imposible saber cuál hacía qué. Poner la ruta en Activo es una decisión
+              sobre el catálogo (puede desplazar a otra del mismo puesto) y vive en Rutas,
+              que es donde se ve el catálogo. */}
           <button
             className="jb-btn-primary"
-            onClick={handleGuardar}
+            onClick={esBorrador ? saveDraft : handleGuardar}
             disabled={primaryDisabled}
             style={primaryDisabled ? { opacity: 0.45, cursor: 'default' } : undefined}
             title={primaryDisabled ? primaryReason : ''}
           >
-            {!esBorrador ? <Save size={14} /> : reemplaza ? <ArrowLeftRight size={14} /> : <CheckCircle2 size={14} />}
-            {esBorrador ? etiquetaActivar(reemplaza) : 'Guardar cambios'}
+            <Save size={14} />
+            {esBorrador ? 'Guardar ruta' : 'Guardar cambios'}
           </button>
         </div>
       </div>
+
+      {/* Qué va a pasar al guardar. Va al entrar y no al guardar: el modal de alcance llega
+          cuando ya invertiste media hora editando, y para entonces la pregunta "¿a quiénes
+          aplica?" es una sorpresa. Acá es una condición del trabajo.
+
+          Ya no dice cuánta gente hay adentro —eso lo dicen las caras de la barra de arriba,
+          que se ven sin leer—: repetirlo acá alargaba el párrafo justo con la parte que ya
+          estaba resuelta de un vistazo, y lo que queda es lo único que una cara no puede
+          contar. Banner y no modal de bienvenida, además, porque un modal se descarta en dos
+          segundos y el dato deja de estar a la vista mientras se edita. */}
+      {mostrarAviso && (
+        <div className="jb-aviso-encurso" ref={avisoRef}>
+          <GitBranch size={15} style={{ flexShrink: 0 }} />
+          <span>
+            Al guardar se crea la <strong>versión {proximaVersion}</strong>, y vas a poder elegir
+            si los cambios aplican solo a los ingresos nuevos o también a{' '}
+            {enCursoAlEntrar === 1 ? 'quien ya empezó' : 'quienes ya empezaron'}.
+          </span>
+        </div>
+      )}
 
       {/* CANVAS COMPLETO */}
       <div className="jb-panels">
@@ -3047,17 +3058,6 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       )}
 
       {/* MODAL: ¿A QUIÉNES APLICAN LOS CAMBIOS? */}
-      {/* El puesto ya tiene ruta vigente: se confirma el desplazamiento antes de activar (RN-M60) */}
-      {activarModal && (
-        <ActivarRutaModal
-          ruta={plantilla}
-          anteriores={activarModal}
-          onConfirmar={() => commitSave('futuras')}
-          /* Cancelar deja al usuario en el constructor: la salida que venía de
-             "Guardar y salir" se descarta con el modal, igual que en el de alcance. */
-          onCancelar={() => { exitNavRef.current = null; setActivarModal(null) }}
-        />
-      )}
 
       {applyModal && (
         <div className="pl-overlay" onClick={cerrarApplyModal}>

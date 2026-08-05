@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { AlertTriangle, ShieldOff, Check, ChevronDown, HeartHandshake } from 'lucide-react'
+import { AlertTriangle, ShieldOff, ChevronDown, HeartHandshake } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { buildDetalleEtapas } from '../../utils/detalleEtapas'
 import { colaboradoresData, ESTADOS_ONBOARDING } from '../../pages/personas/colaboradoresData'
-import { tareasBuddyDe } from '../../data/tareasBuddy'
 import AvatarPhone from './AvatarPhone'
 import BarraVolver from './BarraVolver'
+import RecorridoPhone, { TareaPhone } from './RecorridoPhone'
 
 /* Orden por urgencia, no alfabético: en el celular solo se leen las primeras filas, así que
    arriba va quien está atascado y al fondo quien ya se graduó. Mismo criterio que
@@ -45,22 +45,19 @@ function NotaPrivacidad({ nombre }) {
     }}>
       <ShieldOff size={11} style={{ color: '#94a3b8', flexShrink: 0, marginTop: 1 }} />
       <span style={{ fontSize: 6.5, color: '#94a3b8', lineHeight: 1.5 }}>
-        Ves el avance general y las tareas en las que participas. Las respuestas, las
-        evaluaciones y los datos personales {nombre ? `de ${nombre}` : 'de cada colaborador'} siguen
-        siendo visibles solo para Recursos Humanos.
+        Ves el avance general y el recorrido. Las respuestas, las evaluaciones y los datos
+        personales {nombre ? `de ${nombre}` : 'de cada colaborador'} siguen siendo visibles
+        solo para Recursos Humanos.
       </span>
     </div>
   )
 }
 
 /* Misma anatomía que `ColaboradorCard` en escritorio: identidad, avance y el botón al pie.
-   La diferencia con la card del líder es el pie: al buddy no le importa el día del calendario
-   sino cuántas tareas suyas quedan, que es lo único sobre lo que puede actuar. */
+   Sin línea de contexto sobre el botón: el buddy no tiene trabajo propio que contar, y el
+   estado y el avance ya están arriba. */
 function Card({ c, onVerDetalles }) {
   const estado = ESTADOS_ONBOARDING[c.onb]
-  const mias = tareasBuddyDe(c.id)
-  const hechas = mias.filter(t => t.done).length
-  const pend = mias.length - hechas
 
   return (
     <div style={{
@@ -89,11 +86,7 @@ function Card({ c, onVerDetalles }) {
         </div>
       </div>
 
-      <div style={{ borderTop: '1px solid #eef2f6', paddingTop: 9, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span style={{ fontSize: 7.5, color: '#94a3b8' }}>
-          Mis tareas: <strong style={{ color: '#334155' }}>{hechas}/{mias.length}</strong>
-          {pend > 0 && <span style={{ color: '#b45309', fontWeight: 700 }}> · {pend} pendiente{pend > 1 ? 's' : ''}</span>}
-        </span>
+      <div style={{ borderTop: '1px solid #eef2f6', paddingTop: 9 }}>
         <button
           onClick={() => onVerDetalles(c)}
           style={{
@@ -109,20 +102,20 @@ function Card({ c, onVerDetalles }) {
   )
 }
 
-/* El detalle abre con las tareas del buddy y no con la ruta del colaborador: en escritorio
-   la ruta ocupa el centro porque hay lugar para mirar el panorama, pero en el celular se
-   entra a hacer algo. El recorrido queda debajo, de solo lectura, para entender el contexto. */
+/* Quién es, cómo va y por dónde va: el detalle del acompañado es de mirar, no de hacer. El
+   buddy acompaña y no administra el proceso; lo único que abre una tarea es su contenido, y
+   de solo lectura. */
 function Detalle({ c, plantillas, onVolver }) {
   const estado = ESTADOS_ONBOARDING[c.onb]
   const etapas = buildDetalleEtapas({ pct: c.onbPct }, plantillas)
-
-  /* El check vive en la pantalla porque el prototipo todavía no persiste tareas. En producción
-     esto no es un estado local: es la misma tarea de la ruta con `responsable: 'Buddy'`, y
-     marcarla mueve el avance que ve Recursos Humanos. */
-  const [tareas, setTareas] = useState(() => tareasBuddyDe(c.id))
-  const alternar = id => setTareas(ts => ts.map(t => t.id === id ? { ...t, done: !t.done } : t))
-  const pend = tareas.filter(t => !t.done).length
   const nombre = c.name.split(' ')[0]
+  const [tarea, setTarea] = useState(null)
+
+  /* La tarea reemplaza la pantalla en vez de abrirse en un modal: en 280 px una capa encima
+     deja el contenido en una ventanita, y la barra de volver ya da la salida. */
+  if (tarea) {
+    return <TareaPhone tarea={tarea} nombre={nombre} onVolver={() => setTarea(null)} />
+  }
 
   return (
     <div style={{ padding: '2px 2px' }}>
@@ -162,92 +155,10 @@ function Detalle({ c, plantillas, onVolver }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: '#0C2D40' }}>Mis tareas con {nombre}</span>
-        <span style={{ fontSize: 7, color: pend > 0 ? '#b45309' : '#16a34a', fontWeight: 700 }}>
-          {pend > 0 ? `${pend} pendiente${pend > 1 ? 's' : ''}` : 'Todas hechas'}
-        </span>
-      </div>
-
-      {tareas.length === 0 ? (
-        <div style={{
-          background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10,
-          padding: '14px 12px', textAlign: 'center', fontSize: 6.5, color: '#94a3b8', marginBottom: 12,
-        }}>
-          La ruta de {nombre} no tiene tareas asignadas al buddy.
-        </div>
-      ) : (
-        <div style={{ marginBottom: 12 }}>
-          {tareas.map(t => (
-            <button
-              key={t.id}
-              onClick={() => alternar(t.id)}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                background: '#fff', border: '1px solid #e8ecf0', borderRadius: 10,
-                boxShadow: '0 2px 8px rgba(12,45,64,.05)',
-                padding: '10px 11px', marginBottom: 7, cursor: 'pointer',
-                fontFamily: 'inherit', textAlign: 'left',
-              }}
-            >
-              <span style={{
-                width: 16, height: 16, borderRadius: 5, flexShrink: 0,
-                background: t.done ? '#00E091' : '#fff',
-                border: t.done ? 'none' : '1.5px solid #cbd5e1',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {t.done && <Check size={10} style={{ color: '#0C2D40' }} strokeWidth={3} />}
-              </span>
-              <span style={{
-                flex: 1, fontSize: 8.5, fontWeight: 600, lineHeight: 1.35,
-                color: t.done ? '#94a3b8' : '#0C2D40',
-                textDecoration: t.done ? 'line-through' : 'none',
-              }}>
-                {t.name}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Solo lectura: sirve para ubicar dónde está atascado, no para intervenir su ruta. */}
-      <div style={{ fontSize: 9, fontWeight: 700, color: '#0C2D40', marginBottom: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: '#0C2D40', marginBottom: 2 }}>
         Su recorrido <span style={{ fontWeight: 500, fontSize: 7, color: '#94a3b8' }}>· solo lectura</span>
       </div>
-      {etapas.map((e, i) => {
-        const completa = e.tareas.length > 0 && e.doneLocal === e.tareas.length
-        return (
-          <div key={i} style={{
-            background: '#fff', border: '1px solid #e8ecf0', borderRadius: 10,
-            boxShadow: '0 2px 8px rgba(12,45,64,.05)',
-            padding: '10px 11px', marginBottom: 7,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
-                background: completa ? '#00E091' : '#f1f5f9',
-                color: completa ? '#0C2D40' : '#64748b',
-                fontSize: 8, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {completa ? <Check size={10} /> : i + 1}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 8.5, fontWeight: 700, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
-                {e.days && <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{e.days}</div>}
-              </div>
-              <span style={{
-                flexShrink: 0, fontSize: 7.5, fontWeight: 700,
-                background: completa ? '#f0fdf4' : '#f1f5f9',
-                color: completa ? '#16a34a' : '#64748b',
-                padding: '2px 8px', borderRadius: 20,
-              }}>
-                {e.doneLocal}/{e.tareas.length}
-              </span>
-            </div>
-          </div>
-        )
-      })}
+      <RecorridoPhone etapas={etapas} onVerTarea={setTarea} />
 
       <NotaPrivacidad nombre={nombre} />
     </div>
@@ -269,7 +180,6 @@ export default function AcompanadosPhone({ currentUser, onVolver }) {
     return <Detalle c={detalle} plantillas={plantillas} onVolver={() => setDetalle(null)} />
   }
 
-  const pendientes = acompanados.reduce((s, c) => s + tareasBuddyDe(c.id).filter(t => !t.done).length, 0)
   const enRiesgo = acompanados.filter(c => c.onb === 'en-riesgo').length
 
   const visibles = todos ? acompanados : acompanados.slice(0, TOPE)
@@ -303,7 +213,6 @@ export default function AcompanadosPhone({ currentUser, onVolver }) {
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
             {[
               { n: acompanados.length, t: 'acompañados', c: '#0C2D40' },
-              { n: pendientes, t: 'tareas mías pendientes', c: '#b45309' },
               { n: enRiesgo, t: 'en riesgo', c: '#dc2626' },
             ].map(k => (
               <div key={k.t} style={{

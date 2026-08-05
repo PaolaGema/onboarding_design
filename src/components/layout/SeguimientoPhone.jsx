@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import {
-  AlertTriangle, ChevronDown, ChevronUp, Check, Clock, Activity, PauseCircle, CheckCircle2,
+  AlertTriangle, ChevronDown, ChevronUp, Clock, Activity, PauseCircle, CheckCircle2,
 } from 'lucide-react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { buildDetalleEtapas } from '../../utils/detalleEtapas'
 import AvatarPhone from './AvatarPhone'
 import BarraVolver from './BarraVolver'
+import RecorridoPhone, { TareaPhone } from './RecorridoPhone'
 
 const ETIQUETA = {
   'atrasado': 'Atrasado',
@@ -119,6 +120,13 @@ function Card({ a, onVerDetalles }) {
 
 function Detalle({ a, plantillas, onVolver }) {
   const etapas = buildDetalleEtapas(a, plantillas)
+  const [tarea, setTarea] = useState(null)
+
+  /* La tarea reemplaza la pantalla en vez de abrirse en un modal: en 280 px una capa encima
+     deja el contenido en una ventanita, y la barra de volver ya da la salida. */
+  if (tarea) {
+    return <TareaPhone tarea={tarea} nombre={a.nombre.split(' ')[0]} onVolver={() => setTarea(null)} />
+  }
 
   return (
     <div style={{ padding: '2px 2px' }}>
@@ -151,41 +159,8 @@ function Detalle({ a, plantillas, onVolver }) {
         )}
       </div>
 
-      <div style={{ fontSize: 9, fontWeight: 700, color: '#0C2D40', marginBottom: 8 }}>Su recorrido</div>
-      {etapas.map((e, i) => {
-        const completa = e.tareas.length > 0 && e.doneLocal === e.tareas.length
-        return (
-          <div key={i} style={{
-            background: '#fff', border: '1px solid #e8ecf0', borderRadius: 10,
-            boxShadow: '0 2px 8px rgba(12,45,64,.05)',
-            padding: '10px 11px', marginBottom: 7,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
-                background: completa ? '#00E091' : '#f1f5f9',
-                color: completa ? '#0C2D40' : '#64748b',
-                fontSize: 8, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {completa ? <Check size={10} /> : i + 1}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 8.5, fontWeight: 700, color: '#0C2D40', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
-                {e.days && <div style={{ fontSize: 6.5, color: '#94a3b8' }}>{e.days}</div>}
-              </div>
-              <span style={{
-                flexShrink: 0, fontSize: 7.5, fontWeight: 700,
-                background: completa ? '#f0fdf4' : '#f1f5f9',
-                color: completa ? '#16a34a' : '#64748b',
-                padding: '2px 8px', borderRadius: 20,
-              }}>
-                {e.doneLocal}/{e.tareas.length}
-              </span>
-            </div>
-          </div>
-        )
-      })}
+      <div style={{ fontSize: 9, fontWeight: 700, color: '#0C2D40', marginBottom: 2 }}>Su recorrido</div>
+      <RecorridoPhone etapas={etapas} onVerTarea={setTarea} />
     </div>
   )
 }

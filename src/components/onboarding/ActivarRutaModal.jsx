@@ -6,20 +6,16 @@ import { describirPuesto, estadoRuta } from '../../utils/rutaEstados'
    ya tiene otra en Activo.
 
    Está escrito como un reemplazo y no como una activación con letra chica. La
-   versión anterior lo contaba en prosa —"al activar X, Y pasa a No activo"— y esa
+   versión anterior lo contaba en prosa —"al activar X, Y pasa a Inactivo"— y esa
    frase es ilegible: mete dos rutas y dos estados en un renglón, y quien la lee
    entiende que la que se apaga es la que está activando. Acá el intercambio se
    muestra en vez de narrarse: una fila por ruta, cada una con su estado de antes y
    el de después, agrupadas bajo "sale" y "entra". Se lee de un vistazo y no hay
    pronombre que pueda apuntar a la ruta equivocada.
 
-   No pregunta qué hacer con la anterior. En el momento de reemplazar nadie sabe
-   todavía si la vieja se va a reutilizar, así que pedir "¿desactivar o archivar?"
-   es pedir que se adivine el futuro para poder seguir: la anterior pasa siempre a
-   No activo —íntegra y reactivable— y archivarla queda como acción aparte del
-   menú, para cuando ya se sepa que no se reutilizará. Por eso el modal cierra
-   mostrando la vuelta atrás: lo que vuelve reversible a una acción no es la
-   advertencia, es saber por dónde se deshace.
+   No pregunta qué hacer con la anterior: pasa a Inactivo, íntegra y reactivable.
+   Por eso el modal cierra mostrando la vuelta atrás — lo que vuelve reversible a
+   una acción no es la advertencia, es saber por dónde se deshace.
 
    `anteriores` viene con el conteo `enCurso` ya resuelto por quien abre el modal.
    Es una lista y no una sola ruta porque los datos previos a esta regla pueden
@@ -131,7 +127,7 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
 
           <Nota icon={RotateCcw}>
             {varias ? 'Las rutas que salen quedan íntegras' : 'La ruta que sale queda íntegra'} en{' '}
-            <strong>No activo</strong>: {varias ? 'podrás volver a activarlas' : 'podrás volver a activarla'} cuando
+            <strong>Inactivo</strong>: {varias ? 'podrás volver a activarlas' : 'podrás volver a activarla'} cuando
             quieras desde su menú.
           </Nota>
         </div>
