@@ -12,6 +12,7 @@ import { useArchivoLocal } from '../../hooks/useArchivoLocal'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import PilaAvatares from '../../components/onboarding/PilaAvatares'
+import ElegirBaseRutaModal from '../../components/onboarding/ElegirBaseRutaModal'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
@@ -231,6 +232,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // Fila del documento (subida de archivo) cuyo selector de formatos está abierto.
   const [formatoDropOpen, setFormatoDropOpen] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
+  // Selector de plantilla / copia de otra ruta, para llenar un lienzo vacío.
+  const [elegirBase, setElegirBase] = useState(false)
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false)
   const [contentChooserOpen, setContentChooserOpen] = useState(false)
   // Carpeta destino al subir un documento local desde la tarea (índice en `recursos`).
@@ -1215,6 +1218,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', maxWidth: 280 }}>
                     Una etapa agrupa las actividades y tareas de un período de la ruta, por ejemplo "Mi primera semana".
                   </p>
+                  {/* El atajo aparece con el lienzo vacío, que es cuando se entiende para qué
+                      sirve. Antes esta elección se hacía antes de crear la ruta, a ciegas y de
+                      una sola vez; acá se ve el vacío que viene a llenar y sigue disponible. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '20px 0 0' }}>
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>o</span>
+                    <button
+                      className="jb-btn-outline"
+                      onClick={() => setElegirBase(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12 }}
+                    >
+                      <Copy size={14} />
+                      Usar una plantilla o copiar otra ruta
+                    </button>
+                  </div>
                 </div>
               ) : rutaState.etapas.map((etapaItem, ei) => {
                 const isLocked = !!etapaItem.locked
@@ -3056,6 +3073,24 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           etapas={rutaState.etapas}
           onClose={closePreview}
           onEditTask={(t) => { selectTarea(t); setShowPreview(false) }}
+        />
+      )}
+
+      {/* MODAL: EMPEZAR DESDE UNA PLANTILLA O UNA COPIA */}
+      {elegirBase && (
+        <ElegirBaseRutaModal
+          rutaActualId={plantilla.id}
+          rutas={plantillas}
+          onCerrar={() => setElegirBase(false)}
+          /* Las etapas de la ruta general se vuelven a anteponer: son de ella y no de la base
+             que se copia, así que no viajan en la copia ni deben perderse al traerla. */
+          onUsar={(etapasData) => {
+            const copia = JSON.parse(JSON.stringify(etapasData)).filter(e => !e.locked)
+            const globales = plantilla.esGlobal ? [] : getGlobalEtapas(plantillas, plantilla.id)
+            setRutaState(prev => ({ ...prev, etapas: normalizarEtapas([...globales, ...copia]) }))
+            setSelEtapa(globales.length)
+            setElegirBase(false)
+          }}
         />
       )}
 

@@ -179,25 +179,6 @@ export default function Plantillas() {
     setPreviewRuta(p)
   }
 
-  const soulyRows = rutaPlantillas.map(tpl => ({
-    id: `sh-${tpl.id}`,
-    name: tpl.name,
-    descripcion: tpl.descripcion,
-    tipo: 'Onboarding',
-    area: tpl.area,
-    cargo: '',
-    etapas: tpl.etapasData.length,
-    tareas: tpl.etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0),
-    asignados: 0,
-    status: null,
-    updated: '',
-    color: tpl.color,
-    esGlobal: false,
-    etapasData: tpl.etapasData,
-    _isSouly: true,
-    _tpl: tpl,
-  }))
-  function applyTemplate(p) { chooseTpl(p._tpl) }
 
   const hasRutaFilters = filterStatus !== 'todas' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos'
   const fuenteRutas = plantillas
@@ -232,12 +213,15 @@ export default function Plantillas() {
   const totalInactivas = cuantas('inactiva')
   const totalBorrador = cuantas('borrador')
 
+  /* Crear va directo al formulario y la ruta nace vacía. Antes lo primero era un modal que
+     preguntaba "¿desde cero o desde plantilla?" —a ciegas, antes de nombrarla y sin ver qué
+     trae cada plantilla— y la respuesta no se podía cambiar después. Esa elección ahora vive
+     dentro del constructor, frente al lienzo vacío que viene a llenar. */
   function openCreate() {
-    setCreateChooser(true)
+    chooseTpl(null)
   }
 
   function chooseTpl(tpl) {
-    setCreateChooser(false)
     setTplGallery(false)
     setSelectedTpl(tpl)
     setForm({
@@ -1140,129 +1124,6 @@ export default function Plantillas() {
 
       <div style={{ height: '8px' }} />
 
-      {/* MODAL SELECTOR: DESDE CERO / PLANTILLA */}
-      {createChooser && (
-        <div className="pl-overlay" onClick={() => setCreateChooser(false)}>
-          <div className="pl-modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <h2>Nueva ruta</h2>
-              <button className="pl-modal-close" onClick={() => setCreateChooser(false)}><X size={18} /></button>
-            </div>
-            <div className="pl-modal-body">
-              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>¿Cómo quieres empezar?</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {[
-                  { key: 'cero', icon: Route, title: 'Desde cero', desc: 'Arma la ruta etapa por etapa, en blanco.', onClick: () => chooseTpl(null) },
-                  { key: 'tpl', icon: Copy, title: 'Usar una plantilla', desc: 'Parte de una base lista y edítala a tu gusto.', onClick: () => { setCreateChooser(false); setTplSearch(''); setTplArea('todas'); setTplGallery(true) } },
-                ].map(opt => {
-                  const OIcon = opt.icon
-                  return (
-                    <button key={opt.key} onClick={opt.onClick} style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8,
-                      padding: '18px 16px', borderRadius: 12, border: '1px solid var(--border-soft)',
-                      background: 'var(--surface-card)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                      transition: 'all .12s',
-                    }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#0C2D40'; e.currentTarget.style.background = '#f8fafc' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-soft)'; e.currentTarget.style.background = 'var(--surface-card)' }}
-                    >
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(12,45,64,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <OIcon size={20} style={{ color: '#0C2D40' }} />
-                      </div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#0C2D40' }}>{opt.title}</span>
-                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.desc}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL GALERÍA DE PLANTILLAS */}
-      {tplGallery && (() => {
-        const tplAreas = ['todas', ...new Set(soulyRows.map(t => t.area).filter(a => a !== 'Todas las áreas'))]
-        const tplList = soulyRows
-          .filter(t =>
-            (t.name.toLowerCase().includes(tplSearch.toLowerCase()) || t.area.toLowerCase().includes(tplSearch.toLowerCase())) &&
-            (tplArea === 'todas' || t.area === tplArea))
-          .sort((a, b) => isManager ? ((b.area === managerArea ? 1 : 0) - (a.area === managerArea ? 1 : 0)) : 0)
-        return (
-          <div className="pl-overlay" onClick={() => setTplGallery(false)}>
-            <div className="pl-modal" style={{ maxWidth: 760, width: '92vw', display: 'flex', flexDirection: 'column', height: '86vh', padding: 0 }} onClick={e => e.stopPropagation()}>
-              <div className="pl-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button onClick={() => { setTplGallery(false); setCreateChooser(true) }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text-muted)', padding: 0 }} title="Volver">
-                    <ChevronLeft size={18} />
-                  </button>
-                  <h2 style={{ margin: 0 }}>Elegir una plantilla</h2>
-                </div>
-                <button className="pl-modal-close" onClick={() => setTplGallery(false)}><X size={18} /></button>
-              </div>
-              <div style={{ display: 'flex', gap: 8, padding: '12px 20px', borderBottom: '1px solid var(--border-soft)', flexShrink: 0 }}>
-                <div className="pl-search-wrap" style={{ flex: 1 }}>
-                  <Search size={13} className="pl-search-ico" />
-                  <input type="text" className="pl-search" placeholder="Buscar por nombre o área…" value={tplSearch} onChange={e => setTplSearch(e.target.value)} autoFocus />
-                </div>
-                <div className="pl-dropdown-wrap" style={{ width: 'auto', position: 'relative' }}>
-                  <button type="button" className={`pl-dropdown-trigger${tplAreaOpen ? ' open' : ''}${tplArea === 'todas' ? ' placeholder' : ''}`} style={{ width: 'auto', height: 34, fontSize: 11, padding: '0 10px', gap: 6 }} onClick={e => { e.stopPropagation(); setTplAreaOpen(!tplAreaOpen) }}>
-                    <span style={{ whiteSpace: 'nowrap' }}>{tplArea === 'todas' ? 'Todas las áreas' : tplArea}</span>
-                    <ChevronDown size={12} className="pl-dropdown-chevron" style={{ flexShrink: 0 }} />
-                  </button>
-                  {tplAreaOpen && (
-                    <div className="pl-dropdown-menu" style={{ minWidth: 160, maxHeight: 220, overflowY: 'auto' }} onMouseLeave={() => setTplAreaOpen(false)}>
-                      {tplAreas.map(a => (
-                        <button key={a} type="button" className={`pl-dropdown-item${tplArea === a ? ' selected' : ''}`} style={{ fontSize: 11.5, padding: '6px 9px' }} onClick={() => { setTplArea(a); setTplAreaOpen(false) }}>
-                          <span>{a === 'todas' ? 'Todas las áreas' : a}</span>
-                          {tplArea === a && <Check size={13} />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
-                {tplList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>No se encontraron plantillas con ese criterio.</div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 12 }}>
-                    {tplList.map(t => (
-                        <div key={t.id} style={{ border: '1px solid var(--border-soft)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--surface-card)' }}>
-                          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--green-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Route size={15} style={{ color: 'var(--green)' }} />
-                              </div>
-                              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40', lineHeight: 1.25 }}>{t.name}</span>
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                              <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>{t.area}</span>
-                              <span style={{ fontSize: 9.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>{t.etapas} etapas · {t.tareas} tareas</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.descripcion}</p>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border-soft)' }}>
-                            <button
-                              onClick={() => setPreviewRuta(t)}
-                              style={{ flex: 1, height: 34, borderRadius: 8, border: '1px solid var(--border-soft)', background: '#fff', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, color: '#0C2D40', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', transition: 'all .12s' }}
-                              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#0C2D40' }}
-                              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = 'var(--border-soft)' }}
-                            >
-                              <Eye size={13} /> Vista previa
-                            </button>
-                            <button onClick={() => chooseTpl(t._tpl)} className="pl-btn-save" style={{ flex: '0 0 auto', minWidth: 68, height: 34, fontSize: 11.5, padding: '0 16px' }}>Usar</button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* MODAL CREAR / EDITAR */}
       {(modal === 'crear' || modal === 'editar') && (
         <div className="pl-overlay" onClick={() => setModal(null)}>
@@ -1277,16 +1138,6 @@ export default function Plantillas() {
             </div>
 
             <div className="pl-modal-body">
-              {selectedTpl && modal === 'crear' && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-                  borderRadius: 10, background: `${selectedTpl.color}12`, border: `1px solid ${selectedTpl.color}30`,
-                  marginBottom: 4,
-                }}>
-                  <selectedTpl.icon size={14} style={{ color: selectedTpl.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0C2D40' }}>Desde la plantilla "{selectedTpl.name}"</span>
-                </div>
-              )}
               <label className="pl-label">
                 <span>Nombre de la ruta <span style={{ color: '#ef4444' }}>*</span></span>
                 <input
@@ -1517,13 +1368,7 @@ export default function Plantillas() {
       )}
 
       {/* MODAL VISTA PREVIA DE RUTA */}
-      {previewRuta && (previewRuta._isSouly ? (
-        <PlantillaPreviewModal
-          plantilla={previewRuta}
-          onClose={() => setPreviewRuta(null)}
-          onUseTemplate={() => { setPreviewRuta(null); applyTemplate(previewRuta) }}
-        />
-      ) : (
+      {previewRuta && (
         <RutaFullPreviewModal
           plantilla={(() => {
             const globales = (previewRuta.esGlobal || previewRuta._versionPreview) ? [] : getGlobalEtapas(allPlantillas, previewRuta.id)
@@ -1537,7 +1382,7 @@ export default function Plantillas() {
           canEdit={previewRuta._versionPreview ? false : canEditRuta(previewRuta)}
           onEdit={previewRuta._versionPreview ? undefined : () => { setActiveJourney({ ...previewRuta, isEditingExisting: true }); setPreviewRuta(null) }}
         />
-      ))}
+      )}
 
       {/* MODAL HISTORIAL DE VERSIONES */}
       {historialRuta && (() => {
