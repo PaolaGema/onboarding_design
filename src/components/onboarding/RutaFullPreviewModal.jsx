@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock } from 'lucide-react'
+import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock, ToggleLeft } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
@@ -115,16 +115,6 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
             <div style={{ flex: '1 1 42%', minWidth: 300, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0C2D40', margin: '0 0 8px' }}>{plantilla.name}</h2>
-
-                {/* El estado, con la misma píldora de la lista de rutas. Va acá arriba y no
-                    dentro de "Información" porque ese bloque se pliega, y de todos los datos
-                    de la ruta este es el que decide si le llega a alguien: esconderlo detrás
-                    de un clic es esconder justo lo que hay que saber antes de nada. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                  <span className={`pl-status ${estado.clase}`}>{estado.label}</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{estado.regla}</span>
-                </div>
-
                 <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 20px' }}>{plantilla.descripcion || 'Sin descripción'}</p>
 
                 {/* PERSONAS CON ACCESO */}
@@ -211,6 +201,16 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
 
                   {infoAbierta && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {/* Primero el estado: de todos los datos de la ruta es el que decide si
+                          le llega a alguien. Como una fila más y con la píldora de la lista,
+                          para que no compita con el nombre de la ruta. */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <ToggleLeft size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                        <div style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: '#94a3b8' }}>Estado:</span>
+                          <span className={`pl-status ${estado.clase}`} title={estado.regla}>{estado.label}</span>
+                        </div>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Tag size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
                         <div style={{ fontSize: 11.5 }}>
