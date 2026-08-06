@@ -4,6 +4,7 @@ import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
+import { estadoRuta, normalizarStatus, REGLA_ESTADO } from '../../utils/rutaEstados'
 
 const hoyFecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
@@ -18,6 +19,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
   const { currentUser } = useUser()
   const [activeTask, setActiveTask] = useState(null)
   const [infoAbierta, setInfoAbierta] = useState(true)
+  const estado = { ...estadoRuta(plantilla.status), regla: REGLA_ESTADO[normalizarStatus(plantilla.status)] || REGLA_ESTADO.borrador }
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [selectedToAdd, setSelectedToAdd] = useState([])
@@ -113,6 +115,16 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
             <div style={{ flex: '1 1 42%', minWidth: 300, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0C2D40', margin: '0 0 8px' }}>{plantilla.name}</h2>
+
+                {/* El estado, con la misma píldora de la lista de rutas. Va acá arriba y no
+                    dentro de "Información" porque ese bloque se pliega, y de todos los datos
+                    de la ruta este es el que decide si le llega a alguien: esconderlo detrás
+                    de un clic es esconder justo lo que hay que saber antes de nada. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <span className={`pl-status ${estado.clase}`}>{estado.label}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{estado.regla}</span>
+                </div>
+
                 <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 20px' }}>{plantilla.descripcion || 'Sin descripción'}</p>
 
                 {/* PERSONAS CON ACCESO */}

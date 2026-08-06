@@ -5,7 +5,7 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 import { useUser } from '../../context/UserContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
-import { ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
+import { ESTADOS_EN_CURSO, normalizarStatus } from '../../utils/rutaEstados'
 import { tiposTarea, tipoMap, toEmbedUrl, ACCEPT_POR_TIPO, FORMATOS_LEGIBLES, tipoDeArchivo, pesoLegible } from '../../utils/tareaTipos'
 import { nuevaClaveArchivo, guardarArchivo } from '../../utils/archivosLocales'
 import { useArchivoLocal } from '../../hooks/useArchivoLocal'
@@ -333,14 +333,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      aviso de la cabecera y el modal de alcance, que tienen que decir el mismo número. */
   const enCursoAlEntrar = asignadosEnCurso().length
   const proximaVersion = (plantilla.versionActual || plantilla.versiones?.length || 1) + 1
-  const mostrarAviso = !esBorrador && enCursoAlEntrar > 0
+  const hayEnCurso = !esBorrador && enCursoAlEntrar > 0
+
+  /* Solo una ruta en uso pregunta a quiénes aplican los cambios. En Borrador no hay nadie a
+     quien afectar, y en Inactivo la ruta ya dejó de repartirse: quien la está cursando sigue
+     con su versión congelada pase lo que pase, así que preguntar sería ofrecer una decisión
+     sin consecuencia. Los cambios van a la estructura base y listo. */
+  const preguntaAlcance = normalizarStatus(plantilla.status) === 'activa' && enCursoAlEntrar > 0
 
   // Guardado real de la estructura, con versionado.
   // - Si la ruta tiene colaboradores asignados: se crea una NUEVA versión (la
   //   anterior queda congelada para ellos) y, según `scope`, se mueve o no a
   //   los asignados a la versión nueva.
   // - Si no tiene asignados: se actualiza la versión actual en su lugar.
-  // scope: 'futuras' | 'no-iniciados' | 'todos'.
+  // scope: 'futuras' (nadie se mueve) | 'todos' (los en curso pasan a la versión nueva).
   function commitSave(scope) {
     const etapasPropias = rutaState.etapas.filter(e => !e.locked)
     const tareasCount = etapasPropias.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0)
@@ -379,19 +385,17 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       }
     }))
 
-    if (crearVersion && scope !== 'futuras') {
-      const nextV = (plantilla.versionActual || (plantilla.versiones?.length) || 1) + 1
+    // scope 'todos' mueve a la versión nueva a todo el que siga en curso; 'futuras' no toca
+    // a nadie y la versión nueva queda solo para las asignaciones que vengan.
+    if (crearVersion && scope === 'todos') {
       setAsignaciones(prev => prev.map(a => {
         const esDeEstaRuta = (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status)
-        if (!esDeEstaRuta) return a
-        const mover = scope === 'todos' ? true : a.status === 'pendiente'
-        return mover ? { ...a, version: nextV } : a
+        return esDeEstaRuta ? { ...a, version: proximaVersion } : a
       }))
     }
 
     const scopeMsg = !crearVersion ? ''
-      : scope === 'todos' ? ' — aplicada a todos los colaboradores en curso'
-      : scope === 'no-iniciados' ? ' — aplicada a los que aún no habían empezado'
+      : scope === 'todos' ? ' — aplicada también a los colaboradores en curso'
       : ' — solo para asignaciones nuevas'
     addFeedEntry(`Ruta "${plantilla.name}" guardada${scopeMsg}`)
     setHasUnsavedChanges(false)
@@ -406,16 +410,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      ni pregunta nada porque no hay nadie adentro—. Si hay gente en curso se pregunta antes a
      quiénes aplican los cambios: de eso depende si se les mueve el piso a mitad de camino. */
   function handleGuardar() {
-    const enCurso = asignadosEnCurso()
-    if (enCurso.length > 0) {
+    if (preguntaAlcance) {
       // Se abre el modal de alcance; si el usuario lo cancela, `cerrarApplyModal`
       // suelta también la salida pendiente para no navegar en el próximo guardado.
       setApplyScope('futuras')
-      setApplyModal({
-        count: enCurso.length,
-        noIniciados: enCurso.filter(a => a.status === 'pendiente').length,
-        nextV: (plantilla.versionActual || plantilla.versiones?.length || 1) + 1,
-      })
+      setApplyModal({ count: enCursoAlEntrar, nextV: proximaVersion })
     } else {
       commitSave('futuras')
     }
@@ -475,7 +474,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     const ro = new ResizeObserver(() => setAvisoAlto(el.offsetHeight))
     ro.observe(el)
     return () => ro.disconnect()
-  }, [mostrarAviso])
+  }, [preguntaAlcance])
 
   function handleBack() {
     guardNavigate(onBack)
@@ -968,7 +967,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           {/* Quiénes están adentro, al lado del nombre de la ruta. Va acá y no solo en el
               aviso de abajo porque el aviso es un párrafo y los párrafos no se leen: las
               caras se ven de reojo, antes de tocar nada. */}
-          {mostrarAviso && (
+          {hayEnCurso && (
             <span className="jb-encurso-pila">
               <PilaAvatares
                 personas={asignadosEnCurso()}
@@ -1033,13 +1032,16 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           estaba resuelta de un vistazo, y lo que queda es lo único que una cara no puede
           contar. Banner y no modal de bienvenida, además, porque un modal se descarta en dos
           segundos y el dato deja de estar a la vista mientras se edita. */}
-      {mostrarAviso && (
+      {preguntaAlcance && (
         <div className="jb-aviso-encurso" ref={avisoRef}>
           <GitBranch size={15} style={{ flexShrink: 0 }} />
+          {/* Sin el número de versión. "Se crea la versión 2" es el mecanismo con el que el
+              sistema cumple la promesa, no la promesa: quien edita la ruta necesita saber que
+              va a poder elegir a quiénes aplican los cambios, y el número no cambia esa
+              decisión ni se entiende sin explicar el modelo entero. */}
           <span>
-            Al guardar se crea la <strong>versión {proximaVersion}</strong>, y vas a poder elegir
-            si los cambios aplican solo a los ingresos nuevos o también a{' '}
-            {enCursoAlEntrar === 1 ? 'quien ya empezó' : 'quienes ya empezaron'}.
+            Al guardar vas a poder elegir si los cambios aplican <strong>solo a los ingresos
+            nuevos</strong> o también a {enCursoAlEntrar === 1 ? 'quien ya empezó' : 'quienes ya empezaron'}.
           </span>
         </div>
       )}
@@ -3075,13 +3077,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 13px', borderRadius: 10, background: '#f0f9ff', border: '1px solid #dbeafe' }}>
                 <Info size={15} style={{ color: '#1e40af', flexShrink: 0, marginTop: 1 }} />
                 <p style={{ margin: 0, fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
-                  Al guardar se crea la <strong>versión {applyModal.nextV}</strong>, y todas las asignaciones nuevas usarán esa versión. Decide qué pasa con {applyModal.count === 1 ? 'el' : 'los'} <strong>{applyModal.count}</strong> {applyModal.count === 1 ? 'colaborador que ya está' : 'colaboradores que ya están'} haciendo esta ruta:
+                  Los ingresos nuevos van a recibir la ruta con estos cambios. Decide qué pasa
+                  con {applyModal.count === 1 ? 'el' : 'los'} <strong>{applyModal.count}</strong>{' '}
+                  {applyModal.count === 1 ? 'colaborador que ya está' : 'colaboradores que ya están'} haciendo esta ruta:
                 </p>
               </div>
+              {/* Dos opciones y no tres. Había una intermedia —"solo a los que aún no
+                  empezaron"— que era la más precisa y la que más costaba decidir: obligaba a
+                  saber quién está en día 0 para poder elegir. La pregunta real es una sola:
+                  ¿los que ya están adentro se quedan como están o pasan a lo nuevo? */}
               {[
-                { key: 'futuras', icon: CheckCircle2, title: 'Dejarlos en su versión actual', badge: 'Recomendado', accent: '#16a34a', desc: `${applyModal.count === 1 ? 'Sigue' : 'Siguen'} con la ruta tal como se ${applyModal.count === 1 ? 'le' : 'les'} asignó. Los cambios solo se verán en asignaciones nuevas.` },
-                { key: 'no-iniciados', icon: UserCheck, title: 'Actualizar solo a los que no han empezado', accent: '#0C2D40', disabled: applyModal.noIniciados === 0, desc: applyModal.noIniciados > 0 ? `${applyModal.noIniciados} de ${applyModal.count} ${applyModal.noIniciados === 1 ? 'está' : 'están'} en día 0: ${applyModal.noIniciados === 1 ? 'pasa' : 'pasan'} a la versión ${applyModal.nextV} sin perder avance.` : `Nadie está en día 0: ${applyModal.count === 1 ? 'el colaborador ya empezó' : 'todos ya empezaron'} la ruta.` },
-                { key: 'todos', icon: AlertTriangle, title: `Actualizar a ${applyModal.count === 1 ? 'el colaborador' : `los ${applyModal.count}`} en curso`, accent: '#b45309', warn: true, desc: `Incluye a quienes ya avanzaron: sus tareas y su progreso pueden cambiar.` },
+                { key: 'futuras', icon: CheckCircle2, title: 'Solo a los futuros colaboradores', badge: 'Recomendado', accent: '#16a34a', desc: `${applyModal.count === 1 ? 'Quien ya está' : 'Quienes ya están'} en curso ${applyModal.count === 1 ? 'sigue' : 'siguen'} con la ruta tal como se ${applyModal.count === 1 ? 'le' : 'les'} asignó.` },
+                { key: 'todos', icon: AlertTriangle, title: 'A los que están en proceso y a los futuros', accent: '#b45309', warn: true, desc: `${applyModal.count === 1 ? 'El colaborador que ya avanzó recibe' : `Los ${applyModal.count} que ya avanzaron reciben`} los cambios: sus tareas y su progreso pueden cambiar.` },
               ].map(opt => {
                 const sel = applyScope === opt.key
                 const AIcon = opt.icon

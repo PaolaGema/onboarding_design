@@ -18,7 +18,9 @@ import { transicionesDe, describirPuesto, rutasEnConflicto } from '../../utils/r
    intercambio ruta por ruta. */
 export default function CambiarEstadoRutaModal({ ruta, plantillas, enCurso = 0, onConfirmar, onEditarRuta, onCancelar }) {
   const opciones = transicionesDe(ruta)
-  const primeraDisponible = opciones.find(o => !o.motivo)?.key
+  const actual = opciones.find(o => o.actual)
+  const disponibles = opciones.filter(o => !o.motivo)
+  const primeraDisponible = disponibles[0]?.key
   const [elegido, setElegido] = useState(primeraDisponible || null)
   /* Callejón sin salida: ningún destino disponible. Pasa con un borrador vacío, que no puede
      ir a Activo hasta tener una tarea. Decir qué falta no alcanza si desde acá no se puede
@@ -48,61 +50,73 @@ export default function CambiarEstadoRutaModal({ ruta, plantillas, enCurso = 0, 
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-heading)', lineHeight: 1.35, margin: 0 }}>
-                Estado de la ruta
+                Cambiar estado
               </h2>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '4px 0 0' }}>
                 <strong style={{ color: 'var(--text-heading)' }}>{ruta.name}</strong>
                 {ruta.cargo && <> — {describirPuesto(ruta)}</>}
               </p>
+              {/* El estado de ahora, como dato de la cabecera y no como una opción más de la
+                  lista: no es algo a lo que se pueda "cambiar". */}
+              {actual && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Ahora está en</span>
+                  <span className={`pl-status ${actual.clase}`}>{actual.label}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {opciones.map(o => {
-              const bloqueado = !!o.motivo
-              const sel = elegido === o.key
-              return (
-                <button
-                  key={o.key}
-                  type="button"
-                  disabled={bloqueado}
-                  onClick={() => setElegido(o.key)}
-                  title={o.motivo || undefined}
-                  style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%',
-                    padding: '11px 12px', borderRadius: 10, textAlign: 'left', fontFamily: 'inherit',
-                    border: `1px solid ${sel ? 'var(--navy)' : 'var(--border-soft)'}`,
-                    boxShadow: sel ? '0 0 0 2px rgba(12,45,64,.1)' : 'none',
-                    background: bloqueado ? 'var(--bg-secondary)' : 'var(--surface-card)',
-                    opacity: bloqueado ? 0.65 : 1,
-                    cursor: bloqueado ? 'default' : 'pointer',
-                    transition: 'border-color .12s, box-shadow .12s',
-                  }}
-                >
-                  {/* La píldora del estado y no un radio con su nombre al lado: es la misma
-                      que se ve en la lista, así que se reconoce sin leer. */}
-                  <span className={`pl-status ${o.clase}`} style={{ flexShrink: 0, marginTop: 1 }}>{o.label}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {/* Solo los destinos posibles. Los que la matriz no permite ni se muestran: una
+              opción que no se puede marcar es una pregunta sin respuesta, y obliga a leer un
+              motivo para descartarla. La regla de que nadie vuelve a Borrador se explica
+              donde se explica el modelo, no en cada intento de usarlo. */}
+          {disponibles.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {disponibles.map(o => {
+                const sel = elegido === o.key
+                return (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => setElegido(o.key)}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%',
+                      padding: '11px 12px', borderRadius: 10, textAlign: 'left', fontFamily: 'inherit',
+                      border: `1px solid ${sel ? 'var(--navy)' : 'var(--border-soft)'}`,
+                      boxShadow: sel ? '0 0 0 2px rgba(12,45,64,.1)' : 'none',
+                      background: 'var(--surface-card)', cursor: 'pointer',
+                      transition: 'border-color .12s, box-shadow .12s',
+                    }}
+                  >
+                    {/* La píldora del estado y no un radio con su nombre al lado: es la misma
+                        que se ve en la lista, así que se reconoce sin leer. */}
+                    <span className={`pl-status ${o.clase}`} style={{ flexShrink: 0, marginTop: 1 }}>{o.label}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
                       {o.regla}
                     </span>
-                    {o.motivo && !o.actual && (
-                      <span style={{ display: 'flex', alignItems: 'flex-start', gap: 5, marginTop: 5, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-                        <Lock size={11} style={{ flexShrink: 0, marginTop: 1 }} />
-                        {o.motivo}
-                      </span>
-                    )}
-                  </span>
-                  {o.actual && (
-                    <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', marginTop: 3 }}>Actual</span>
-                  )}
-                  {sel && !o.actual && (
-                    <Check size={15} style={{ color: 'var(--navy)', flexShrink: 0, marginTop: 2 }} />
-                  )}
-                </button>
-              )
-            })}
-          </div>
+                    {sel && <Check size={15} style={{ color: 'var(--navy)', flexShrink: 0, marginTop: 2 }} />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Sin destinos: hoy solo pasa con un borrador sin tareas, que no puede activarse
+              todavía. Se dice qué falta y el pie lleva a hacerlo. */}
+          {sinSalida && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 9,
+              padding: '12px 13px', borderRadius: 10,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border-soft)',
+            }}>
+              <Lock size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 11.5, color: 'var(--text-heading)', lineHeight: 1.55 }}>
+                Esta ruta todavía no puede cambiar de estado: <strong>le falta al menos una
+                tarea</strong> para poder ponerse en uso.
+              </span>
+            </div>
+          )}
 
           {/* Lo que va a pasarle a la gente: en párrafo se lo salta todo el mundo, así que va
               como número y solo cuando hay alguien adentro. */}
@@ -136,7 +150,7 @@ export default function CambiarEstadoRutaModal({ ruta, plantillas, enCurso = 0, 
           ) : (
             <button
               className="pl-btn-save"
-              disabled={!elegido || opciones.find(o => o.key === elegido)?.actual}
+              disabled={!elegido}
               onClick={() => onConfirmar(elegido)}
             >
               {conflictos.length > 0 ? 'Continuar' : 'Cambiar estado'}
