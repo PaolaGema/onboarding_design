@@ -22,7 +22,7 @@ export const tiposTarea = [
 
 export const tipoMap = Object.fromEntries(tiposTarea.map(t => [t.key, t]))
 
-/* Tipos que existen en las rutas sembradas pero no en el catálogo del constructor. Viven acá
+/* Tipos que existen en las rutas sembradas pero no en el catálogo del constructor. Viven aquí
    y no en la pantalla que los dibuja porque el mismo recorrido se pinta en la ficha de RH y
    en el celular del buddy: con dos mapas, un nodo saldría en blanco en una vista y no en la
    otra. */
@@ -36,7 +36,7 @@ const TIPO_FALLBACK = { label: 'Tarea', icon: FileText, color: '#64748b' }
 
 export const infoTipo = tipo => tipoMap[tipo] || TIPOS_EXTRA[tipo] || TIPO_FALLBACK
 
-/* Formatos que se pueden subir desde el equipo. Viven acá y no en cada pantalla porque la
+/* Formatos que se pueden subir desde el equipo. Viven aquí y no en cada pantalla porque la
    biblioteca de Recursos corporativos y el modal de contenido de una tarea tienen que aceptar
    exactamente lo mismo: un archivo subido desde una tarea termina siendo el mismo recurso que
    uno subido desde la biblioteca, y si las listas se separan un formato entra por una puerta

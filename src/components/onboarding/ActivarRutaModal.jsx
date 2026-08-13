@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { ArrowLeftRight, ArrowRight, Route, RotateCcw, Users } from 'lucide-react'
-import { describirPuesto, estadoRuta } from '../../utils/rutaEstados'
+import { ArrowLeftRight, RotateCcw, Users } from 'lucide-react'
+import { describirPuesto } from '../../utils/rutaEstados'
+import { Rotulo, Nota, FilaRuta } from './PiezasAviso'
 
 /* Modal de unicidad (RN-M60): salta al activar una ruta cuando el cargo+sucursal
    ya tiene otra en Activo.
@@ -30,44 +31,8 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
   const varias = anteriores.length > 1
   const totalEnCurso = anteriores.reduce((s, a) => s + (a.enCurso || 0), 0)
 
-  /* Una fila del intercambio. El estado no se nombra en el texto sino que se
-     dibuja con las mismas píldoras de la lista de rutas: quien las vio ahí las
-     reconoce acá sin tener que leer.
-
-     El nombre ocupa el ancho completo y la transición va debajo, y no los dos en
-     la misma línea: compartiendo renglón con las píldoras, los nombres largos —que
-     en este producto son la norma— se truncaban a "Onboarding Finanzas…" en las dos
-     filas, y quedaban idénticos justo en el modal que existe para distinguirlas. */
-  const Fila = ({ r, de, a, entrante, meta }) => (
-    <div style={{
-      padding: '11px 12px', borderRadius: 10,
-      background: entrante ? 'var(--green-tint)' : 'var(--bg-secondary)',
-      border: `1px solid ${entrante ? 'rgba(22,163,74,.25)' : 'var(--surface-hover)'}`,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-          background: entrante ? 'rgba(22,163,74,.16)' : 'var(--surface-hover)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Route size={14} style={{ color: entrante ? 'var(--green)' : 'var(--text-muted)' }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0C2D40', lineHeight: 1.35 }}>
-            {r.name}
-          </div>
-          <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {meta}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
-            <Pildora estado={de} apagada />
-            <ArrowRight size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <Pildora estado={a} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  /* El estado no se nombra en el texto sino que se dibuja con las mismas píldoras
+     de la lista de rutas: quien las vio ahí las reconoce aquí sin tener que leer. */
 
   return (
     <div className="pl-overlay" onClick={onCancelar}>
@@ -97,7 +62,7 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
           <Rotulo>{varias ? 'Salen de circulación' : 'Sale de circulación'}</Rotulo>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {anteriores.map(a => (
-              <Fila
+              <FilaRuta
                 key={a.id}
                 r={a}
                 de="activa"
@@ -108,7 +73,7 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
           </div>
 
           <Rotulo style={{ marginTop: 14 }}>Queda vigente</Rotulo>
-          <Fila
+          <FilaRuta
             r={ruta}
             de={ruta.status || 'borrador'}
             a="activa"
@@ -140,36 +105,3 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
     </div>
   )
 }
-
-const Rotulo = ({ children, style }) => (
-  <div style={{
-    fontSize: 9.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-    color: 'var(--text-muted)', marginBottom: 7, ...style,
-  }}>
-    {children}
-  </div>
-)
-
-/* El estado de origen va atenuado y el de destino a color pleno: la jerarquía
-   dice por sí sola cuál de los dos es el que va a quedar. */
-const Pildora = ({ estado, apagada }) => {
-  const e = estadoRuta(estado)
-  return (
-    <span style={{
-      fontSize: 9.5, fontWeight: 700, padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap',
-      background: e.bg, color: e.color, opacity: apagada ? 0.5 : 1,
-    }}>
-      {e.label}
-    </span>
-  )
-}
-
-const Nota = ({ icon: Icon, children }) => (
-  <div style={{
-    display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12,
-    padding: '10px 12px', borderRadius: 10, background: 'var(--bg-secondary)',
-  }}>
-    <Icon size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }} />
-    <span style={{ fontSize: 11.5, color: '#0C2D40', lineHeight: 1.55 }}>{children}</span>
-  </div>
-)

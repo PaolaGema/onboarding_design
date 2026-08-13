@@ -31,7 +31,7 @@ import { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 const CON_RESPUESTAS = ['quiz', 'completar-perfil']
 
 /* Zigzag del camino: cada nodo se corre en X según su orden dentro de la etapa. Son valores
-   más chicos que en la vista del colaborador porque acá el recorrido comparte el ancho con
+   más chicos que en la vista del colaborador porque aquí el recorrido comparte el ancho con
    el rail derecho, no ocupa la pantalla entera. */
 const OFFSETS = [0, 36, 54, 36, 0, -36, -54, -36]
 
@@ -390,13 +390,13 @@ export default function DetalleAsignacion() {
             </div>
           </div>
 
-          {/* Todo lo que se puede hacer con esta persona, acá. Desasignar vivía solo en la
+          {/* Todo lo que se puede hacer con esta persona, aquí. Desasignar vivía solo en la
               lista, y eso obligaba a volver atrás y buscarla de nuevo justo cuando la ficha
               es donde se ve el motivo para hacerlo. */}
           <div className="sec-card">
             <div className="sc-hd"><h3>Acciones</h3></div>
             <div className="sc-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {/* "Enviar recordatorio" no se repite acá: cuando aplica ya está arriba, junto
+              {/* "Enviar recordatorio" no se repite aquí: cuando aplica ya está arriba, junto
                   al nombre, que es donde se mira al abrir la ficha. */}
               <button className="det-accion" onClick={() => setBuddyModal(true)}>
                 <UserCheck size={13} /> {a.buddy ? 'Cambiar buddy' : 'Asignar buddy'}

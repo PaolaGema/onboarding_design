@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock, ToggleLeft, MapPin, Briefcase, Route } from 'lucide-react'
+import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock, ToggleLeft, MapPin, Briefcase, Route, Info } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
-import { estadoRuta, normalizarStatus, REGLA_ESTADO, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
+import { estadoRuta, normalizarStatus, REGLA_ESTADO, ESTADOS_EN_CURSO, impactoDeAlcance } from '../../utils/rutaEstados'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import PilaAvatares from './PilaAvatares'
 import { TextoEnLinea, ListaEnLinea } from './CamposEnLinea'
+import CambiarAlcanceRutaModal from './CambiarAlcanceRutaModal'
 import { areas, cargosPorArea, sucursales, tiposRuta, TODAS_LAS_AREAS } from './RutaMetaFields'
 
 /* Una fila de la ficha: ícono, etiqueta y el dato. El dato entra como hijo porque a veces es
@@ -35,11 +36,14 @@ function getInitials(name) {
 export default function RutaFullPreviewModal({ plantilla, responsables, canManage = false, onAddPersona, onRemovePersona, onClose, canEdit = false, onEdit, onGuardarDatos }) {
   const { gamificacion } = useConfig()
   const { currentUser } = useUser()
-  const { asignaciones } = useOnboardingData()
+  /* La lista completa y no la que ve quien edita: la unicidad es una regla del sistema, y un
+     líder que mueve su ruta de cargo puede estar desplazando a otra de un área que su filtro
+     no le muestra. */
+  const { asignaciones, plantillas: todasLasRutas } = useOnboardingData()
 
   /* Quiénes están recorriendo la ruta ahora mismo. Va antes que "Personas con acceso" porque
      responde la pregunta que más pesa antes de tocar algo: si hay gente adentro. Lo que ya
-     empezaron conserva la versión con la que arrancó, así que editar acá no los mueve —pero
+     empezaron conserva la versión con la que arrancó, así que editar aquí no los mueve —pero
      sí conviene saber a cuántos les va a llegar el cambio la próxima vez. */
   const enCurso = asignaciones.filter(a =>
     (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status))
@@ -54,7 +58,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
      Cada campo guarda por su cuenta —el texto al salir, la lista al elegir— así que no hay
      borrador ni botón de confirmar. */
   const editable = canEdit && !!onGuardarDatos
-  const guardar = cambios => onGuardarDatos({
+  const guardar = (cambios, desplazadas) => onGuardarDatos({
     name: plantilla.name,
     descripcion: plantilla.descripcion || '',
     tipo: plantilla.tipo || 'Onboarding',
@@ -63,7 +67,19 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
     cargo: plantilla.cargo || '',
     esGlobal: !!plantilla.esGlobal,
     ...cambios,
-  })
+  }, desplazadas)
+
+  /* Sucursal, área y cargo no describen la ruta: deciden a quién le llega. Sobre una ruta
+     vigente, cambiarlos la muda de puesto —deja el anterior sin ruta, puede apagar la del
+     nuevo (RN-M60) y les mueve el piso a los que están en curso—, así que ahí se confirma
+     antes de escribir. Cuando no arrastra nada —un borrador, una inactiva— se guarda igual de
+     directo que el nombre: la fricción que aparece siempre deja de leerse. */
+  const [alcanceConfirm, setAlcanceConfirm] = useState(null)
+  const guardarAlcance = cambios => {
+    const impacto = impactoDeAlcance(plantilla, cambios, todasLasRutas)
+    if (!impacto.hay) { guardar(cambios); return }
+    setAlcanceConfirm({ cambios, impacto })
+  }
   const estado = { ...estadoRuta(plantilla.status), regla: REGLA_ESTADO[normalizarStatus(plantilla.status)] || REGLA_ESTADO.borrador }
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
@@ -103,7 +119,11 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
           style={{ width: 960, maxWidth: '96vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}
           onClick={e => e.stopPropagation()}
         >
-          {/* HEADER ÚNICO */}
+          {/* HEADER ÚNICO. El título depende de lo que la pantalla deje hacer: cuando los
+              datos se editan aquí, "Vista previa" prometía lo contrario de lo que pasaba —una
+              previa es donde uno toca sin miedo— y el botón del pie, "Editar etapas y tareas",
+              reforzaba la idea de que para editar había que irse a otro lado. Sin permisos, o
+              mirando una versión vieja, no se edita nada y el nombre vuelve a ser cierto. */}
           <div className="pl-modal-header" style={{ flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -111,9 +131,9 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                 background: 'rgba(255,255,255,0.12)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <Eye size={16} style={{ color: '#fff' }} />
+                {editable ? <Info size={16} style={{ color: '#fff' }} /> : <Eye size={16} style={{ color: '#fff' }} />}
               </div>
-              <h2>Vista previa</h2>
+              <h2>{editable ? 'Detalle de la ruta' : 'Vista previa'}</h2>
             </div>
             <button className="pl-modal-close" onClick={onClose}>
               <X size={18} />
@@ -314,7 +334,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                             <ListaEnLinea
                               value={plantilla.tipo || 'Onboarding'}
                               opciones={tiposRuta}
-                              onChange={tipo => guardar({ tipo })}
+                              onChange={tipo => guardarAlcance({ tipo })}
                               editable={editable}
                             />
                           </FilaInfo>
@@ -322,7 +342,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                             <ListaEnLinea
                               value={plantilla.sucursal || 'Todas las sucursales'}
                               opciones={['Todas las sucursales', ...sucursales]}
-                              onChange={sucursal => guardar({ sucursal })}
+                              onChange={sucursal => guardarAlcance({ sucursal })}
                               editable={editable}
                             />
                           </FilaInfo>
@@ -332,7 +352,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                             <ListaEnLinea
                               value={plantilla.area}
                               opciones={[TODAS_LAS_AREAS, ...areas]}
-                              onChange={area => guardar({ area, cargo: '' })}
+                              onChange={area => guardarAlcance({ area, cargo: '' })}
                               editable={editable}
                             />
                           </FilaInfo>
@@ -340,7 +360,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                             <ListaEnLinea
                               value={plantilla.cargo}
                               opciones={cargosPorArea[plantilla.area] || []}
-                              onChange={cargo => guardar({ cargo })}
+                              onChange={cargo => guardarAlcance({ cargo })}
                               editable={editable}
                               desactivado={plantilla.area === TODAS_LAS_AREAS}
                               placeholder={plantilla.area === TODAS_LAS_AREAS ? 'Todos los cargos' : 'Sin cargo'}
@@ -393,6 +413,19 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
 
       {activeTask && (
         <TaskPreviewModal task={activeTask} onClose={() => setActiveTask(null)} />
+      )}
+
+      {alcanceConfirm && (
+        <CambiarAlcanceRutaModal
+          ruta={plantilla}
+          impacto={alcanceConfirm.impacto}
+          enCurso={enCurso.length}
+          onConfirmar={() => {
+            guardar(alcanceConfirm.cambios, alcanceConfirm.impacto.desplaza)
+            setAlcanceConfirm(null)
+          }}
+          onCancelar={() => setAlcanceConfirm(null)}
+        />
       )}
 
       {showAddModal && (

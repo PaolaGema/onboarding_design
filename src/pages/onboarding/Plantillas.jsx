@@ -202,7 +202,7 @@ export default function Plantillas() {
       area: isManager ? managerArea : 'Ventas',
       cargo: '',
       /* Qué se está creando. La general no se apunta a nadie —va para todos— así que no
-         tiene sucursal, área ni cargo; declararlo acá evita crear una ruta común y tener
+         tiene sucursal, área ni cargo; declararlo aquí evita crear una ruta común y tener
          que acordarse después de marcarla desde el menú de acciones. */
       esGlobal: false,
     })
@@ -210,7 +210,7 @@ export default function Plantillas() {
   }
 
   function openEdit(p) {
-    // Arrastra `esGlobal` para que a la ruta general tampoco se le pidan acá sucursal, área
+    // Arrastra `esGlobal` para que a la ruta general tampoco se le pidan aquí sucursal, área
     // ni cargo: son datos que no usa. Cambiar la marca sigue siendo cosa del menú de acciones.
     const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', esGlobal: !!p.esGlobal, id: p.id }
     setForm(initial)
@@ -1138,14 +1138,14 @@ export default function Plantillas() {
               )}
 
               {/* Solo puede haber una. Si ya existe, no se piden datos que no van a poder
-                  guardarse: se explica dónde está la vigente y se corta acá. */}
+                  guardarse: se explica dónde está la vigente y se corta aquí. */}
               {generalBloqueada ? (
                 <div className="pl-aviso-bloqueo">
                   <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
                   <span>
                     Ya existe una ruta general: <strong>{rutaGeneral.name}</strong>. Solo puede haber
-                    una, así que para cambiar lo que se aplica a toda la empresa editá esa —o quitale
-                    la marca desde su menú de acciones y volvé acá.
+                    una, así que para cambiar lo que se aplica a toda la empresa edita esa —o quítale
+                    la marca desde su menú de acciones y vuelve aquí.
                   </span>
                 </div>
               ) : (
@@ -1159,7 +1159,7 @@ export default function Plantillas() {
                   <span>
                     Sus etapas se anteponen a las de <strong>todas</strong> las rutas, sin importar
                     cargo, área ni sucursal. Por eso no se elige a quién apuntarla: es lo común a
-                    toda la empresa. En las otras rutas aparecen en gris y solo se editan desde acá.
+                    toda la empresa. En las otras rutas aparecen en gris y solo se editan desde aquí.
                   </span>
                 </div>
               )}
@@ -1246,18 +1246,31 @@ export default function Plantillas() {
           onClose={() => setPreviewRuta(null)}
           canEdit={previewRuta._versionPreview ? false : canEditRuta(previewRuta)}
           onEdit={previewRuta._versionPreview ? undefined : () => { setActiveJourney({ ...previewRuta, isEditingExisting: true }); setPreviewRuta(null) }}
-          /* Los datos se guardan sin cerrar la vista previa: se corrige el nombre y se sigue
-             mirando el camino, que es para lo que se abrió. Una versión vieja no se toca. */
-          onGuardarDatos={previewRuta._versionPreview ? undefined : datos => {
-            const cambios = {
+          /* Los datos se guardan sin cerrar el detalle: se corrige el nombre y se sigue
+             mirando el camino, que es para lo que se abrió. Una versión vieja no se toca.
+
+             `desplazadas` llega solo cuando el cambio mueve la ruta a un puesto que ya tenía
+             una vigente y eso se confirmó (RN-M60). Escribe sobre la lista completa y no
+             sobre la vista filtrada por área, por lo mismo que `cambiarStatus`: la unicidad
+             es del sistema, y la ruta que se apaga puede ser de un área que quien edita ni
+             siquiera ve. */
+          onGuardarDatos={previewRuta._versionPreview ? undefined : (datos, desplazadas = []) => {
+            const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            const ruta = {
+              ...previewRuta,
               ...datos,
               name: datos.name.trim(),
               descripcion: datos.descripcion?.trim() || '',
               updated: 'Ahora',
-              updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+              updatedFecha: hoy,
             }
-            setPlantillas(prev => prev.map(p => (p.id === previewRuta.id ? { ...p, ...cambios } : p)))
-            setPreviewRuta(prev => ({ ...prev, ...cambios }))
+            const apagadas = new Set(desplazadas.map(d => d.id))
+            setAllPlantillas(allPlantillas.map(p => {
+              if (p.id === previewRuta.id) return { ...p, ...ruta }
+              return apagadas.has(p.id) ? marcarDesplazada(p, ruta, hoy) : p
+            }))
+            setPreviewRuta(ruta)
+            desplazadas.forEach(d => addFeedEntry(`Ruta "${d.name}" pasó a Inactivo — reemplazada por "${ruta.name}"`))
           }}
         />
       )}

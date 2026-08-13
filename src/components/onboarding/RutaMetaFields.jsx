@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 
 /* Los datos que identifican a una ruta: cómo se llama y a quién apunta.
-   Viven acá y no dentro de una pantalla porque se editan en dos lugares —el modal de alta y
+   Viven aquí y no dentro de una pantalla porque se editan en dos lugares —el modal de alta y
    la vista previa— y dos copias del mismo formulario se desincronizan al primer campo nuevo.
 
    El componente no guarda nada: recibe `form` y `setForm` y deja la persistencia a quien lo
@@ -26,7 +26,7 @@ export const tiposRuta = ['Onboarding', 'Reboarding']
 
 export const TODAS_LAS_AREAS = 'Todas las áreas'
 
-/* Qué falta para poder guardar. Se decide acá, junto a los campos, para que no haya una
+/* Qué falta para poder guardar. Se decide aquí, junto a los campos, para que no haya una
    pantalla pidiendo un dato que el formulario ya no muestra. */
 export function faltaAlgo(form) {
   if (!form.name?.trim()) return true

@@ -17,7 +17,7 @@ function Pildora({ children, fondo = '#f1f5f9', texto = '#0C2D40', Icon }) {
 
 /* Hub del módulo Onboarding para quien tiene más de un destino adentro: el líder (su ruta y
    el seguimiento de su área) y el buddy (su ruta y su gente acompañada). El colaborador no
-   pasa por acá: con un solo destino, un hub sobra.
+   pasa por aquí: con un solo destino, un hub sobra.
 
    El orden de las tarjetas no es fijo, es por urgencia: arriba va el trabajo que le queda a
    la persona y abajo lo que ya cerró. Por eso al buddy graduado le abre con "Mis acompañados"

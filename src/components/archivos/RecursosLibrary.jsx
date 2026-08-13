@@ -100,7 +100,7 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
   const [bfDropTipo, setBfDropTipo] = useState(false)
   const [bfDropEstado, setBfDropEstado] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
-  /* Se pide acá arriba y no dentro del modal porque el modal se dibuja desde una función
+  /* Se pide aquí arriba y no dentro del modal porque el modal se dibuja desde una función
      condicional, y un hook adentro cambiaría de orden entre renders. Con la clave en null
      el hook no hace nada. */
   const archivoUrl = useArchivoLocal(previewDoc?.archivo)

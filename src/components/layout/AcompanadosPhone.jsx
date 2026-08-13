@@ -17,7 +17,7 @@ const URGENCIA = { 'en-riesgo': 0, 'sin-iniciar': 1, 'en-curso': 2, 'graduado': 
 const TOPE = 6
 
 /* Píldora con los colores del directorio (`ESTADOS_ONBOARDING`), que es la fuente que usa
-   "Mis acompañados" en escritorio: si acá se inventaran tonos, el mismo estado se vería de
+   "Mis acompañados" en escritorio: si aquí se inventaran tonos, el mismo estado se vería de
    dos colores según el dispositivo. */
 function Badge({ onb }) {
   const estado = ESTADOS_ONBOARDING[onb]
@@ -205,7 +205,7 @@ export default function AcompanadosPhone({ currentUser, onVolver }) {
           <HeartHandshake size={18} style={{ color: '#cbd5e1', margin: '0 auto 7px' }} />
           <div style={{ fontSize: 8, fontWeight: 700, color: '#0C2D40' }}>Todavía no acompañas a nadie</div>
           <div style={{ fontSize: 6.5, color: '#94a3b8', marginTop: 4, lineHeight: 1.5 }}>
-            Cuando Recursos Humanos te asigne como buddy de alguien, esa persona aparecerá acá.
+            Cuando Recursos Humanos te asigne como buddy de alguien, esa persona aparecerá aquí.
           </div>
         </div>
       ) : (

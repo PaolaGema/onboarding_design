@@ -7,7 +7,7 @@ import { ChevronDown, Check } from 'lucide-react'
    cambiaba de cara para corregir una palabra.
 
    Sin botón de guardar: el texto confirma al salir del campo y la lista al elegir. Un
-   "Guardar" acá obligaría a un paso extra por cada corrección suelta, que es justo lo que
+   "Guardar" aquí obligaría a un paso extra por cada corrección suelta, que es justo lo que
    este patrón viene a sacar. */
 
 export function TextoEnLinea({ value, onChange, placeholder, multilinea = false, editable = true, estilo }) {

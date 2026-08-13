@@ -1878,6 +1878,33 @@ select.pl-input:focus {
   gap: 6px;
 }
 
+/* Aviso de un panel que existe pero no se puede usar todavía: la etapa viene de la ruta
+   general, o no tiene ninguna actividad donde poner la tarea. La clase se usaba sin estar
+   escrita, así que el bloque salía sin estilo —ícono en su propio renglón y el texto al
+   tamaño por defecto—, y un panel que se ve roto no se lee como una explicación. */
+.jb-panel-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-soft);
+}
+
+.jb-panel-nota svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+
+.jb-panel-nota p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: #334155;
+}
+
 .jb-sb-count {
   background: #0C2D40;
   color: #fff;

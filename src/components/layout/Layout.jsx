@@ -36,7 +36,7 @@ export default function Layout() {
 
   /* El buddy tampoco la tiene: acompañar no es una ruta propia en curso, así que entra por
      Zona HR como cualquier otro módulo. La regla de la pestaña sigue siendo una sola —
-     tenés incorporación en curso o no — y no se le abre una excepción por rol. */
+     tienes incorporación en curso o no — y no se le abre una excepción por rol. */
 
   /* El hub aparece cuando hay más de un destino adentro. El buddy graduado igual lo ve: su
      ruta terminada sigue siendo consultable y la tarjeta lo dice. */
@@ -107,7 +107,7 @@ export default function Layout() {
     const sinAccesoAdmin = currentUser.role === 'colaborador' || currentUser.role === 'buddy'
 
     // Lo suyo vive en Mi espacio personal; los módulos administrativos ni les aparecen en el
-    // riel, así que llegar acá es haber escrito la URL a mano o venir de un enlace viejo.
+    // riel, así que llegar aquí es haber escrito la URL a mano o venir de un enlace viejo.
     if (sinAccesoAdmin && location.pathname.startsWith('/inicio')) {
       navigate('/mi-espacio/mi-dia', { replace: true })
     } else if (sinAccesoAdmin && (isAdminRoute || isPersonas || isArchivos)) {

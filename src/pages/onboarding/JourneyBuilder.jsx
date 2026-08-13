@@ -50,7 +50,7 @@ const FORMATOS_SUBIDA = ['PDF', 'JPG', 'PNG', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT
 // Tipos de contenido que se pueden subir desde el equipo. Los formatos de cada uno salen de
 // `ACCEPT_POR_TIPO`, la misma lista que usa la biblioteca de Recursos corporativos.
 const TIPOS_SUBIBLES = ['documento', 'lectura', 'video', 'audio']
-/* A partir de acá el desplegable de carpetas trae buscador. El número no es arbitrario: la
+/* A partir de aquí el desplegable de carpetas trae buscador. El número no es arbitrario: la
    lista mide 200 px de alto y cada fila unos 34, así que seis es exactamente donde deja de
    entrar y hay que scrollear. Antes de eso, buscar cuesta más que mirar. */
 const CARPETAS_CON_BUSCADOR = 6
@@ -272,6 +272,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // destino del panel de tareas y de "agregar"). Con el lienzo continuo, el clic
   // en el sidebar navega en vez de filtrar.
   function goToEtapa(i) {
+    pausarSpy()
     setSelEtapa(i)
     setSelTarea(null)
     const el = etapaRefs.current[i]
@@ -280,12 +281,78 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
   // Navega a una actividad concreta dentro de una etapa (desde el índice del sidebar).
   function goToActividad(ei, ai) {
+    pausarSpy()
     setSelEtapa(ei)
     setSelTarea(null)
     const el = actividadRefs.current[`${ei}:${ai}`]
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     else etapaRefs.current[ei]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  /* El índice sigue al lienzo mientras se scrollea.
+
+     Antes la etapa activa solo cambiaba al hacer clic, así que bajando por la ruta se
+     terminaba leyendo la etapa 5 con la 1 marcada. Y no era solo un resaltado desfasado: la
+     etapa activa es el destino del panel "Tipos de tarea" y de todo lo que se agrega, así que
+     el panel seguía ofreciendo agregarle tareas a una etapa que ya no estaba en pantalla.
+
+     Se toma la última etapa cuyo encabezado ya cruzó la línea de lectura —el borde de arriba
+     del lienzo más un margen— y no "la más visible": con etapas largas, la más visible no
+     cambia hasta pasar su mitad, y el salto ocurría tarde y en medio del contenido. */
+  const LINEA_LECTURA = 140
+  const spyPausado = useRef(false)
+  const spyTimer = useRef(null)
+
+  /* El scroll suave de `goToEtapa` dispara el mismo evento que el scroll del usuario, y
+     durante el viaje pasa por todas las etapas intermedias: sin esta pausa, hacer clic en la
+     6 marcaba la 2, después la 3… y terminaba peleándose con el destino. */
+  function pausarSpy() {
+    spyPausado.current = true
+    clearTimeout(spyTimer.current)
+    spyTimer.current = setTimeout(() => { spyPausado.current = false }, 800)
+  }
+
+  useEffect(() => () => clearTimeout(spyTimer.current), [])
+
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    let frame = null
+    function medir() {
+      frame = null
+      if (spyPausado.current) return
+      const total = rutaState.etapas.length
+      /* Tocar fondo marca la última, sin medir. Si la etapa final es corta, su encabezado no
+         llega a cruzar la línea de lectura ni con el scroll agotado: se quedaba mirando la
+         última etapa con la anterior marcada, y no había forma de llegar a ella scrolleando. */
+      const alFinal = el.scrollTop + el.clientHeight >= el.scrollHeight - 4
+      let activa = alFinal ? total - 1 : 0
+      if (!alFinal) {
+        const linea = el.getBoundingClientRect().top + LINEA_LECTURA
+        for (let i = 0; i < total; i++) {
+          const nodo = etapaRefs.current[i]
+          if (nodo && nodo.getBoundingClientRect().top <= linea) activa = i
+        }
+      }
+      setSelEtapa(prev => (prev === activa ? prev : activa))
+    }
+    function onScroll() {
+      if (frame === null) frame = requestAnimationFrame(medir)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
+  }, [rutaState.etapas.length])
+
+  /* Y el índice se mueve con su propia marca: la lista scrollea por su cuenta, así que con
+     seis etapas la activa podía quedar fuera de cuadro y el resaltado no se veía. `nearest`
+     mueve lo mínimo, para no arrastrar la lista en cada scroll. */
+  const sbItemRefs = useRef({})
+  useEffect(() => {
+    sbItemRefs.current[selEtapa]?.scrollIntoView({ block: 'nearest' })
+  }, [selEtapa])
   const initialRutaSnapshot = useRef({ rutaState, rutaConfig })
   const [floatLeftOffset, setFloatLeftOffset] = useState(320)
 
@@ -405,7 +472,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     addFeedEntry(`Ruta "${plantilla.name}" guardada${scopeMsg}`)
     setHasUnsavedChanges(false)
     setApplyModal(null)
-    // Si se llegó acá desde "Guardar y salir", el destino es el que pidió el usuario.
+    // Si se llegó aquí desde "Guardar y salir", el destino es el que pidió el usuario.
     const salida = exitNavRef.current
     exitNavRef.current = null
     ;(salida || onBack)()
@@ -452,7 +519,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
   // Deja el guardado de esta ruta disponible para el aviso global de "cambios
   // sin guardar" (se dispara también al navegar desde el sidebar o el menú del
-  // módulo, no solo con el botón "atrás" de acá abajo). Se reasigna en cada
+  // módulo, no solo con el botón "atrás" de aquí abajo). Se reasigna en cada
   // render para que siempre guarde el rutaState más reciente.
   useEffect(() => {
     setSaveHandler((salida) => {
@@ -832,7 +899,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   }
 
   /* Dónde está ya una tarea de este tipo, o null. Recorre TODA la ruta, incluidas las etapas
-     de la ruta general: una copia heredada del tronco común no se puede borrar desde acá, así
+     de la ruta general: una copia heredada del tronco común no se puede borrar desde aquí, así
      que agregar otra dejaría la ruta con dos y una de ellas intocable. */
   function ubicarTareaDeTipo(tipoKey) {
     for (const etapa of rutaState.etapas) {
@@ -849,7 +916,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     const etapaTarget = rutaState.etapas[etapaIdx]
     if (!tipo || !etapaTarget || etapaTarget.locked || etapaTarget.actividades.length === 0) return
 
-    /* El candado vive acá y no en los menús porque todos los caminos para agregar —el menú
+    /* El candado vive aquí y no en los menús porque todos los caminos para agregar —el menú
        "+", la paleta de la derecha y el arrastre al lienzo— desembocan en esta función. Los
        menús además la muestran deshabilitada; esto es la red por si algo se cuela. */
     if (tipo.unicaPorRuta) {
@@ -953,7 +1020,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   // Para activar basta UNA tarea (RN-M66): la jerarquía etapa → actividad → tarea ya
   // implica las otras dos, y una actividad vacía es solo un título sin contenido real.
   /* El botón guarda, así que se habilita cuando hay algo que guardar y nada más. Ya no exige
-     tener una tarea: eso era un requisito para *activar*, y activar dejó de vivir acá. Una
+     tener una tarea: eso era un requisito para *activar*, y activar dejó de vivir aquí. Una
      ruta a medio armar se guarda igual, que es de lo que se trata un borrador. */
   const primaryDisabled = !hasUnsavedChanges
   const primaryReason = 'No hay cambios sin guardar'
@@ -969,22 +1036,27 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           <span className="jb-bc-text">{backLabel || 'Rutas'}</span>
           <ChevronRight size={14} className="jb-bc-sep" />
           <span className="jb-bc-current">{plantilla.name}</span>
-          {/* Quiénes están adentro, al lado del nombre de la ruta. Va acá y no solo en el
+          {/* Quiénes están adentro, al lado del nombre de la ruta. Va aquí y no solo en el
               aviso de abajo porque el aviso es un párrafo y los párrafos no se leen: las
               caras se ven de reojo, antes de tocar nada. */}
+          {/* "Sin terminar" y no "en curso": el número cuenta a todo el que no llegó al final,
+              y ahí adentro hay gente en `pendiente` —día 0, todavía no empezó— y en `pausado`,
+              que es justo lo contrario de estar en curso. Tampoco "asignados", que sería un
+              número distinto: los que ya completaron la ruta también la tienen asignada y no
+              están en esta cuenta, porque a ellos un cambio ya no les llega. */}
           {hayEnCurso && (
             <span className="jb-encurso-pila">
               <PilaAvatares
                 personas={asignadosEnCurso()}
-                titulo={`${enCursoAlEntrar} ${enCursoAlEntrar === 1 ? 'colaborador está haciendo' : 'colaboradores están haciendo'} esta ruta: ${asignadosEnCurso().map(a => a.nombre).join(', ')}`}
+                titulo={`${enCursoAlEntrar} ${enCursoAlEntrar === 1 ? 'colaborador todavía no terminó' : 'colaboradores todavía no terminaron'} esta ruta: ${asignadosEnCurso().map(a => a.nombre).join(', ')}`}
               />
-              <span>{enCursoAlEntrar} en curso</span>
+              <span>{enCursoAlEntrar} sin terminar</span>
             </span>
           )}
         </div>
         <div className="jb-topbar-actions">
           {/* Herramientas de la ruta, siempre en el mismo lugar.
-              El catálogo también vive acá y no solo en el lienzo vacío: era un atajo que
+              El catálogo también vive aquí y no solo en el lienzo vacío: era un atajo que
               desaparecía apenas agregabas una etapa, justo cuando ya sabías qué querías armar y
               te acordabas de que había una plantilla parecida. Abrirlo no cambia nada todavía —
               el modal muestra el contenido y pide confirmación antes de pisar lo que hay. */}
@@ -1045,7 +1117,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           aplica?" es una sorpresa. Acá es una condición del trabajo.
 
           Ya no dice cuánta gente hay adentro —eso lo dicen las caras de la barra de arriba,
-          que se ven sin leer—: repetirlo acá alargaba el párrafo justo con la parte que ya
+          que se ven sin leer—: repetirlo aquí alargaba el párrafo justo con la parte que ya
           estaba resuelta de un vistazo, y lo que queda es lo único que una cara no puede
           contar. Banner y no modal de bienvenida, además, porque un modal se descarta en dos
           segundos y el dato deja de estar a la vista mientras se edita. */}
@@ -1058,7 +1130,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               decisión ni se entiende sin explicar el modelo entero. */}
           <span>
             Al guardar vas a poder elegir si los cambios aplican <strong>solo a los ingresos
-            nuevos</strong> o también a {enCursoAlEntrar === 1 ? 'quien ya empezó' : 'quienes ya empezaron'}.
+            nuevos</strong> o también a {enCursoAlEntrar === 1 ? 'quien todavía no terminó' : 'quienes todavía no terminaron'}.
           </span>
         </div>
       )}
@@ -1132,6 +1204,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           </div>
                         ) : (
                           <div
+                            ref={el => { sbItemRefs.current[i] = el }}
                             className={`jb-sb-item ${selEtapa === i ? 'active' : ''} ${done ? 'done' : ''} ${e.locked ? 'locked' : ''}`}
                             draggable={canDrag}
                             onDragStart={ev => { ev.dataTransfer.setData('etapaIdx', String(i)); ev.dataTransfer.effectAllowed = 'move'; setDragEtapa(i) }}
@@ -1194,21 +1267,29 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               {etapa && (
               <div className="jb-float-card jb-float-right">
                 <div className="jb-sb-title">Tipos de tarea</div>
+                {/* El aviso de la etapa bloqueada usa el mismo texto que la vista previa de la
+                    ruta, palabra por palabra: es el mismo hecho contado en dos pantallas, y
+                    cuando cada una lo redacta a su manera se lee como si fueran dos reglas
+                    distintas.
+
+                    Sin el nombre de la ruta general entre paréntesis: solo puede haber una, así
+                    que nombrarla no ayuda a encontrarla y repetía "ruta general" dos veces en el
+                    mismo renglón. Y sin la instrucción del final —"para cambiarlas, edita la ruta
+                    general"—, que repetía lo que la frase anterior ya había dicho. */}
                 {etapa.locked ? (
                   <div className="jb-panel-nota">
                     <Lock size={14} />
                     <p>
-                      Las tareas con candado vienen de la <strong>ruta general</strong>
-                      {etapa.sourceRouteName ? ` (${etapa.sourceRouteName})` : ''} y no se
-                      editan desde acá. Para cambiarlas, editá la ruta general.
+                      Estas tareas vienen de la <strong>ruta general</strong>: comunes a todos
+                      los colaboradores y solo editables desde ahí.
                     </p>
                   </div>
                 ) : etapa.actividades.length === 0 ? (
                   <div className="jb-panel-nota">
                     <Layers size={14} />
                     <p>
-                      Primero agregá una actividad a esta etapa: las tareas van adentro de una,
-                      no sueltas.
+                      Las tareas van dentro de una actividad, no sueltas. Agrega una a esta
+                      etapa para empezar.
                     </p>
                   </div>
                 ) : (
@@ -3175,7 +3256,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 <p style={{ margin: 0, fontSize: 12, color: '#1e40af', lineHeight: 1.5 }}>
                   Los ingresos nuevos van a recibir la ruta con estos cambios. Decide qué pasa
                   con {applyModal.count === 1 ? 'el' : 'los'} <strong>{applyModal.count}</strong>{' '}
-                  {applyModal.count === 1 ? 'colaborador que ya está' : 'colaboradores que ya están'} haciendo esta ruta:
+                  {applyModal.count === 1 ? 'colaborador que todavía no terminó' : 'colaboradores que todavía no terminaron'} esta ruta:
                 </p>
               </div>
               {/* Dos opciones y no tres. Había una intermedia —"solo a los que aún no
@@ -3183,8 +3264,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   saber quién está en día 0 para poder elegir. La pregunta real es una sola:
                   ¿los que ya están adentro se quedan como están o pasan a lo nuevo? */}
               {[
-                { key: 'futuras', icon: CheckCircle2, title: 'Solo a los futuros colaboradores', badge: 'Recomendado', accent: '#16a34a', desc: `${applyModal.count === 1 ? 'Quien ya está' : 'Quienes ya están'} en curso ${applyModal.count === 1 ? 'sigue' : 'siguen'} con la ruta tal como se ${applyModal.count === 1 ? 'le' : 'les'} asignó.` },
-                { key: 'todos', icon: AlertTriangle, title: 'A los que están en proceso y a los futuros', accent: '#b45309', warn: true, desc: `${applyModal.count === 1 ? 'El colaborador que ya avanzó recibe' : `Los ${applyModal.count} que ya avanzaron reciben`} los cambios: sus tareas y su progreso pueden cambiar.` },
+                { key: 'futuras', icon: CheckCircle2, title: 'Solo a los futuros colaboradores', badge: 'Recomendado', accent: '#16a34a', desc: `${applyModal.count === 1 ? 'Quien sigue' : 'Quienes siguen'} adentro ${applyModal.count === 1 ? 'termina' : 'terminan'} con la ruta tal como se ${applyModal.count === 1 ? 'le' : 'les'} asignó.` },
+                { key: 'todos', icon: AlertTriangle, title: 'A los que siguen adentro y a los futuros', accent: '#b45309', warn: true, desc: `${applyModal.count === 1 ? 'El colaborador que sigue adentro recibe' : `Los ${applyModal.count} que siguen adentro reciben`} los cambios: sus tareas y su progreso pueden cambiar.` },
               ].map(opt => {
                 const sel = applyScope === opt.key
                 const AIcon = opt.icon

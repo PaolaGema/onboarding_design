@@ -4,7 +4,7 @@
    evita duplicar un puesto cuando lo comparten dos personas.
    Las UNIDADES son las áreas; se anidan entre sí (Marketing → Marketing Digital) y
    agrupan cargos, pero no reportan: quien reporta es el cargo.
-   Las personas viven en `colaboradoresData`; acá solo se referencian por id.
+   Las personas viven en `colaboradoresData`; aquí solo se referencian por id.
 
    Todas las funciones reciben el `org` completo ({ unidades, cargos }) en vez de leer
    las constantes: la pantalla guarda su propia copia editable, así que las áreas y los
@@ -20,7 +20,7 @@ export const sucursales = [
   { id: 'cbb', nombre: 'Sucursal', ciudad: 'Cochabamba' },
 ]
 
-/* Paleta de las áreas: el usuario elige de acá al crear una unidad nueva. */
+/* Paleta de las áreas: el usuario elige de aquí al crear una unidad nueva. */
 export const COLORES_UNIDAD = [
   '#0C2D40', '#06b6d4', '#d946ef', '#ec4899',
   '#3b82f6', '#8b5cf6', '#f97316', '#10b981',
@@ -125,7 +125,7 @@ export const relaciones = [
    trabaja sobre la copia; esta constante nunca se muta. */
 export const orgSeed = { unidades, cargos, relaciones }
 
-/* Con qué arranca una demo reseteada. Las sucursales NO están acá: son datos de la empresa
+/* Con qué arranca una demo reseteada. Las sucursales NO están aquí: son datos de la empresa
    —existen antes de que nadie dibuje un organigrama— y por eso sobreviven al reseteo. Lo que
    se construye desde cero son las áreas y los cargos. */
 export const orgVacio = { unidades: [], cargos: [], relaciones: [] }

@@ -50,7 +50,7 @@ function RecorridoCompacto({ etapas }) {
 }
 
 /* Detalle de una tarea del recorrido. Solo lectura: no se marca ni se desmarca nada de un
-   proceso cerrado, pero sí se vuelve a abrir el material — que es a lo que se entra acá. */
+   proceso cerrado, pero sí se vuelve a abrir el material — que es a lo que se entra aquí. */
 function TareaVista({ tarea, onCerrar }) {
   const meta = tipoMap[tarea.tipo] || { icon: FileText, color: '#94a3b8', label: 'Tarea' }
   const Ico = meta.icon
@@ -167,7 +167,7 @@ function Entrada({ p, compact, ultimo }) {
             ) : (
               <>
                 {/* Mismo camino de nodos que el constructor y que la vista previa de la
-                    ruta, pero sin nada que tocar: acá el recorrido ya ocurrió. */}
+                    ruta, pero sin nada que tocar: aquí el recorrido ya ocurrió. */}
                 <div style={{
                   marginTop: 14, padding: '20px 0',
                   borderRadius: 12, background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)',

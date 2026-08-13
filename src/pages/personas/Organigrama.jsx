@@ -14,7 +14,7 @@ import {
   eliminarCargo, eliminarUnidad, bloqueoUnidad, unidadesPadrePosibles,
 } from '../../data/organigramaData'
 
-/* Lo visual de cada tipo. Los textos viven en `TIPOS_CARGO` (el modelo) y acá solo se les
+/* Lo visual de cada tipo. Los textos viven en `TIPOS_CARGO` (el modelo) y aquí solo se les
    suma ícono y clase: antes había dos mapas de etiquetas —uno en las cards, otro en la
    tabla— y ninguno conocía Outsourcing, así que los cargos externos se mostraban como
    colaboradores comunes. */
@@ -339,7 +339,7 @@ function ImportarModal({ onCerrar }) {
           <div className="og-drop">
             <UploadCloud size={26} />
             <strong>Arrastra tu archivo aquí</strong>
-            <span>o hacé clic para buscarlo — .xlsx o .csv</span>
+            <span>o haz clic para buscarlo — .xlsx o .csv</span>
           </div>
           <button className="og-btn-ghost og-btn-full">
             <FileSpreadsheet size={14} /> Descargar plantilla de ejemplo
@@ -621,7 +621,7 @@ function VistaTabla({ org, busca, setBusca, onAbrir }) {
 
 /* ---------- Organigrama todavía sin dibujar ---------- */
 
-/* Las sucursales aparecen acá a propósito: son lo único que ya existe cuando no hay nada
+/* Las sucursales aparecen aquí a propósito: son lo único que ya existe cuando no hay nada
    dibujado, y verlas listadas contesta la pregunta obvia de "¿tengo que cargar las sedes
    otra vez?" antes de que alguien la haga. */
 function VacioOrganigrama({ onCrearArea, onImportar, onEjemplo }) {

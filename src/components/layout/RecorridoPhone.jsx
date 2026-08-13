@@ -5,7 +5,7 @@ import BarraVolver from './BarraVolver'
 
 /* El recorrido de una persona en el teléfono, de solo lectura: el mismo camino de nodos que
    ve el colaborador en su onboarding y Recursos Humanos en la ficha de la asignación. Vive
-   acá y no dentro de una pantalla porque lo miran el buddy y el líder, y una lista de etapas
+   aquí y no dentro de una pantalla porque lo miran el buddy y el líder, y una lista de etapas
    en un lado y un camino en el otro serían dos rutas distintas para la misma persona.
 
    Quien mira no actúa: los nodos abren la tarea para saber de qué se trata, nada más. */
@@ -15,7 +15,7 @@ import BarraVolver from './BarraVolver'
    cortarían contra el borde de la pantalla. */
 const OFFSETS = [0, 24, 34, 24, 0, -24, -34, -24]
 
-// Tipos cuyo contenido responde el colaborador: lo que contestó no se muestra acá.
+// Tipos cuyo contenido responde el colaborador: lo que contestó no se muestra aquí.
 const CON_RESPUESTAS = ['quiz', 'completar-perfil', 'form-custom', 'pulso', 'perfil']
 
 function Dato({ Icon, children }) {
@@ -30,7 +30,7 @@ function Dato({ Icon, children }) {
 /* Sub-pantalla de una tarea. Responde "de qué se trata", que es lo que necesita quien
    acompaña para poder ayudar: qué hay que hacer, cuándo y quién la hace. El contenido en sí
    —las preguntas de una prueba, los campos de un formulario— no se abre: es material del
-   colaborador, y mostrarlo acá convertiría el acompañamiento en supervisión. */
+   colaborador, y mostrarlo aquí convertiría el acompañamiento en supervisión. */
 export function TareaPhone({ tarea, nombre, volverA = 'Su recorrido', onVolver }) {
   const { gamificacion } = useConfig()
   const tipo = infoTipo(tarea.tipo)

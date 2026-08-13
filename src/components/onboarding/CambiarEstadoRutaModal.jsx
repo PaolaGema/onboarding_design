@@ -23,7 +23,7 @@ export default function CambiarEstadoRutaModal({ ruta, plantillas, enCurso = 0, 
   const primeraDisponible = disponibles[0]?.key
   const [elegido, setElegido] = useState(primeraDisponible || null)
   /* Callejón sin salida: ningún destino disponible. Pasa con un borrador vacío, que no puede
-     ir a Activo hasta tener una tarea. Decir qué falta no alcanza si desde acá no se puede
+     ir a Activo hasta tener una tarea. Decir qué falta no alcanza si desde aquí no se puede
      hacer nada al respecto, así que el pie deja de ofrecer "Cambiar estado" —que no tendría
      a qué cambiar— y ofrece ir a resolverlo. */
   const sinSalida = !primeraDisponible

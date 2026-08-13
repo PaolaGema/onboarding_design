@@ -13,7 +13,7 @@
    que él efectivamente vio. Es la misma regla del snapshot al asignar.
 
    Está indexado por el id del usuario del simulador (UserContext) porque quien mira su
-   propia trayectoria es siempre el usuario activo. El proceso en curso vive acá también,
+   propia trayectoria es siempre el usuario activo. El proceso en curso vive aquí también,
    con `fin: null`: así la línea sale de una sola fuente. */
 
 const t = (id, name, tipo, puntos, obligatoria = false) => ({ id, name, tipo, puntos, obligatoria })

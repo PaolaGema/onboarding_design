@@ -21,7 +21,7 @@ import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
    segunda ruta de una empresa casi siempre se parece a la primera. */
 
 /* Las etapas de la ruta general no viajan en la copia: el constructor vuelve a anteponer las
-   suyas. Se descuentan también acá para que la vista previa muestre exactamente lo que llega. */
+   suyas. Se descuentan también aquí para que la vista previa muestre exactamente lo que llega. */
 const propias = (etapas = []) => etapas.filter(e => !e.locked)
 
 const cuenta = (etapas = []) => ({
@@ -136,7 +136,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                 {lista.length === 0 ? (
                   <div style={{ padding: '40px 10px', textAlign: 'center', fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
                     {pestana === 'copiar' && !q
-                      ? 'Todavía no hay otra ruta con contenido para copiar. Cuando armes una, va a aparecer acá.'
+                      ? 'Todavía no hay otra ruta con contenido para copiar. Cuando armes una, va a aparecer aquí.'
                       : 'No hay resultados para esa búsqueda.'}
                   </div>
                 ) : (
@@ -187,7 +187,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                     <Route size={22} style={{ color: '#94a3b8' }} />
                   </div>
                   <div style={{ fontSize: 12.5, color: 'var(--text-muted)', maxWidth: 280, lineHeight: 1.6 }}>
-                    Elegí una plantilla o una ruta de la izquierda para ver su contenido acá.
+                    Elegí una plantilla o una ruta de la izquierda para ver su contenido aquí.
                   </div>
                 </div>
               ) : (
@@ -195,13 +195,13 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                   {/* Sin barra de título sobre el camino, igual que la Vista previa: el camino
                       ocupa el panel entero y por eso se lee como una ruta y no como el
                       contenido de un recuadro. Nombre y conteos ya están en la tarjeta
-                      resaltada de la izquierda; repetirlos acá costaba una banda de alto
+                      resaltada de la izquierda; repetirlos aquí costaba una banda de alto
                       completo para no decir nada nuevo. */}
                   <div style={{ flex: 1, overflowY: 'auto', padding: '18px 0', background: 'linear-gradient(180deg, #f0f4f8 0%, #e8eef4 100%)' }}>
                     <RutaPath etapas={sel.etapas} gamificacion={gamificacion} onSelectTask={setTareaAbierta} />
                   </div>
 
-                  {/* Más angosto que el pie estándar: acá lleva un botón y, cuando reemplaza,
+                  {/* Más angosto que el pie estándar: aquí lleva un botón y, cuando reemplaza,
                       un aviso — no la fila de Cancelar/Guardar para la que está pensado. */}
                   <div className="pl-modal-footer" style={{ flexShrink: 0, gap: 10, padding: '10px 16px' }}>
                     {/* Traer una base pisa lo que ya está armado. Con el lienzo vacío no hay nada
@@ -215,7 +215,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                           : 'Reemplaza el contenido actual de la ruta'}
                       </span>
                     ) : (
-                      /* El pie ya existe por el botón, así que la pista viaja acá y no cuesta
+                      /* El pie ya existe por el botón, así que la pista viaja aquí y no cuesta
                          alto propio. Cede el lugar al aviso de reemplazo, que pesa más. */
                       <span style={{ marginRight: 'auto', fontSize: 10.5, color: '#94a3b8' }}>
                         Clic en una tarea para ver su contenido

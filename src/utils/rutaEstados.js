@@ -62,6 +62,45 @@ export function rutasEnConflicto(plantillas, ruta) {
     sucursalDe(p) === sucursalDe(ruta))
 }
 
+/* Los campos que deciden a quién le llega la ruta, con el nombre que llevan en la ficha.
+   Nombre y descripción quedan fuera a propósito: corregir una palabra no mueve a nadie de
+   lugar, así que no tienen por qué pasar por una confirmación. */
+export const CAMPOS_ALCANCE = { tipo: 'Tipo', sucursal: 'Sucursal', area: 'Área', cargo: 'Cargo' }
+
+const mismoPuesto = (a, b) => (a.cargo || '') === (b.cargo || '') && sucursalDe(a) === sucursalDe(b)
+
+/* Qué se lleva por delante cambiarle el alcance a una ruta.
+
+   Editar estos campos sobre una ruta en Activo no es corregir un dato: es mudarla de puesto.
+   La unicidad (RN-M60) se defiende al crear y al activar, pero la edición en la ficha no
+   pasaba por ninguno de los dos, así que dejaba dos rutas activas para el mismo puesto con
+   un solo clic —justo lo que el resto del sistema pide confirmar—.
+
+   Devuelve únicamente lo que va a pasar de verdad, y `hay` es falso cuando no pasa nada: una
+   ruta en Borrador no le llega a nadie y ahí el cambio va directo, sin preguntar. La fricción
+   tiene que aparecer solo cuando hay algo que perder; si aparece siempre, deja de leerse. */
+export function impactoDeAlcance(ruta, cambios, plantillas) {
+  const destino = { ...ruta, ...cambios }
+  // La general no ocupa puesto: no hay unicidad que romper ni ingresos que dejen de recibirla.
+  const activa = normalizarStatus(ruta.status) === 'activa' && !ruta.esGlobal
+  const seMudo = activa && !mismoPuesto(ruta, destino)
+
+  // A quiénes desplaza en el puesto nuevo. Sin cargo no reclama ninguno, y no desplaza nada.
+  const desplaza = seMudo ? rutasEnConflicto(plantillas, destino) : []
+  // El puesto que deja atrás se queda sin ruta vigente hasta que se active otra.
+  const liberaPuesto = seMudo && !!ruta.cargo
+  // Activa y sin cargo: no se le asigna a nadie, pero la píldora sigue diciendo Activo.
+  const quedaSinCargo = activa && !!ruta.cargo && !destino.cargo
+
+  return {
+    destino,
+    desplaza,
+    liberaPuesto,
+    quedaSinCargo,
+    hay: desplaza.length > 0 || liberaPuesto || quedaSinCargo,
+  }
+}
+
 /* Mapa de transiciones. Solo tres son posibles:
 
      Borrador → Activo     terminaste de armarla y la publicás para que el motor la use.
