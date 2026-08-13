@@ -8,35 +8,19 @@ import {
 } from 'lucide-react'
 import JourneyBuilder from './JourneyBuilder'
 import RutaFullPreviewModal from '../../components/onboarding/RutaFullPreviewModal'
-import PlantillaPreviewModal from '../../components/onboarding/PlantillaPreviewModal'
 import AsignarRutaModal from '../../components/onboarding/AsignarRutaModal'
 import ActivarRutaModal from '../../components/onboarding/ActivarRutaModal'
 import CambiarEstadoRutaModal from '../../components/onboarding/CambiarEstadoRutaModal'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
 import OnboardingCard from '../../components/onboarding/OnboardingCard'
-import { rutaPlantillas } from '../../data/rutaPlantillas'
+import RutaMetaFields, { areas, cargosPorArea, tiposRuta, faltaAlgo } from '../../components/onboarding/RutaMetaFields'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
 import { estadoRuta, normalizarStatus, rutasEnConflicto, describirPuesto, marcarDesplazada, limpiarDesplazada, motivoDesplazo, ESTADOS_EN_CURSO, SUCURSAL_TODAS } from '../../utils/rutaEstados'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
-const cargosPorArea = {
-  'Ventas': ['Pasante Comercial', 'SDR Junior', 'Ejecutiva Comercial', 'Ejecutivo Senior', 'Account Manager', 'Gerente de Ventas'],
-  'Comercial': ['Ejecutivo Comercial', 'Key Account Manager', 'Coordinador Comercial', 'Director Comercial'],
-  'Dirección': ['Director General', 'Director de Área', 'Gerente General', 'Asistente de Dirección'],
-  'Operaciones': ['Asistente Operativo', 'Analista de Procesos', 'Coordinador Logístico', 'Gerente de Operaciones'],
-  'Tecnología': ['Desarrollador Backend', 'Frontend Developer', 'QA Engineer', 'DevOps Engineer', 'Data Analyst', 'Tech Lead'],
-  'Finanzas': ['Analista Financiera', 'Contador General', 'Tesorero', 'Auditor Interno'],
-  'Diseño': ['Diseñadora UX/UI', 'Diseñadora Gráfica', 'Director Creativo', 'Motion Designer'],
-  'Recursos Humanos': ['Reclutadora', 'Especialista RRHH', 'Analista de Nóminas', 'Generalista RRHH'],
-  'Marketing': ['Community Manager', 'Analista de Marketing', 'Content Creator', 'Growth Manager'],
-  'Legal': ['Abogado Corporativo', 'Paralegal', 'Director Legal'],
-}
-const areas = Object.keys(cargosPorArea)
-const sucursales = ['La Paz', 'Cochabamba', 'Santa Cruz (Central)', 'Tarija']
-const tiposRuta = ['Onboarding', 'Reboarding']
 
 /* Ítem del menú de acciones de una ruta. Lo comparten la cuadrícula y la tabla:
    escrito dos veces, el estado apagado de "Activar" existía solo en una. */
@@ -94,11 +78,6 @@ export default function Plantillas() {
   const [filterCargo, setFilterCargo] = useState('todos')
   const [rfDropStatus, setRfDropStatus] = useState(false)
   const [rfDropTipo, setRfDropTipo] = useState(false)
-  const [createChooser, setCreateChooser] = useState(false)
-  const [tplGallery, setTplGallery] = useState(false)
-  const [tplSearch, setTplSearch] = useState('')
-  const [tplArea, setTplArea] = useState('todas')
-  const [tplAreaOpen, setTplAreaOpen] = useState(false)
   const [statusHeaderPos, setStatusHeaderPos] = useState(null)
   const [tipoHeaderPos, setTipoHeaderPos] = useState(null)
   const [mfDropArea, setMfDropArea] = useState(false)
@@ -125,7 +104,6 @@ export default function Plantillas() {
   const [activeJourney, setActiveJourney] = useState(null)
   const [previewRuta, setPreviewRuta] = useState(null)
   const [modal, setModal] = useState(null)
-  const [selectedTpl, setSelectedTpl] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [asignadosModal, setAsignadosModal] = useState(null)
   // Ruta que se está activando cuando el puesto ya está ocupado (RN-M60).
@@ -140,12 +118,6 @@ export default function Plantillas() {
   const [originalForm, setOriginalForm] = useState(null)
   const [rutaGeneralConfirm, setRutaGeneralConfirm] = useState(null)
   const [historialRuta, setHistorialRuta] = useState(null)
-  const [dropTipo, setDropTipo] = useState(false)
-  const [dropSucursal, setDropSucursal] = useState(false)
-  const [dropArea, setDropArea] = useState(false)
-  const [dropCargo, setDropCargo] = useState(false)
-  const [areaSearch, setAreaSearch] = useState('')
-  const [cargoSearch, setCargoSearch] = useState('')
   const [showResponsables, setShowResponsables] = useState(null)
   const [responsables, setResponsables] = useState({
     9: [{ name: 'Ana Martínez Ruiz', initials: 'AM', color: '#c026d3', role: 'Líder de área' }],
@@ -206,6 +178,10 @@ export default function Plantillas() {
     ? rutasEnConflicto(allPlantillas, { id: form.id, cargo: form.cargo, sucursal: form.sucursal })
     : []
 
+  /* Se pidió una ruta general cuando ya hay una. Solo puede existir una, así que el modal
+     no pide nada más: informa cuál es la vigente y de ahí no pasa. */
+  const generalBloqueada = modal === 'crear' && form.esGlobal && !!rutaGeneral
+
   // `normalizarStatus` para que una ruta guardada como "archivada" antes de que ese estado
   // desapareciera cuente donde corresponde y no quede fuera de los tres contadores.
   const cuantas = estado => plantillas.filter(p => normalizarStatus(p.status) === estado).length
@@ -218,29 +194,25 @@ export default function Plantillas() {
      trae cada plantilla— y la respuesta no se podía cambiar después. Esa elección ahora vive
      dentro del constructor, frente al lienzo vacío que viene a llenar. */
   function openCreate() {
-    chooseTpl(null)
-  }
-
-  function chooseTpl(tpl) {
-    setTplGallery(false)
-    setSelectedTpl(tpl)
     setForm({
-      name: tpl ? '' : '',
-      descripcion: tpl?.descripcion || '',
+      name: '',
+      descripcion: '',
       tipo: 'Onboarding',
-      sucursal: tpl?.sucursal || 'Todas las sucursales',
-      area: tpl?.area === 'Todas las áreas' ? 'Todas las áreas' : (tpl?.area || 'Ventas'),
+      sucursal: 'Todas las sucursales',
+      area: isManager ? managerArea : 'Ventas',
       cargo: '',
+      /* Qué se está creando. La general no se apunta a nadie —va para todos— así que no
+         tiene sucursal, área ni cargo; declararlo acá evita crear una ruta común y tener
+         que acordarse después de marcarla desde el menú de acciones. */
+      esGlobal: false,
     })
-    setDropTipo(false)
-    setDropSucursal(false)
-    setDropArea(false)
-    setDropCargo(false)
     setModal('crear')
   }
 
   function openEdit(p) {
-    const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', id: p.id }
+    // Arrastra `esGlobal` para que a la ruta general tampoco se le pidan acá sucursal, área
+    // ni cargo: son datos que no usa. Cambiar la marca sigue siendo cosa del menú de acciones.
+    const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', esGlobal: !!p.esGlobal, id: p.id }
     setForm(initial)
     setOriginalForm(initial)
     setModal('editar')
@@ -252,15 +224,19 @@ export default function Plantillas() {
     if (modal === 'crear') {
       const newId = Math.max(...plantillas.map(p => p.id), 0) + 1
       const color = colores[newId % colores.length]
-      const etapasData = selectedTpl ? JSON.parse(JSON.stringify(selectedTpl.etapasData)) : undefined
+      // La ruta nace vacía: el contenido se trae después, desde el constructor.
+      const etapasData = undefined
       const newPlantilla = {
         id: newId,
         name: form.name.trim(),
         descripcion: form.descripcion?.trim() || '',
         tipo: form.tipo,
-        sucursal: form.sucursal || 'Todas las sucursales',
-        area: form.area,
-        cargo: form.cargo || '',
+        /* La general va para todos: se guarda con el alcance más amplio en vez de dejar los
+           campos vacíos, así el resto de la pantalla (filtros, listados, "Se incluye en todas
+           las rutas") la lee sin tener que preguntar aparte si es la general. */
+        sucursal: form.esGlobal ? SUCURSAL_TODAS : (form.sucursal || SUCURSAL_TODAS),
+        area: form.esGlobal ? 'Todas las áreas' : form.area,
+        cargo: form.esGlobal ? '' : (form.cargo || ''),
         etapas: etapasData?.length || 0,
         tareas: etapasData ? etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0) : 0,
         asignados: 0,
@@ -268,8 +244,8 @@ export default function Plantillas() {
         updated: 'Ahora',
         updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         color,
-        esGlobal: false,
-        ordenGlobal: null,
+        esGlobal: !!form.esGlobal,
+        ordenGlobal: form.esGlobal ? 0 : null,
         creador: currentUser.name,
         creadorRole: currentUser.roleLabel,
         creadoEl: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
@@ -285,7 +261,7 @@ export default function Plantillas() {
         ...(etapasData ? { etapasData } : {}),
       }
       setPlantillas([...plantillas, newPlantilla])
-      addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada${selectedTpl ? ` desde la plantilla "${selectedTpl.name}"` : ''}`)
+      addFeedEntry(`Nueva ruta "${newPlantilla.name}" creada`)
       setModal(null)
       setActiveJourney({ ...newPlantilla, isNew: !etapasData })
     } else {
@@ -1130,7 +1106,7 @@ export default function Plantillas() {
           <div className="pl-modal" style={{ width: 560 }} onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h2>{modal === 'crear' ? 'Nueva ruta' : 'Editar ruta'}</h2>
+                <h2>{modal === 'editar' ? 'Editar ruta' : form.esGlobal ? 'Nueva ruta general' : 'Nueva ruta'}</h2>
               </div>
               <button className="pl-modal-close" onClick={() => setModal(null)}>
                 <X size={18} />
@@ -1138,161 +1114,57 @@ export default function Plantillas() {
             </div>
 
             <div className="pl-modal-body">
-              <label className="pl-label">
-                <span>Nombre de la ruta <span style={{ color: '#ef4444' }}>*</span></span>
-                <input
-                  type="text"
-                  className="pl-input"
-                  placeholder="Ej: Onboarding Ventas — Pasante"
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  autoFocus
-                />
-              </label>
-
-              <label className="pl-label">
-                Descripción
-                <textarea
-                  className="pl-input"
-                  style={{ resize: 'vertical', minHeight: '52px' }}
-                  rows={2}
-                  placeholder="Breve descripción de esta ruta de onboarding"
-                  value={form.descripcion || ''}
-                  onChange={e => setForm({ ...form, descripcion: e.target.value })}
-                />
-              </label>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div className="pl-label">
-                  <span>Tipo <span style={{ color: '#ef4444' }}>*</span></span>
-                  <div className="pl-dropdown-wrap">
-                    <button
-                      type="button"
-                      className={`pl-dropdown-trigger${dropTipo ? ' open' : ''}`}
-                      onClick={() => { setDropTipo(!dropTipo); setDropArea(false); setDropCargo(false) }}
-                    >
-                      <span>{form.tipo}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {dropTipo && (
-                      <div className="pl-dropdown-menu">
-                        {tiposRuta.map(t => (
-                          <button
-                            key={t}
-                            type="button"
-                            className={`pl-dropdown-item${form.tipo === t ? ' selected' : ''}`}
-                            onClick={() => { setForm({ ...form, tipo: t }); setDropTipo(false) }}
-                          >
-                            <span>{t}</span>
-                            {form.tipo === t && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              {/* Solo al crear: en una ruta que ya existe, pasarla a general es otra cosa
+                  —arrastra las etapas que ya tiene— y para eso está el menú de acciones. */}
+              {modal === 'crear' && isAdmin && (
+                <div className="pl-tipo-tabs">
+                  {[
+                    { general: false, icon: Route, label: 'Ruta por cargo' },
+                    { general: true, icon: ShieldCheck, label: 'Ruta general' },
+                  ].map(t => {
+                    const TIcon = t.icon
+                    return (
+                      <button
+                        key={t.label}
+                        type="button"
+                        className={`pl-tipo-tab${!!form.esGlobal === t.general ? ' on' : ''}`}
+                        onClick={() => setForm({ ...form, esGlobal: t.general })}
+                      >
+                        <TIcon size={13} /> {t.label}
+                      </button>
+                    )
+                  })}
                 </div>
+              )}
 
-                <div className="pl-label">
-                  <span>Sucursal <span style={{ color: '#ef4444' }}>*</span></span>
-                  <div className="pl-dropdown-wrap">
-                    <button
-                      type="button"
-                      className={`pl-dropdown-trigger${dropSucursal ? ' open' : ''}`}
-                      onClick={() => { setDropSucursal(!dropSucursal); setDropTipo(false); setDropArea(false); setDropCargo(false) }}
-                    >
-                      <span>{form.sucursal}</span>
-                      <ChevronDown size={14} className="pl-dropdown-chevron" />
-                    </button>
-                    {dropSucursal && (
-                      <div className="pl-dropdown-menu" style={{ maxHeight: 220, overflowY: 'auto' }}>
-                        {['Todas las sucursales', ...sucursales].map(s => (
-                          <button
-                            key={s}
-                            type="button"
-                            className={`pl-dropdown-item${form.sucursal === s ? ' selected' : ''}`}
-                            onClick={() => { setForm({ ...form, sucursal: s }); setDropSucursal(false) }}
-                          >
-                            <span>{s}</span>
-                            {form.sucursal === s && <Check size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              {/* Solo puede haber una. Si ya existe, no se piden datos que no van a poder
+                  guardarse: se explica dónde está la vigente y se corta acá. */}
+              {generalBloqueada ? (
+                <div className="pl-aviso-bloqueo">
+                  <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+                  <span>
+                    Ya existe una ruta general: <strong>{rutaGeneral.name}</strong>. Solo puede haber
+                    una, así que para cambiar lo que se aplica a toda la empresa editá esa —o quitale
+                    la marca desde su menú de acciones y volvé acá.
+                  </span>
                 </div>
-              </div>
+              ) : (
+              <>
+              <RutaMetaFields form={form} setForm={setForm} autoFocus />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div className="pl-label">
-                  <span>Área <span style={{ color: '#ef4444' }}>*</span></span>
-                  <div className="pl-dropdown-wrap">
-                    <input
-                      type="text"
-                      className="pl-input"
-                      placeholder="Buscar área…"
-                      value={dropArea ? areaSearch : form.area}
-                      onFocus={() => { setAreaSearch(''); setDropArea(true); setDropTipo(false); setDropSucursal(false); setDropCargo(false) }}
-                      onChange={e => { setAreaSearch(e.target.value); if (!dropArea) setDropArea(true) }}
-                      onBlur={() => setDropArea(false)}
-                    />
-                    {dropArea && (
-                      <div className="pl-dropdown-menu" onMouseDown={e => e.preventDefault()}>
-                        {['Todas las áreas', ...areas].filter(a => a.toLowerCase().includes(areaSearch.toLowerCase())).map(a => (
-                          <button
-                            key={a}
-                            type="button"
-                            className={`pl-dropdown-item${form.area === a ? ' selected' : ''}`}
-                            onClick={() => { setForm({ ...form, area: a, cargo: '' }); setAreaSearch(''); setDropArea(false) }}
-                          >
-                            <span>{a}</span>
-                            {form.area === a && <Check size={14} />}
-                          </button>
-                        ))}
-                        {['Todas las áreas', ...areas].filter(a => a.toLowerCase().includes(areaSearch.toLowerCase())).length === 0 && (
-                          <div style={{ padding: '8px 9px', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin resultados</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+              {/* La general se aplica a todos: no hay a quién apuntarla ni con quién chocar. */}
+              {form.esGlobal && (
+                <div className="pl-aviso-general">
+                  <ShieldCheck size={14} style={{ color: '#475569', flexShrink: 0, marginTop: 1 }} />
+                  <span>
+                    Sus etapas se anteponen a las de <strong>todas</strong> las rutas, sin importar
+                    cargo, área ni sucursal. Por eso no se elige a quién apuntarla: es lo común a
+                    toda la empresa. En las otras rutas aparecen en gris y solo se editan desde acá.
+                  </span>
                 </div>
+              )}
 
-                <div className="pl-label">
-                  <span>Cargo <span style={{ color: '#ef4444' }}>*</span></span>
-                  <div className="pl-dropdown-wrap">
-                    <input
-                      type="text"
-                      className="pl-input"
-                      placeholder={form.area === 'Todas las áreas' ? 'Todos los cargos' : 'Buscar cargo…'}
-                      disabled={form.area === 'Todas las áreas'}
-                      value={dropCargo ? cargoSearch : form.cargo}
-                      onFocus={() => { setCargoSearch(''); setDropCargo(true); setDropArea(false); setDropTipo(false); setDropSucursal(false) }}
-                      onChange={e => { setCargoSearch(e.target.value); if (!dropCargo) setDropCargo(true) }}
-                      onBlur={() => setDropCargo(false)}
-                      style={form.area === 'Todas las áreas' ? { opacity: 0.5, cursor: 'default' } : undefined}
-                    />
-                    {dropCargo && form.area !== 'Todas las áreas' && (
-                      <div className="pl-dropdown-menu" onMouseDown={e => e.preventDefault()}>
-                        {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`pl-dropdown-item${form.cargo === c ? ' selected' : ''}`}
-                            onClick={() => { setForm({ ...form, cargo: c }); setCargoSearch(''); setDropCargo(false) }}
-                          >
-                            <span>{c}</span>
-                            {form.cargo === c && <Check size={14} />}
-                          </button>
-                        ))}
-                        {(cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase())).length === 0 && (
-                          <div style={{ padding: '8px 9px', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin resultados</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {conflictoForm.length > 0 && (
+              {!form.esGlobal && conflictoForm.length > 0 && (
                 <div style={{
                   display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
                   padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a',
@@ -1309,17 +1181,7 @@ export default function Plantillas() {
                   </span>
                 </div>
               )}
-
-              {isAdmin && modal === 'crear' && (
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
-                  padding: '10px 12px', borderRadius: 10, background: 'var(--bg-secondary)',
-                }}>
-                  <Info size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    Una vez creada, podrás establecerla como <strong style={{ color: '#0C2D40' }}>ruta general</strong> desde el menú de acciones si quieres que sus etapas se antepongan a todas las demás rutas.
-                  </span>
-                </div>
+              </>
               )}
             </div>
 
@@ -1348,8 +1210,11 @@ export default function Plantillas() {
                 className="pl-btn-save"
                 onClick={handleSave}
                 disabled={
-                  !form.name.trim() || !form.tipo || !form.area ||
-                  (form.area !== 'Todas las áreas' && !form.cargo) ||
+                  /* Qué es obligatorio lo decide `faltaAlgo`, junto a los campos: a la general
+                     solo se le pide el nombre. Acá se suma lo único que es de esta pantalla —no
+                     dejar crear una segunda general— y que editar sin cambios no haga nada. */
+                  faltaAlgo(form) ||
+                  (modal === 'crear' && form.esGlobal && !!rutaGeneral) ||
                   (modal === 'editar' && originalForm &&
                     form.name === originalForm.name &&
                     form.descripcion === originalForm.descripcion &&
@@ -1381,6 +1246,19 @@ export default function Plantillas() {
           onClose={() => setPreviewRuta(null)}
           canEdit={previewRuta._versionPreview ? false : canEditRuta(previewRuta)}
           onEdit={previewRuta._versionPreview ? undefined : () => { setActiveJourney({ ...previewRuta, isEditingExisting: true }); setPreviewRuta(null) }}
+          /* Los datos se guardan sin cerrar la vista previa: se corrige el nombre y se sigue
+             mirando el camino, que es para lo que se abrió. Una versión vieja no se toca. */
+          onGuardarDatos={previewRuta._versionPreview ? undefined : datos => {
+            const cambios = {
+              ...datos,
+              name: datos.name.trim(),
+              descripcion: datos.descripcion?.trim() || '',
+              updated: 'Ahora',
+              updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+            }
+            setPlantillas(prev => prev.map(p => (p.id === previewRuta.id ? { ...p, ...cambios } : p)))
+            setPreviewRuta(prev => ({ ...prev, ...cambios }))
+          }}
         />
       )}
 

@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Building2, Star, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Building2, Star, User, Briefcase } from 'lucide-react'
 import {
-  unidadesRaiz, subunidadesDe, tarjetaUnidad, cargosDeUnidad, getUnidad,
+  unidadesRaiz, subunidadesDe, tarjetaUnidad, cargosDeUnidad, getUnidad, TIPOS_CARGO,
 } from '../../data/organigramaData'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
 
-const TIPO = { jefe: 'Jefe / Director', staff: 'Asistente/Staff', colaborador: 'Colaborador común' }
+// Las etiquetas salen del modelo para que el celular no se quede atrás cuando se agrega un tipo.
+const TIPO = Object.fromEntries(TIPOS_CARGO.map(t => [t.key, t.label]))
 
 function Titulo({ texto, conteo }) {
   return (
@@ -51,26 +53,34 @@ function FilaUnidad({ datos, onEntrar }) {
 function TarjetaCargo({ fila }) {
   const { cargo, tipo, ocupante, vacante, jefeNombre } = fila
   const staff = tipo === 'staff'
+  // Un servicio tercerizado sin ocupante no es una vacante: no lleva la marca que pide acción.
+  const externo = tipo === 'outsourcing'
+  const porCubrir = vacante && !externo
   return (
     <div style={{
-      position: 'relative', background: vacante ? '#fffdf5' : staff ? '#f0fdfa' : '#fff',
-      border: vacante ? '1px dashed #f59e0b' : staff ? '1px dashed #2dd4bf' : '1px solid #e2e8f0',
+      position: 'relative',
+      background: porCubrir ? '#fffdf5' : staff ? '#f0fdfa' : externo ? '#f7f5ff' : '#fff',
+      border: porCubrir ? '1px dashed #f59e0b' : staff ? '1px dashed #2dd4bf'
+        : externo ? '1px dashed #a78bfa' : '1px solid #e2e8f0',
       borderRadius: 10, padding: '9px 10px', marginBottom: 6,
     }}>
-      {vacante && (
+      {(porCubrir || externo) && (
         <span style={{
-          position: 'absolute', top: -5, right: 8, background: '#fef3c7', color: '#b45309',
+          position: 'absolute', top: -5, right: 8,
+          background: externo ? '#ede9fe' : '#fef3c7', color: externo ? '#6d28d9' : '#b45309',
           fontSize: 5, fontWeight: 800, letterSpacing: '.03em', textTransform: 'uppercase',
           padding: '1px 5px', borderRadius: 4,
-        }}>Vacante</span>
+        }}>{externo ? 'Externo' : 'Vacante'}</span>
       )}
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
         {tipo === 'jefe'
           ? <Star size={12} style={{ color: '#f59e0b', fill: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-          : <User size={12} style={{ color: '#7C93A6', flexShrink: 0, marginTop: 1 }} />}
+          : externo
+            ? <Briefcase size={12} style={{ color: '#8b5cf6', flexShrink: 0, marginTop: 1 }} />
+            : <User size={12} style={{ color: '#7C93A6', flexShrink: 0, marginTop: 1 }} />}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 8, fontWeight: 700, color: staff ? '#0f766e' : '#0C2D40', lineHeight: 1.25 }}>{cargo.nombre}</div>
+          <div style={{ fontSize: 8, fontWeight: 700, lineHeight: 1.25, color: staff ? '#0f766e' : externo ? '#6d28d9' : '#0C2D40' }}>{cargo.nombre}</div>
           <div style={{ fontSize: 6, fontWeight: 600, color: '#94a3b8', marginTop: 1 }}>{TIPO[tipo]}</div>
         </div>
       </div>
@@ -91,6 +101,11 @@ function TarjetaCargo({ fila }) {
           }}>{ocupante.initials}</span>
           <span style={{ fontSize: 7, fontWeight: 600, color: '#0C2D40' }}>{ocupante.name}</span>
         </div>
+      ) : externo ? (
+        <div style={{
+          background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 7,
+          padding: '5px 7px', fontSize: 6.5, fontWeight: 700, color: '#6d28d9',
+        }}>Lo cubre un proveedor externo</div>
       ) : (
         <div style={{
           background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 7,
@@ -102,16 +117,20 @@ function TarjetaCargo({ fila }) {
 }
 
 export default function OrganigramaPhone({ onSalir }) {
+  const { organigrama: org } = useOnboardingData()
   const [ruta, setRuta] = useState([])
   const actual = ruta.length ? ruta[ruta.length - 1] : null
 
   // Volver sube un nivel; desde la raíz, sale del módulo de vuelta a Zona HR.
   const volver = () => (ruta.length ? setRuta(r => r.slice(0, -1)) : onSalir())
 
-  const raices = unidadesRaiz().map(u => tarjetaUnidad(u.id))
-  const cargos = actual ? cargosDeUnidad(actual) : []
-  const subs = actual ? subunidadesDe(actual).map(u => tarjetaUnidad(u.id)) : []
-  const nombre = actual ? getUnidad(actual)?.nombre : null
+  /* La misma estructura que la web. Sin el `org` estas funciones caen en la sembrada por
+     defecto, así que el celular seguía mostrando el organigrama viejo después de resetear
+     la demo o de construir uno nuevo. */
+  const raices = unidadesRaiz(org).map(u => tarjetaUnidad(u.id, org))
+  const cargos = actual ? cargosDeUnidad(actual, org) : []
+  const subs = actual ? subunidadesDe(actual, org).map(u => tarjetaUnidad(u.id, org)) : []
+  const nombre = actual ? getUnidad(actual, org)?.nombre : null
 
   return (
     <div style={{ padding: '2px 2px' }}>
@@ -135,7 +154,11 @@ export default function OrganigramaPhone({ onSalir }) {
       {!actual ? (
         <>
           <Titulo texto="Unidades organizacionales" conteo={`${raices.length} ${raices.length === 1 ? 'área' : 'áreas'}`} />
-          {raices.map(d => <FilaUnidad key={d.unidad.id} datos={d} onEntrar={id => setRuta(r => [...r, id])} />)}
+          {/* El colaborador no arma el organigrama, solo lo consulta: si todavía no hay
+              ninguno, lo único honesto es decirlo y no ofrecerle un botón de crear. */}
+          {raices.length === 0
+            ? <div style={{ fontSize: 6.5, color: '#94a3b8', marginBottom: 8 }}>La empresa todavía no cargó su organigrama.</div>
+            : raices.map(d => <FilaUnidad key={d.unidad.id} datos={d} onEntrar={id => setRuta(r => [...r, id])} />)}
         </>
       ) : (
         <>

@@ -103,13 +103,15 @@ export default function Layout() {
       || location.pathname.startsWith('/onboarding/asignaciones/')
 
     // El buddy tiene los mismos permisos que un colaborador: acompañar no da acceso a
-    // administración. Su única pantalla extra es /onboarding/acompanados.
+    // administración. Su única pantalla extra es /mi-espacio/acompanados.
     const sinAccesoAdmin = currentUser.role === 'colaborador' || currentUser.role === 'buddy'
 
-    if (sinAccesoAdmin && location.pathname === '/inicio') {
-      navigate('/inicio/mi-dia', { replace: true })
+    // Lo suyo vive en Mi espacio personal; los módulos administrativos ni les aparecen en el
+    // riel, así que llegar acá es haber escrito la URL a mano o venir de un enlace viejo.
+    if (sinAccesoAdmin && location.pathname.startsWith('/inicio')) {
+      navigate('/mi-espacio/mi-dia', { replace: true })
     } else if (sinAccesoAdmin && (isAdminRoute || isPersonas || isArchivos)) {
-      navigate('/onboarding/mi-onboarding', { replace: true })
+      navigate('/mi-espacio/mi-onboarding', { replace: true })
     }
   }, [currentUser.id, location.pathname])
 

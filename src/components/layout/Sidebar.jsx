@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { House, Calendar, UserRound, MessageCircleMore, ClipboardCheck, Settings, LogOut, Rocket, Folder, Menu, ChevronsRight, Database, RotateCcw, AlertTriangle, X } from 'lucide-react'
+import { House, CircleUserRound, UserRound, MessageCircleMore, ClipboardCheck, Settings, LogOut, Rocket, Folder, Menu, ChevronsRight, Database, RotateCcw, AlertTriangle, X } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
@@ -11,11 +11,17 @@ import logoClaro from '../../assets/imagenes/logo_souly_claro.png'
 // El buddy ve exactamente lo mismo que un colaborador: acompañar no otorga permisos.
 const TODOS = ['admin', 'manager', 'auxiliar', 'colaborador', 'buddy']
 
+/* El riel separa lo administrativo de lo personal. "Mi espacio personal" es lo único que ve
+   todo el mundo: adentro está el día, el calendario y el onboarding propios.
+
+   Inicio y Onboarding quedaron solo para quien administra. Antes los veía también el
+   colaborador, pero al entrar rebotaba a su pantalla personal: eran dos puertas del riel que
+   llevaban al mismo lugar y ninguna a lo que anunciaban. */
 const allNavItems = [
-  { icon: House, label: 'Inicio', path: '/inicio', roles: TODOS },
-  { icon: Calendar, label: 'Mi calendario', path: '/calendario', roles: TODOS },
+  { icon: House, label: 'Inicio', path: '/inicio', roles: ['admin', 'manager', 'auxiliar'] },
+  { icon: CircleUserRound, label: 'Mi espacio personal', path: '/mi-espacio', roles: TODOS },
   { icon: UserRound, label: 'Gestión de personas', path: '/personas/colaboradores', roles: ['admin', 'manager'] },
-  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: TODOS },
+  { icon: Rocket, label: 'Onboarding', path: '/onboarding', roles: ['admin', 'manager', 'auxiliar'] },
   { icon: MessageCircleMore, label: 'Comunicación', path: null, roles: TODOS },
   { icon: ClipboardCheck, label: 'Evaluación', path: null, roles: TODOS },
   { icon: Folder, label: 'Mis archivos', path: '/archivos', roles: ['admin'] },

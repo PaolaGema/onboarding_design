@@ -19,7 +19,7 @@ import {
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, GitBranch
+  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, GitBranch, LayoutTemplate
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
@@ -335,6 +335,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   /* Cuánta gente está adentro de esta ruta y qué versión va a nacer si se guarda. Lo miran el
      aviso de la cabecera y el modal de alcance, que tienen que decir el mismo número. */
   const enCursoAlEntrar = asignadosEnCurso().length
+  // Mismo `duracion` con el que se arman los tramos "Día 8 — Día 15" de cada etapa.
+  const totalDias = rutaState.etapas.reduce((s, e) => s + (e.duracion || 7), 0)
   const proximaVersion = (plantilla.versionActual || plantilla.versiones?.length || 1) + 1
   const hayEnCurso = !esBorrador && enCursoAlEntrar > 0
 
@@ -981,7 +983,19 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           )}
         </div>
         <div className="jb-topbar-actions">
-          {/* Herramientas de la vista (no modifican la ruta) */}
+          {/* Herramientas de la ruta, siempre en el mismo lugar.
+              El catálogo también vive acá y no solo en el lienzo vacío: era un atajo que
+              desaparecía apenas agregabas una etapa, justo cuando ya sabías qué querías armar y
+              te acordabas de que había una plantilla parecida. Abrirlo no cambia nada todavía —
+              el modal muestra el contenido y pide confirmación antes de pisar lo que hay. */}
+          <button
+            className="jb-btn-outline jb-btn-icon"
+            onClick={() => setElegirBase(true)}
+            title="Usar una plantilla o copiar otra ruta"
+            aria-label="Usar una plantilla o copiar otra ruta"
+          >
+            <LayoutTemplate size={14} />
+          </button>
           <button className="jb-btn-outline jb-btn-icon" onClick={() => setShowConfig(true)} title="Configuración de la ruta">
             <Settings2 size={14} />
           </button>
@@ -1062,7 +1076,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
               {/* CARD ETAPAS — izquierda */}
               <div className="jb-float-card jb-float-left" style={{ left: floatLeftOffset }}>
-                <div className="jb-sb-title">Etapas <span className="jb-sb-count">{rutaState.etapas.length}</span></div>
+                {/* Cuánto dura la ruta entera. Es la pregunta que se hace cualquiera al ver
+                    un onboarding —"¿cuánto tiempo es esto?"— y hasta ahora había que sumar a
+                    ojo los tramos de cada etapa. Sale del mismo dato del que salen esos
+                    tramos, así que no puede contradecirlos. */}
+                <div className="jb-sb-title">
+                  Etapas <span className="jb-sb-count">{rutaState.etapas.length}</span>
+                  {totalDias > 0 && (
+                    <span className="jb-sb-total" title="Duración total de la ruta">
+                      {totalDias} {totalDias === 1 ? 'día' : 'días'}
+                    </span>
+                  )}
+                </div>
                 <p className="jb-sb-hint">Haz clic en una etapa para ir a ella</p>
                 <div className="jb-sb-list">
                   {rutaState.etapas.map((e, i) => {
@@ -1161,10 +1186,33 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 </button>
               </div>
 
-              {/* CARD TIPOS DE TAREA — derecha (oculto en etapas de la ruta general: son de solo lectura) */}
-              {etapa && !etapa.locked && etapa.actividades.length > 0 && (
+              {/* CARD TIPOS DE TAREA — derecha.
+                  El panel se queda en su lugar aunque no se pueda usar. Antes desaparecía en
+                  las etapas de la ruta general y en las que todavía no tienen actividad, y un
+                  panel que se esfuma sin decir nada se lee como una falla: la persona busca
+                  qué rompió en vez de enterarse de que ahí no se edita. */}
+              {etapa && (
               <div className="jb-float-card jb-float-right">
                 <div className="jb-sb-title">Tipos de tarea</div>
+                {etapa.locked ? (
+                  <div className="jb-panel-nota">
+                    <Lock size={14} />
+                    <p>
+                      Las tareas con candado vienen de la <strong>ruta general</strong>
+                      {etapa.sourceRouteName ? ` (${etapa.sourceRouteName})` : ''} y no se
+                      editan desde acá. Para cambiarlas, editá la ruta general.
+                    </p>
+                  </div>
+                ) : etapa.actividades.length === 0 ? (
+                  <div className="jb-panel-nota">
+                    <Layers size={14} />
+                    <p>
+                      Primero agregá una actividad a esta etapa: las tareas van adentro de una,
+                      no sueltas.
+                    </p>
+                  </div>
+                ) : (
+                <>
                 <p className="jb-sb-hint">Arrastra al lienzo o haz clic para agregar</p>
                 <div className="jb-sb-palette">
                   {tiposTarea.map(t => {
@@ -1206,6 +1254,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                     Conecta las tareas en el orden que deben completarse
                   </p>
                 </div>
+                </>
+                )}
               </div>
               )}
 
@@ -1218,20 +1268,28 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', maxWidth: 280 }}>
                     Una etapa agrupa las actividades y tareas de un período de la ruta, por ejemplo "Mi primera semana".
                   </p>
-                  {/* El atajo aparece con el lienzo vacío, que es cuando se entiende para qué
-                      sirve. Antes esta elección se hacía antes de crear la ruta, a ciegas y de
-                      una sola vez; acá se ve el vacío que viene a llenar y sigue disponible. */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '20px 0 0' }}>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>o</span>
-                    <button
-                      className="jb-btn-outline"
-                      onClick={() => setElegirBase(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12 }}
-                    >
-                      <Copy size={14} />
-                      Usar una plantilla o copiar otra ruta
-                    </button>
-                  </div>
+                  {/* Pista, no botón: el atajo ya vive en la barra de arriba y ahí sigue
+                      después de agregar la primera etapa. Tenerlo dos veces lo hacía parecer
+                      dos cosas distintas y dejaba la acción principal —crear una etapa—
+                      compitiendo con otra del mismo peso visual. El ícono va incrustado
+                      porque arriba el botón no tiene texto: sin él la pista dice qué se
+                      puede hacer pero no dónde. */}
+                  {/* Párrafo normal, no flex: con `flex-wrap` cada trozo de texto es un ítem
+                      y el ícono terminaba solo en una línea aparte. */}
+                  <p style={{
+                    margin: '18px 0 0', maxWidth: 300, textAlign: 'center',
+                    fontSize: 11.5, lineHeight: 1.9, color: '#94a3b8',
+                  }}>
+                    También puedes partir de una plantilla o copiar otra ruta con el botón{' '}
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 21, height: 21, borderRadius: 6, verticalAlign: -6,
+                      border: '1px solid #e8ecf0', color: '#0C2D40',
+                    }}>
+                      <LayoutTemplate size={12} />
+                    </span>{' '}
+                    de arriba.
+                  </p>
                 </div>
               ) : rutaState.etapas.map((etapaItem, ei) => {
                 const isLocked = !!etapaItem.locked
@@ -3081,6 +3139,9 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         <ElegirBaseRutaModal
           rutaActualId={plantilla.id}
           rutas={plantillas}
+          /* Solo las propias: las de la ruta general no se pierden al traer una base, así que
+             no cuentan para el aviso de "esto reemplaza lo que ya armaste". */
+          etapasActuales={draftEtapas.length}
           onCerrar={() => setElegirBase(false)}
           /* Las etapas de la ruta general se vuelven a anteponer: son de ella y no de la base
              que se copia, así que no viajan en la copia ni deben perderse al traerla. */

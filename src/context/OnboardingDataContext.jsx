@@ -2,6 +2,7 @@ import { createContext, useContext, useCallback, useEffect } from 'react'
 import { useLocalStorage, clearAllDemoData } from '../hooks/useLocalStorage'
 import { rutasSeedEtapas } from '../data/rutasSeedEtapas'
 import { colaboradoresData } from '../pages/personas/colaboradoresData'
+import { orgSeed, orgVacio } from '../data/organigramaData'
 
 const OnboardingDataContext = createContext()
 
@@ -104,6 +105,10 @@ export function OnboardingDataProvider({ children }) {
   const [plantillas, setPlantillas] = useLocalStorage('plantillas', [])
   const [asignaciones, setAsignaciones] = useLocalStorage('asignaciones', [])
   const [feed, setFeed] = useLocalStorage('feed', [])
+  /* El organigrama es dato de demo como todo lo demás: arranca vacío para poder construirlo
+     desde cero, "Cargar datos de ejemplo" lo siembra y "Resetear demo" lo borra. Antes vivía
+     en un `useState` dentro de la pantalla, así que era lo único que sobrevivía al reseteo. */
+  const [organigrama, setOrganigrama] = useLocalStorage('organigrama', orgVacio)
   const [configToggles, setConfigToggles] = useLocalStorage('config', {
     gamificacion: true,
     buddy: true,
@@ -224,7 +229,8 @@ export function OnboardingDataProvider({ children }) {
     setAsignaciones(sampleAsignaciones)
     setFeed(sampleFeed)
     setConfigToggles(sampleConfig)
-  }, [setRecursos, setPlantillas, setAsignaciones, setFeed, setConfigToggles])
+    setOrganigrama(orgSeed)
+  }, [setRecursos, setPlantillas, setAsignaciones, setFeed, setConfigToggles, setOrganigrama])
 
   const totalDocs = recursos.reduce((s, c) => s + c.docs.length, 0)
   const isDemoFresh = totalDocs === 0 && plantillas.length === 0 && asignaciones.length === 0
@@ -239,6 +245,7 @@ export function OnboardingDataProvider({ children }) {
       asignaciones, setAsignaciones,
       feed, addFeedEntry,
       configToggles, setConfigToggles,
+      organigrama, setOrganigrama,
       resetDemo, loadSampleData, isDemoFresh,
     }}>
       {children}

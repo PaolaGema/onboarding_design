@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight, House, Sun, Calendar, HeartHandshake } from 'lucide-react'
+import { LayoutDashboard, Users, Route, Rocket, BookOpen, Settings, UserRound, Building2, Folder, MessageCircleMore, ClipboardCheck, Info, ChevronsLeft, ChevronsRight, House, Sun, Calendar, HeartHandshake, CircleUserRound } from 'lucide-react'
 import { useUser } from '../../context/UserContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useUnsavedChanges } from '../../context/UnsavedChangesContext'
@@ -14,28 +14,31 @@ const sectionInfoTitle = {
   'Mi espacio': 'Mi espacio',
 }
 
-const inicioAdminNav = [
+const inicioNav = [
   { section: 'Administración', items: [
     { label: 'Dashboard', path: '/inicio', icon: LayoutDashboard, end: true },
   ]},
+]
+
+/* Todo lo propio de la persona, junto y fuera de los módulos de administración: antes había
+   que entrar a Inicio para ver el día, a Onboarding para ver el onboarding propio y a otro
+   módulo del riel para el calendario —tres puertas administrativas para tres cosas que no
+   tienen nada de administrativo. */
+const miEspacioNav = [
   { section: 'Mi espacio', items: [
-    { label: 'Mi día', path: '/inicio/mi-dia', icon: Sun },
+    { label: 'Mi día', path: '/mi-espacio/mi-dia', icon: Sun },
+    { label: 'Mi calendario', path: '/mi-espacio/calendario', icon: Calendar },
+    { label: 'Mi Onboarding', path: '/mi-espacio/mi-onboarding', icon: Rocket },
   ]},
 ]
 
-const inicioColabNav = [
+// El buddy suma a los suyos las personas que acompaña: acompaña, no supervisa.
+const miEspacioBuddyNav = [
   { section: 'Mi espacio', items: [
-    { label: 'Mi día', path: '/inicio/mi-dia', icon: Sun },
+    ...miEspacioNav[0].items,
+    { label: 'Mis acompañados', path: '/mi-espacio/acompanados', icon: HeartHandshake },
   ]},
 ]
-
-const inicioNavByRole = {
-  admin: inicioAdminNav,
-  manager: inicioAdminNav,
-  auxiliar: inicioAdminNav,
-  colaborador: inicioColabNav,
-  buddy: inicioColabNav,
-}
 
 const onboardingAdminNav = [
   { section: 'Administración', items: [
@@ -45,15 +48,6 @@ const onboardingAdminNav = [
     { label: 'Recursos corporativos', path: '/onboarding/conocimiento', icon: BookOpen },
     { label: 'Configuración avanzada', path: '/onboarding/configuracion', icon: Settings },
   ]},
-  { section: 'Mi espacio', items: [
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Rocket },
-  ]},
-]
-
-const onboardingColabNav = [
-  { section: 'Mi espacio', items: [
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Rocket },
-  ]},
 ]
 
 const onboardingManagerNav = [
@@ -62,21 +56,12 @@ const onboardingManagerNav = [
     { label: 'Seguimiento', path: '/onboarding/asignaciones', icon: Users },
     { label: 'Rutas', path: '/onboarding/plantillas', icon: Route },
   ]},
-  { section: 'Mi espacio', items: [
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Rocket },
-  ]},
 ]
 
 const personasNav = [
   { section: 'Administración', items: [
     { label: 'Colaboradores', path: '/personas/colaboradores', icon: UserRound, end: true },
     { label: 'Organigrama', path: '/personas/organigrama', icon: Building2 },
-  ]},
-]
-
-const calendarioNav = [
-  { section: 'Calendario', items: [
-    { label: 'Mi calendario', path: '/calendario', icon: Calendar, end: true },
   ]},
 ]
 
@@ -97,29 +82,20 @@ const onboardingAuxiliarNav = [
   ]},
 ]
 
-// El buddy vive todo dentro de "Mi espacio": su propio onboarding y, debajo, las personas
-// que acompaña. No obtiene el panel de administración: acompaña, no supervisa.
-const onboardingBuddyNav = [
-  { section: 'Mi espacio', items: [
-    { label: 'Mi Onboarding', path: '/onboarding/mi-onboarding', icon: Rocket },
-    { label: 'Mis acompañados', path: '/onboarding/acompanados', icon: HeartHandshake },
-  ]},
-]
-
+/* El colaborador y el buddy no tienen panel de administración, así que tampoco entran al
+   módulo de Onboarding: lo suyo vive todo en Mi espacio personal. */
 const onboardingNavByRole = {
   admin: onboardingAdminNav,
-  colaborador: onboardingColabNav,
   manager: onboardingManagerNav,
   auxiliar: onboardingAuxiliarNav,
-  buddy: onboardingBuddyNav,
 }
 
 const moduleConfig = {
-  inicio: { title: 'Inicio', icon: House, desc: 'Vista general de la plataforma y tu espacio personal' },
+  inicio: { title: 'Inicio', icon: House, desc: 'Vista general de la plataforma' },
+  miEspacio: { title: 'Mi espacio personal', icon: CircleUserRound, desc: 'Tu día, tu calendario y tu onboarding, todo en un solo lugar' },
   onboarding: { title: 'Módulo de Onboarding', icon: Rocket, desc: 'Administra la incorporación de nuevos colaboradores' },
   personas: { title: 'Gestión de Personas', icon: UserRound, desc: 'Directorio y datos de tu organización' },
   archivos: { title: 'Mis archivos', icon: Folder, desc: 'Todos los archivos de la empresa, organizados por módulo' },
-  calendario: { title: 'Mi calendario', icon: Calendar, desc: 'Cumpleaños, aniversarios, evaluaciones y publicaciones programadas' },
 }
 
 export default function ModuleNav() {
@@ -133,18 +109,18 @@ export default function ModuleNav() {
   const isPersonas = location.pathname.startsWith('/personas')
   const isArchivos = location.pathname.startsWith('/archivos')
   const isInicio = location.pathname.startsWith('/inicio')
-  const isCalendario = location.pathname.startsWith('/calendario')
-  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : isCalendario ? 'calendario' : isInicio ? 'inicio' : 'onboarding'
+  const isMiEspacio = location.pathname.startsWith('/mi-espacio')
+  const moduleKey = isArchivos ? 'archivos' : isPersonas ? 'personas' : isMiEspacio ? 'miEspacio' : isInicio ? 'inicio' : 'onboarding'
   const config = moduleConfig[moduleKey]
 
   const sections = isArchivos
     ? archivosNav
     : isPersonas
       ? personasNav
-      : isCalendario
-        ? calendarioNav
+      : isMiEspacio
+        ? (currentUser.role === 'buddy' ? miEspacioBuddyNav : miEspacioNav)
         : isInicio
-          ? (inicioNavByRole[currentUser.role] || inicioAdminNav)
+          ? inicioNav
           : (onboardingNavByRole[currentUser.role] || onboardingAdminNav)
 
   const ModuleIcon = config.icon

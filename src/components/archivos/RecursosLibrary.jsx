@@ -617,15 +617,15 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                   ))}
                 </tbody>
               </table>
+              {/* Sin botón propio: "Nueva carpeta" ya está en la barra de arriba y ahí sigue
+                  cuando la tabla deja de estar vacía. Tenerlo dos veces lo hacía parecer dos
+                  acciones distintas. */}
               {filteredCats.length === 0 && (
                 <div style={{ padding: '12px 16px 16px' }}>
                   <EmptyState
                     icon={FolderOpen}
                     title={categorias.length === 0 ? 'Aún no tienes carpetas' : 'No se encontraron carpetas'}
-                    description={categorias.length === 0 ? 'Crea tu primera carpeta para empezar a subir recursos.' : 'Prueba con otro nombre o crea una carpeta nueva.'}
-                    actionLabel={categorias.length === 0 ? 'Nueva carpeta' : undefined}
-                    actionIcon={Plus}
-                    onAction={() => { setNewCatName(''); setShowNewCat(true) }}
+                    description={categorias.length === 0 ? 'Crea tu primera carpeta con el botón de arriba para empezar a subir recursos.' : 'Prueba con otro nombre o crea una carpeta nueva.'}
                   />
                 </div>
               )}
@@ -700,14 +700,12 @@ export default function RecursosLibrary({ categorias, setCategorias, title, subt
                 </div>
               ))}
             </div>
+            {/* Mismo criterio que en la vista de tabla: el alta vive en la barra de arriba. */}
             {filteredCats.length === 0 && (
               <EmptyState
                 icon={FolderOpen}
                 title={categorias.length === 0 ? 'Aún no tienes carpetas' : 'No se encontraron carpetas'}
-                description={categorias.length === 0 ? 'Crea tu primera carpeta para empezar a subir recursos.' : 'Prueba con otro nombre o crea una carpeta nueva.'}
-                actionLabel={categorias.length === 0 ? 'Nueva carpeta' : undefined}
-                actionIcon={Plus}
-                onAction={() => { setNewCatName(''); setShowNewCat(true) }}
+                description={categorias.length === 0 ? 'Crea tu primera carpeta con el botón de arriba para empezar a subir recursos.' : 'Prueba con otro nombre o crea una carpeta nueva.'}
               />
             )}
             </div>

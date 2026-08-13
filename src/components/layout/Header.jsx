@@ -6,14 +6,15 @@ import { useOnboardingData } from '../../context/OnboardingDataContext'
 
 const pageHeaders = {
   '/inicio': { title: 'Inicio' },
-  '/inicio/mi-dia': { title: 'Mi día' },
+  '/mi-espacio/mi-dia': { title: 'Mi día' },
+  '/mi-espacio/calendario': { title: 'Mi calendario' },
+  '/mi-espacio/mi-onboarding': { title: 'Mi Onboarding' },
+  '/mi-espacio/acompanados': { title: 'Mis acompañados' },
   '/onboarding/plantillas': { title: 'Rutas de Onboarding' },
   '/onboarding/asignaciones': { title: 'Seguimiento' },
-  '/onboarding/acompanados': { title: 'Mis acompañados' },
   '/onboarding/conocimiento': { title: 'Recursos corporativos' },
   '/onboarding/configuracion': { title: 'Configuración avanzada' },
   '/personas/colaboradores': { title: 'Colaboradores' },
-  '/calendario': { title: 'Mi calendario' },
 }
 
 // El selector de rol aparece dos veces en este archivo (barra fija y barra flotante).
@@ -37,15 +38,19 @@ export default function Header({ floating }) {
 
   const isPersonas = location.pathname.startsWith('/personas')
   const isInicio = location.pathname.startsWith('/inicio')
-  const isMiDia = location.pathname === '/inicio/mi-dia'
-  const isCalendario = location.pathname.startsWith('/calendario')
+  const isMiEspacio = location.pathname.startsWith('/mi-espacio')
+  const isCalendario = location.pathname === '/mi-espacio/calendario'
   // La ficha de una asignación sigue siendo Seguimiento: la barra no cambia de nombre al
   // entrar a una persona, el "volver" de la pantalla es el que ubica.
   const pageInfo = pageHeaders[location.pathname]
     ?? (location.pathname.startsWith('/onboarding/asignaciones/') ? pageHeaders['/onboarding/asignaciones'] : undefined)
   const headerTitle = pageInfo?.title
     ?? (currentUser.role === 'admin' ? 'Dashboard' : currentUser.role === 'manager' ? 'Mi equipo' : 'Mi Onboarding')
-  const headerSubtitle = isMiDia ? 'Tu espacio personal' : isCalendario ? 'Eventos y actividades programadas' : isInicio ? 'Vista general de la plataforma' : isPersonas ? 'Módulo de Personas' : 'Módulo de Onboarding'
+  const headerSubtitle = isCalendario ? 'Eventos y actividades programadas'
+    : isMiEspacio ? 'Mi espacio personal'
+    : isInicio ? 'Vista general de la plataforma'
+    : isPersonas ? 'Módulo de Personas'
+    : 'Módulo de Onboarding'
 
   const totalDocs = recursos.reduce((s, c) => s + c.docs.length, 0)
   const setupSteps = [

@@ -1127,6 +1127,48 @@ button.chip-link {
   min-height: 0;
 }
 
+/* Qué clase de ruta se está creando. Va arriba de todo porque decide qué campos se piden:
+   elegirlo después obligaría a rellenar sucursal, área y cargo para una ruta que no apunta
+   a nadie. */
+/* Mismo segmented control que el selector de base del constructor: contenedor gris y la
+   pestaña activa levantada en blanco. */
+.pl-tipo-tabs { display: flex; gap: 4px; padding: 3px; background: var(--surface-hover); border-radius: 9px; }
+.pl-tipo-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: none; border-radius: 7px; background: transparent; color: var(--text-muted); font-family: inherit; font-size: 11.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.pl-tipo-tab svg { flex-shrink: 0; }
+.pl-tipo-tab.on { background: var(--surface-card); color: var(--text-heading); box-shadow: var(--sh-sm); }
+
+/* ---- edición en el lugar ----
+   El campo es invisible hasta que lo tocás: sin borde ni fondo, hereda la tipografía de lo
+   que reemplaza. El fondo al pasar el mouse es lo único que anuncia que se puede editar. */
+.cel-campo {
+  width: 100%; margin: 0; padding: 3px 6px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; font-family: inherit; color: inherit; font-size: inherit;
+  font-weight: inherit; line-height: inherit; cursor: text;
+  transition: background .12s, border-color .12s;
+}
+.cel-campo:hover { background: var(--surface-hover); }
+.cel-campo:focus { outline: none; background: var(--surface-card); border-color: var(--navy); cursor: text; }
+.cel-campo::placeholder { color: #94a3b8; font-weight: 400; font-style: italic; }
+
+.cel-lista { position: relative; display: inline-flex; }
+.cel-disparador { display: inline-flex; align-items: center; gap: 4px; width: auto; cursor: pointer; color: #334155; font-weight: 600; white-space: nowrap; }
+.cel-disparador.on { background: var(--surface-card); border-color: var(--navy); }
+.cel-chevron { color: #94a3b8; flex-shrink: 0; }
+.cel-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; min-width: 190px; max-height: 240px;
+  overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface-card); box-shadow: 0 8px 26px rgba(12,45,64,.16);
+}
+.cel-opcion { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 7px 9px; border: none; border-radius: 7px; background: none; font-family: inherit; font-size: 11.5px; color: var(--navy); text-align: left; cursor: pointer; }
+.cel-opcion:hover { background: var(--surface-hover); }
+.cel-opcion.on { background: var(--green-tint); font-weight: 700; }
+.cel-vacio { padding: 8px 9px; font-size: 11px; color: var(--text-muted); }
+
+.pl-aviso-general { display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px; border-radius: 10px; background: #EEF1F5; }
+.pl-aviso-general span { font-size: 10.5px; line-height: 1.55; color: #475569; }
+.pl-aviso-bloqueo { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; }
+.pl-aviso-bloqueo span { font-size: 10.5px; line-height: 1.5; color: #92400e; }
+
 .pl-label {
   display: flex;
   flex-direction: column;
@@ -1850,6 +1892,20 @@ select.pl-input:focus {
   justify-content: center;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* Al final de la fila y en gris: acompaña al conteo de etapas sin competir con él. */
+.jb-sb-total {
+  margin-left: auto;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .jb-sb-hint {
@@ -3000,7 +3056,7 @@ select.pl-input:focus {
 .og-tree li:only-child { padding-top: 0; }
 .og-tree li:only-child::before, .og-tree li:only-child::after { display: none; }
 
-.og-nodo { position: relative; display: flex; flex-direction: column; align-items: center; }
+.og-nodo { position: relative; display: flex; align-items: flex-start; justify-content: center; }
 
 /* ---- nodos ---- */
 
@@ -3020,15 +3076,30 @@ select.pl-input:focus {
 .og-card-vacante { border: 1.5px dashed var(--yellow); background: #fffbeb; }
 .og-card-staff { border: 1.5px dashed #2dd4bf; background: #f0fdfa; }
 .og-card-staff .og-card-title { color: #0f766e; }
+/* Outsourcing en violeta: cuelga al costado igual que el staff, pero no es gente de la casa. */
+.og-card-ext { border: 1.5px dashed #a78bfa; background: #f7f5ff; }
+.og-card-ext .og-card-title { color: #6d28d9; }
+.og-card-ext .og-card-ico { color: #8b5cf6; }
 
 .og-chip { display: flex; align-items: center; gap: 6px; background: var(--surface-hover); border-radius: 7px; padding: 4px 8px; font-size: 10.5px; font-weight: 600; color: var(--navy); }
 .og-chip-av { width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 6.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .og-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .og-chip-vacio { justify-content: center; background: transparent; border: 1px dashed var(--border-dark); color: var(--text-muted); }
+.og-chip-ext { justify-content: center; gap: 4px; background: #ede9fe; color: #6d28d9; font-weight: 700; }
 
-/* El staff asesora pero no manda: cuelga de lado con línea punteada, fuera de la cadena. */
-.og-staff { position: absolute; top: 58%; left: calc(100% + 56px); }
-.og-staff::before { content: ''; position: absolute; top: 50%; right: 100%; width: 56px; border-top: 1.5px dashed var(--border-dark); }
+/* Staff y outsourcing no mandan: cuelgan de lado con línea punteada, fuera de la cadena. */
+/* El bloque lateral ocupa ancho real en lugar de flotar con `position: absolute`. Flotando
+   se montaba sobre la fila de hijos del mismo jefe, y como el <ul> de esa fila se dibuja
+   después, era el <ul> el que recibía el clic: las tarjetas laterales se veían pero no se
+   podían abrir. Ahora el árbol les reserva su lugar y nada se pisa.
+
+   El `gap` tampoco es estético: la etiqueta (Externo / Vacante) sobresale por arriba de su
+   tarjeta y sin aire se monta sobre la de encima. */
+.og-staff { position: relative; flex-shrink: 0; width: 200px; margin-left: 56px; display: flex; flex-direction: column; gap: 18px; }
+.og-lateral-hueco { flex-shrink: 0; width: 256px; }
+/* A la altura del cuerpo de la tarjeta, no a la mitad del bloque: así la línea sale del
+   jefe aunque le cuelguen varios cargos al costado. */
+.og-staff::before { content: ''; position: absolute; top: 38px; right: 100%; width: 56px; border-top: 1.5px dashed var(--border-dark); }
 
 /* ---- controles flotantes ---- */
 
@@ -3068,7 +3139,7 @@ select.pl-input:focus {
 .og-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; margin-bottom: 26px; }
 
 /* tarjeta de unidad: cabecera navy + zócalo blanco con los contadores */
-.og-un { border-radius: 14px; overflow: hidden; background: var(--surface-card); border: 1px solid var(--border); cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.og-un { position: relative; border-radius: 14px; overflow: hidden; background: var(--surface-card); border: 1px solid var(--border); cursor: pointer; transition: box-shadow .15s, transform .15s; }
 .og-un:hover { box-shadow: var(--shadow-card); transform: translateY(-2px); }
 .og-un-top { display: flex; flex-direction: column; gap: 7px; padding: 16px 16px 18px; background: linear-gradient(160deg, #1d4a63 0%, #0C2D40 100%); }
 .og-un-ico { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.12); color: #fff; margin-bottom: 10px; }
@@ -3088,25 +3159,38 @@ select.pl-input:focus {
 .og-cc-hd { display: flex; align-items: flex-start; gap: 11px; }
 .og-cc-ico { display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
 .og-ico-jefe { color: var(--yellow); fill: var(--yellow); }
-.og-ico-persona { color: #7C93A6; }
+.og-ico-colab { color: #7C93A6; }
+.og-ico-staff { color: #0f766e; }
+.og-ico-ext { color: #8b5cf6; }
 .og-cc-hd-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .og-cc-hd-txt strong { font-size: 13.5px; font-weight: 700; color: var(--navy); line-height: 1.25; }
 .og-cc-hd-txt span { font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
 .og-cc-reporta { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 10.5px; color: var(--text-muted); }
 .og-cc-reporta strong { color: var(--navy); font-weight: 700; }
+.og-cc-sedes { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 8px; font-size: 10.5px; color: var(--text-muted); }
+.og-cc-sedes svg { flex-shrink: 0; }
+.og-cc-sedes span { background: var(--surface-hover); border-radius: 5px; padding: 2px 7px; font-weight: 600; }
 .og-cc-sep { height: 1px; background: var(--border); margin: 12px 0 10px; }
 .og-cc-label { font-size: 10.5px; color: var(--text-muted); margin-bottom: 7px; }
 .og-cc-persona { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 9px; background: var(--surface-hover); font-size: 12px; font-weight: 600; color: var(--navy); }
 .og-cc-persona-vacia { justify-content: flex-start; background: #fffbeb; border: 1px solid var(--yellow); color: #b45309; font-weight: 700; }
+.og-cc-persona-ext { justify-content: flex-start; background: #f5f3ff; border: 1px solid #c4b5fd; color: #6d28d9; font-weight: 700; }
+.og-cc-motivo { margin-bottom: 10px; padding-left: 9px; border-left: 2px solid #c4b5fd; font-size: 11px; line-height: 1.45; color: var(--text-muted); }
 .og-cc-edit { position: absolute; top: 13px; right: 13px; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--border-soft); background: var(--surface-card); color: var(--icon-muted); border-radius: 8px; cursor: pointer; opacity: 0; transition: opacity .15s; }
 .og-cc:hover .og-cc-edit { opacity: 1; }
 .og-cc-edit:hover { border-color: var(--navy); color: var(--navy); }
 .og-cc-tag { position: absolute; top: -8px; right: 14px; background: #fef3c7; color: #b45309; font-size: 8.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; }
+/* Va después de las dos etiquetas que modifica —la del gráfico y la de las cards— porque
+   pisa su color y con la misma especificidad gana la que se declara al final. */
+.og-card-tag.og-tag-ext, .og-cc-tag.og-tag-ext { background: #ede9fe; color: #6d28d9; }
 
 .og-cc-vacante { border: 1.5px dashed var(--yellow); background: #fffdf5; }
 .og-cc-staff { border: 1.5px dashed #2dd4bf; background: #f0fdfa; }
 .og-cc-staff .og-cc-hd-txt strong { color: #0f766e; }
 .og-cc-staff .og-cc-edit { opacity: 1; }
+.og-cc-ext { border: 1.5px dashed #a78bfa; background: #faf9ff; }
+.og-cc-ext .og-cc-hd-txt strong { color: #6d28d9; }
+.og-cc-ext .og-cc-edit { opacity: 1; }
 
 .og-buscador-fila { display: flex; margin-bottom: 14px; }
 .og-buscador { display: flex; align-items: center; gap: 8px; width: 300px; margin-left: auto; padding: 8px 12px; background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px; color: var(--icon-muted); }
@@ -3141,6 +3225,7 @@ select.pl-input:focus {
 .og-tipo { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; padding: 4px 9px; border-radius: 6px; white-space: nowrap; }
 .og-tipo-jefe { background: #fef3c7; color: #b45309; }
 .og-tipo-staff { background: #ccfbf1; color: #0f766e; }
+.og-tipo-ext { background: #ede9fe; color: #6d28d9; }
 .og-tipo-colab { background: var(--surface-hover); color: #475569; }
 .og-td-persona { display: flex; align-items: center; gap: 8px; }
 .og-td-vacio { color: var(--text-muted); font-style: italic; }
@@ -3167,6 +3252,43 @@ select.pl-input:focus {
 .og-btn-ghost:hover { background: var(--surface-hover); }
 .og-btn-primary { display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--navy); color: #fff; font-size: 12px; font-weight: 700; font-family: inherit; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
 .og-btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+/* La baja va a la izquierda, separada de Cancelar/Guardar: es la acción que no se deshace. */
+.og-btn-borrar { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; border: 1px solid #fecaca; background: var(--surface-card); color: #dc2626; font-size: 12px; font-weight: 700; font-family: inherit; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.og-btn-borrar:hover:not(:disabled) { background: #fef2f2; }
+.og-btn-borrar:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Sedes del cargo: marcas, no lista desplegable — un cargo puede existir en varias. */
+.og-sedes-check { display: flex; flex-wrap: wrap; gap: 6px; }
+.og-sede-check { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-soft); background: var(--surface-card); color: var(--text-muted); font-size: 11.5px; font-weight: 600; font-family: inherit; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.og-sede-check em { font-style: normal; opacity: .65; }
+.og-sede-check.on { border-color: var(--navy); background: var(--green-tint); color: var(--navy); font-weight: 700; }
+
+.og-colores { display: flex; flex-wrap: wrap; gap: 7px; }
+.og-color { width: 26px; height: 26px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+.og-color.on { border-color: var(--navy); box-shadow: 0 0 0 2px var(--surface-card) inset; }
+
+/* Organigrama sin dibujar */
+.og-vacio-caja { max-width: 520px; margin: 40px auto; padding: 32px 30px; text-align: center; background: var(--surface-card); border: 1px solid var(--border); border-radius: 16px; }
+.og-vacio-ico { display: inline-flex; align-items: center; justify-content: center; width: 62px; height: 62px; margin-bottom: 16px; border-radius: 18px; background: var(--green-tint); color: var(--navy); }
+.og-vacio-caja h2 { margin: 0 0 8px; font-size: 17px; font-weight: 800; color: var(--navy); }
+.og-vacio-caja > p { margin: 0 0 22px; font-size: 12.5px; line-height: 1.6; color: var(--text-muted); }
+.og-vacio-sedes { margin-bottom: 22px; padding: 13px 15px; text-align: left; background: var(--surface-hover); border-radius: 12px; }
+.og-vacio-sedes-hd { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; font-size: 11px; font-weight: 700; color: var(--navy); }
+.og-vacio-sedes-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+.og-vacio-sede { background: var(--surface-card); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px; font-size: 11px; font-weight: 600; color: var(--navy); }
+.og-vacio-sede em { font-style: normal; color: var(--text-muted); }
+.og-vacio-acciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+.og-fabs { position: absolute; right: 20px; bottom: 74px; z-index: 20; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.og-fabs .og-fab { position: static; }
+.og-fab-sec { width: 42px; height: 42px; background: var(--surface-card); color: var(--navy); border: 1px solid var(--border); box-shadow: var(--sh-md); }
+.og-fab-sec:hover { background: var(--surface-hover); }
+
+/* Sobre la cabecera navy de la card, así que va en blanco translúcido y no en gris claro. */
+.og-un-edit { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.12); color: #fff; border-radius: 8px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.og-un:hover .og-un-edit { opacity: 1; }
+.og-un-edit:hover { background: rgba(255,255,255,.24); }
+.og-sede-menu button.on { background: var(--green-tint); font-weight: 700; }
 .og-btn-full { width: 100%; }
 .og-drop { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 26px 16px; border: 1.5px dashed var(--border-dark); border-radius: 12px; color: var(--icon-muted); cursor: pointer; }
 .og-drop strong { font-size: 12.5px; color: var(--navy); }

@@ -1,10 +1,28 @@
 import { useState } from 'react'
-import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock, ToggleLeft } from 'lucide-react'
+import { Eye, X, User, Tag, Clock, CalendarPlus, ChevronDown, Plus, UserRound, Pencil, Search, Check, Lock, ToggleLeft, MapPin, Briefcase, Route } from 'lucide-react'
 import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
-import { estadoRuta, normalizarStatus, REGLA_ESTADO } from '../../utils/rutaEstados'
+import { estadoRuta, normalizarStatus, REGLA_ESTADO, ESTADOS_EN_CURSO } from '../../utils/rutaEstados'
+import { useOnboardingData } from '../../context/OnboardingDataContext'
+import PilaAvatares from './PilaAvatares'
+import { TextoEnLinea, ListaEnLinea } from './CamposEnLinea'
+import { areas, cargosPorArea, sucursales, tiposRuta, TODAS_LAS_AREAS } from './RutaMetaFields'
+
+/* Una fila de la ficha: ícono, etiqueta y el dato. El dato entra como hijo porque a veces es
+   texto fijo y a veces un campo que se edita en el lugar. */
+function FilaInfo({ icono: Icono, etiqueta, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 24 }}>
+      <Icono size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11.5, minWidth: 0 }}>
+        <span style={{ color: '#94a3b8', flexShrink: 0 }}>{etiqueta}:</span>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 const hoyFecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
@@ -14,11 +32,38 @@ function getInitials(name) {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase()
 }
 
-export default function RutaFullPreviewModal({ plantilla, responsables, canManage = false, onAddPersona, onRemovePersona, onClose, canEdit = false, onEdit }) {
+export default function RutaFullPreviewModal({ plantilla, responsables, canManage = false, onAddPersona, onRemovePersona, onClose, canEdit = false, onEdit, onGuardarDatos }) {
   const { gamificacion } = useConfig()
   const { currentUser } = useUser()
+  const { asignaciones } = useOnboardingData()
+
+  /* Quiénes están recorriendo la ruta ahora mismo. Va antes que "Personas con acceso" porque
+     responde la pregunta que más pesa antes de tocar algo: si hay gente adentro. Lo que ya
+     empezaron conserva la versión con la que arrancó, así que editar acá no los mueve —pero
+     sí conviene saber a cuántos les va a llegar el cambio la próxima vez. */
+  const enCurso = asignaciones.filter(a =>
+    (a.rutaId === plantilla.id || a.ruta === plantilla.name) && ESTADOS_EN_CURSO.includes(a.status))
   const [activeTask, setActiveTask] = useState(null)
   const [infoAbierta, setInfoAbierta] = useState(true)
+
+  /* Los datos se corrigen sobre el propio dato: se ven como texto y se vuelven campo al
+     tocarlos. Antes había que cerrar la vista previa y abrir otro modal solo para cambiar
+     una palabra; después eso mejoró a un modo de edición, pero seguía cambiando el panel
+     entero de cara y dejaba seis inputs abiertos para leer una ficha.
+
+     Cada campo guarda por su cuenta —el texto al salir, la lista al elegir— así que no hay
+     borrador ni botón de confirmar. */
+  const editable = canEdit && !!onGuardarDatos
+  const guardar = cambios => onGuardarDatos({
+    name: plantilla.name,
+    descripcion: plantilla.descripcion || '',
+    tipo: plantilla.tipo || 'Onboarding',
+    sucursal: plantilla.sucursal || 'Todas las sucursales',
+    area: plantilla.area,
+    cargo: plantilla.cargo || '',
+    esGlobal: !!plantilla.esGlobal,
+    ...cambios,
+  })
   const estado = { ...estadoRuta(plantilla.status), regla: REGLA_ESTADO[normalizarStatus(plantilla.status)] || REGLA_ESTADO.borrador }
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
@@ -114,8 +159,50 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
             {/* DERECHA: info */}
             <div style={{ flex: '1 1 42%', minWidth: 300, display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0C2D40', margin: '0 0 8px' }}>{plantilla.name}</h2>
-                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 20px' }}>{plantilla.descripcion || 'Sin descripción'}</p>
+                {/* El margen negativo alinea el texto del campo con el resto del panel: el
+                    input necesita padding propio para que el fondo de hover no quede pegado
+                    a las letras. */}
+                <div style={{ margin: '0 -6px 16px' }}>
+                  <TextoEnLinea
+                    value={plantilla.name}
+                    onChange={name => name && guardar({ name })}
+                    placeholder="Nombre de la ruta"
+                    editable={editable}
+                    estilo={{ fontSize: 20, fontWeight: 800, color: '#0C2D40', lineHeight: 1.25 }}
+                  />
+                  <TextoEnLinea
+                    value={plantilla.descripcion || ''}
+                    onChange={descripcion => guardar({ descripcion })}
+                    placeholder="Sin descripción"
+                    multilinea
+                    editable={editable}
+                    estilo={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginTop: 2 }}
+                  />
+                </div>
+
+                {/* COLABORADORES EN CURSO */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>Haciendo esta ruta</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 10 }}>
+                    Conservan la versión con la que empezaron
+                  </div>
+                  {enCurso.length > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <PilaAvatares
+                        personas={enCurso}
+                        size={34}
+                        titulo={enCurso.map(a => `${a.nombre} — ${a.cargo}`).join('\n')}
+                      />
+                      <span style={{ fontSize: 11.5, color: '#334155', fontWeight: 600 }}>
+                        {enCurso.length} {enCurso.length === 1 ? 'colaborador' : 'colaboradores'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                      <UserRound size={13} /> Nadie la está haciendo todavía
+                    </span>
+                  )}
+                </div>
 
                 {/* PERSONAS CON ACCESO */}
                 <div style={{ marginBottom: 20, position: 'relative' }}>
@@ -211,13 +298,56 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                           <span className={`pl-status ${estado.clase}`} title={estado.regla}>{estado.label}</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Tag size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                        <div style={{ fontSize: 11.5 }}>
-                          <span style={{ color: '#94a3b8' }}>Tipo: </span>
-                          <span style={{ color: '#334155', fontWeight: 600 }}>{plantilla.tipo || 'Onboarding'}</span>
+                      {/* La ruta general no apunta a nadie: mostrarle sucursal, área y cargo
+                          sería ofrecer a elegir algo que no se usa. */}
+                      {plantilla.esGlobal ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Briefcase size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                          <div style={{ fontSize: 11.5 }}>
+                            <span style={{ color: '#94a3b8' }}>Alcance: </span>
+                            <span style={{ color: '#334155', fontWeight: 600 }}>Toda la empresa</span>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          <FilaInfo icono={Tag} etiqueta="Tipo">
+                            <ListaEnLinea
+                              value={plantilla.tipo || 'Onboarding'}
+                              opciones={tiposRuta}
+                              onChange={tipo => guardar({ tipo })}
+                              editable={editable}
+                            />
+                          </FilaInfo>
+                          <FilaInfo icono={MapPin} etiqueta="Sucursal">
+                            <ListaEnLinea
+                              value={plantilla.sucursal || 'Todas las sucursales'}
+                              opciones={['Todas las sucursales', ...sucursales]}
+                              onChange={sucursal => guardar({ sucursal })}
+                              editable={editable}
+                            />
+                          </FilaInfo>
+                          <FilaInfo icono={Briefcase} etiqueta="Área">
+                            {/* Cambiar de área deja el cargo anterior sin sentido, así que se
+                                limpia en el mismo movimiento. */}
+                            <ListaEnLinea
+                              value={plantilla.area}
+                              opciones={[TODAS_LAS_AREAS, ...areas]}
+                              onChange={area => guardar({ area, cargo: '' })}
+                              editable={editable}
+                            />
+                          </FilaInfo>
+                          <FilaInfo icono={UserRound} etiqueta="Cargo">
+                            <ListaEnLinea
+                              value={plantilla.cargo}
+                              opciones={cargosPorArea[plantilla.area] || []}
+                              onChange={cargo => guardar({ cargo })}
+                              editable={editable}
+                              desactivado={plantilla.area === TODAS_LAS_AREAS}
+                              placeholder={plantilla.area === TODAS_LAS_AREAS ? 'Todos los cargos' : 'Sin cargo'}
+                            />
+                          </FilaInfo>
+                        </>
+                      )}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <User size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
                         <div style={{ fontSize: 11.5 }}>
@@ -248,9 +378,11 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
 
               <div className="pl-modal-footer">
                 <button className="pl-btn-cancel" onClick={onClose}>Cerrar</button>
+                {/* Va directo al constructor: los datos ya se corrigen en este mismo panel,
+                    así que lo único que queda "para editar" son las etapas y las tareas. */}
                 {canEdit && (
                   <button className="pl-btn-save" onClick={onEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Pencil size={13} /> Editar
+                    <Route size={14} /> Editar etapas y tareas
                   </button>
                 )}
               </div>

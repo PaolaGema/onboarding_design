@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { User, Star, Plus, Minus, Home, Move, MousePointer2, Lightbulb, ScanSearch } from 'lucide-react'
+import { User, Star, Plus, Minus, Home, Move, MousePointer2, Lightbulb, ScanSearch, Briefcase } from 'lucide-react'
 
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 1.6
 
-function Ocupante({ nodo }) {
+function Ocupante({ nodo, externo }) {
   if (nodo.vacante) {
-    return <div className="og-chip og-chip-vacio">Sin colaborador asignado</div>
+    return externo
+      ? <div className="og-chip og-chip-ext"><Briefcase size={10} /> Proveedor externo</div>
+      : <div className="og-chip og-chip-vacio">Sin colaborador asignado</div>
   }
   const p = nodo.ocupante
   return (
@@ -19,23 +21,31 @@ function Ocupante({ nodo }) {
 
 function TarjetaCargo({ nodo, onAbrir }) {
   const { cargo, vacante } = nodo
+  /* Un servicio tercerizado sin ocupante no es una vacante: no hay plaza que cubrir, así que
+     no lleva la marca amarilla que sí pide acción de RRHH. */
+  const externo = cargo.tipo === 'outsourcing'
   const clases = ['og-card']
-  if (vacante) clases.push('og-card-vacante')
+  if (vacante && !externo) clases.push('og-card-vacante')
   if (cargo.tipo === 'staff') clases.push('og-card-staff')
+  if (externo) clases.push('og-card-ext')
 
   return (
     <div
       className={clases.join(' ')}
       onDoubleClick={() => onAbrir?.(nodo)}
-      title="Doble clic para ver el detalle"
+      title={externo && cargo.motivoContratacion ? cargo.motivoContratacion : 'Doble clic para ver el detalle'}
     >
       {cargo.destacado && <Star size={11} className="og-card-star" />}
-      {vacante && <span className="og-card-tag">Vacante</span>}
+      {externo
+        ? <span className="og-card-tag og-tag-ext">Externo</span>
+        : vacante && <span className="og-card-tag">Vacante</span>}
       <div className="og-card-title">
-        <User size={11} className="og-card-ico" />
+        {externo
+          ? <Briefcase size={11} className="og-card-ico" />
+          : <User size={11} className="og-card-ico" />}
         <span>{cargo.nombre}</span>
       </div>
-      <Ocupante nodo={nodo} />
+      <Ocupante nodo={nodo} externo={externo} />
     </div>
   )
 }
@@ -48,14 +58,17 @@ function Nodo({ nodo, onAbrir }) {
 
 function Rama({ nodo, onAbrir }) {
   const hijos = nodo.hijos || []
-  const staff = nodo.staff || []
+  const laterales = nodo.staff || []
   return (
     <li>
       <div className="og-nodo">
+        {/* Hueco espejo del bloque lateral. Sin él la tarjeta se corre a la izquierda y deja
+            de caer sobre el conector que baja hacia sus hijos. */}
+        {laterales.length > 0 && <div className="og-lateral-hueco" aria-hidden="true" />}
         <Nodo nodo={nodo} onAbrir={onAbrir} />
-        {staff.length > 0 && (
+        {laterales.length > 0 && (
           <div className="og-staff">
-            {staff.map(s => <TarjetaCargo key={s.id} nodo={s} onAbrir={onAbrir} />)}
+            {laterales.map(s => <TarjetaCargo key={s.id} nodo={s} onAbrir={onAbrir} />)}
           </div>
         )}
       </div>

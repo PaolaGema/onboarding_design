@@ -34,13 +34,22 @@ export default function App() {
       <UnsavedChangesProvider>
       <BrowserRouter>
         <Routes>
+          {/* Lo personal vive junto y aparte de lo administrativo: Inicio y Onboarding
+              quedaron solo para quien administra. Las rutas viejas siguen respondiendo
+              —redirigen— porque hay enlaces y marcadores apuntando ahí. */}
+          <Route path="/mi-espacio" element={<Layout />}>
+            <Route index element={<Navigate to="/mi-espacio/mi-dia" replace />} />
+            <Route path="mi-dia" element={<MiDia />} />
+            <Route path="calendario" element={<Calendario />} />
+            <Route path="mi-onboarding" element={<MiOnboarding />} />
+            <Route path="acompanados" element={<MisAcompanados />} />
+          </Route>
+
           <Route path="/inicio" element={<Layout />}>
             <Route index element={<Home />} />
-            <Route path="mi-dia" element={<MiDia />} />
+            <Route path="mi-dia" element={<Navigate to="/mi-espacio/mi-dia" replace />} />
           </Route>
-          <Route path="/calendario" element={<Layout />}>
-            <Route index element={<Calendario />} />
-          </Route>
+          <Route path="/calendario" element={<Navigate to="/mi-espacio/calendario" replace />} />
           <Route path="/onboarding" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="asignaciones" element={<Asignaciones />} />
@@ -48,8 +57,8 @@ export default function App() {
             <Route path="plantillas" element={<Plantillas />} />
             <Route path="conocimiento" element={<Conocimiento />} />
             <Route path="configuracion" element={<Configuracion />} />
-            <Route path="mi-onboarding" element={<MiOnboarding />} />
-            <Route path="acompanados" element={<MisAcompanados />} />
+            <Route path="mi-onboarding" element={<Navigate to="/mi-espacio/mi-onboarding" replace />} />
+            <Route path="acompanados" element={<Navigate to="/mi-espacio/acompanados" replace />} />
           </Route>
           <Route path="/personas" element={<Layout />}>
             <Route path="colaboradores" element={<Colaboradores />} />
