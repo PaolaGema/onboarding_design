@@ -3,6 +3,7 @@ import { X, Search, Layers, Route, Copy, ArrowRight, AlertTriangle } from 'lucid
 import { rutaPlantillas } from '../../data/rutaPlantillas'
 import { useConfig } from '../../context/ConfigContext'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
+import ReemplazarContenidoModal from './ReemplazarContenidoModal'
 
 /* De dónde sale el contenido de una ruta: una plantilla del catálogo o una copia de otra ruta
    ya armada.
@@ -30,7 +31,7 @@ const cuenta = (etapas = []) => ({
   tareas: etapas.reduce((s, e) => s + (e.actividades || []).reduce((ss, a) => ss + (a.tareas?.length || 0), 0), 0),
 })
 
-export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasActuales = 0, onUsar, onCerrar }) {
+export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasActuales = [], enCurso = 0, onUsar, onCerrar }) {
   const { gamificacion } = useConfig()
   const [pestana, setPestana] = useState('plantillas')
   const [busca, setBusca] = useState('')
@@ -69,7 +70,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
     setConfirmando(false)
   }
 
-  const reemplaza = etapasActuales > 0
+  const reemplaza = etapasActuales.length > 0
 
   return (
     <>
@@ -210,9 +211,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                     {reemplaza ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginRight: 'auto', fontSize: 11, color: '#92400e', fontWeight: 600, lineHeight: 1.4 }}>
                         <AlertTriangle size={14} style={{ color: '#d97706', flexShrink: 0 }} />
-                        {confirmando
-                          ? `Se van a borrar las ${etapasActuales} ${etapasActuales === 1 ? 'etapa' : 'etapas'} que ya armaste`
-                          : 'Reemplaza el contenido actual de la ruta'}
+                        Reemplaza el contenido actual de la ruta
                       </span>
                     ) : (
                       /* El pie ya existe por el botón, así que la pista viaja aquí y no cuesta
@@ -221,26 +220,13 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
                         Clic en una tarea para ver su contenido
                       </span>
                     )}
-                    {confirmando ? (
-                      <>
-                        <button className="pl-btn-cancel" onClick={() => setConfirmando(false)}>Cancelar</button>
-                        <button
-                          className="pl-btn-save"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                          onClick={() => onUsar(sel.etapas, sel.nombre)}
-                        >
-                          Sí, reemplazar <ArrowRight size={13} />
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className="pl-btn-save"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                        onClick={() => (reemplaza ? setConfirmando(true) : onUsar(sel.etapas, sel.nombre))}
-                      >
-                        {reemplaza ? 'Reemplazar con esta' : 'Usar esta base'} <ArrowRight size={13} />
-                      </button>
-                    )}
+                    <button
+                      className="pl-btn-save"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={() => (reemplaza ? setConfirmando(true) : onUsar(sel.etapas, sel.nombre))}
+                    >
+                      {reemplaza ? 'Reemplazar con esta' : 'Usar esta base'} <ArrowRight size={13} />
+                    </button>
                   </div>
                 </>
               )}
@@ -251,6 +237,32 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
 
       {tareaAbierta && (
         <TaskPreviewModal task={tareaAbierta} onClose={() => setTareaAbierta(null)} />
+      )}
+
+      {/* La confirmación es un diálogo aparte y no un segundo estado del mismo pie.
+
+          Antes el pie se transformaba: el mismo botón que decía "Reemplazar con esta" pasaba a
+          decir "Sí, reemplazar" en el mismo lugar exacto. Quien venía haciendo clic seguido
+          confirmaba sin haber leído nada — la confirmación caía justo debajo del cursor, que es
+          la única posición donde no protege de nada.
+
+          Acá el diálogo aparece centrado, lejos del botón que se acaba de tocar, y obliga a
+          mover el mouse para responder. El lienzo vacío sigue sin preguntar nada: no hay qué
+          perder y la acción va directa. */}
+      {/* Los que están en curso no se ven afectados por este botón: conservan la versión con la
+          que empezaron y la decisión que sí los alcanza llega al guardar, en el modal de
+          alcance. Decirlo aquí es la diferencia entre que quien reemplaza sepa que hay gente
+          adentro —y vaya con cuidado a esa segunda pregunta— o se entere recién cuando la
+          pregunta aparece, con la ruta ya reemplazada. */}
+      {confirmando && sel && (
+        <ReemplazarContenidoModal
+          actual={cuenta(etapasActuales)}
+          entrante={cuenta(sel.etapas)}
+          nombreEntrante={sel.nombre}
+          enCurso={enCurso}
+          onConfirmar={() => onUsar(sel.etapas, sel.nombre)}
+          onCancelar={() => setConfirmando(false)}
+        />
       )}
     </>
   )

@@ -3222,7 +3222,14 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           rutas={plantillas}
           /* Solo las propias: las de la ruta general no se pierden al traer una base, así que
              no cuentan para el aviso de "esto reemplaza lo que ya armaste". */
-          etapasActuales={draftEtapas.length}
+          /* Las etapas enteras y no solo cuántas son: la confirmación las cuenta con la misma
+             función con la que cuenta la plantilla que entra, para que los dos lados del
+             intercambio se midan igual y sean comparables. */
+          etapasActuales={draftEtapas}
+          /* Cuánta gente está adentro. No cambia lo que hace el botón —a ellos no les llega
+             nada hasta guardar— pero sí cómo se lee: reemplazar la ruta entera de un puesto
+             que alguien está recorriendo no es lo mismo que hacerlo sobre un borrador. */
+          enCurso={hayEnCurso ? enCursoAlEntrar : 0}
           onCerrar={() => setElegirBase(false)}
           /* Las etapas de la ruta general se vuelven a anteponer: son de ella y no de la base
              que se copia, así que no viajan en la copia ni deben perderse al traerla. */
