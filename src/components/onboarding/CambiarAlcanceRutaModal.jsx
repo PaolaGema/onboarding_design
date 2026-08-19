@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { ArrowLeftRight, ArrowRight, Briefcase, Users, UserRoundX } from 'lucide-react'
-import { CAMPOS_ALCANCE, describirPuesto, sucursalDe } from '../../utils/rutaEstados'
+import { CAMPOS_ALCANCE, describirPuesto, valorDeAlcance } from '../../utils/rutaEstados'
 import { Rotulo, Nota, FilaRuta } from './PiezasAviso'
 
 /* Confirmación al cambiarle el alcance —sucursal, área o cargo— a una ruta que está en
@@ -24,7 +24,7 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancelar])
 
-  const { destino, desplaza, liberaPuesto, quedaSinCargo } = impacto
+  const { destino, desplaza, cargosLiberados = [], liberaPuesto, quedaSinCargo } = impacto
   const varias = desplaza.length > 1
 
   /* Solo los campos que efectivamente cambian. Cambiar de área arrastra el cargo —un cargo de
@@ -34,10 +34,10 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
     .map(([campo, etiqueta]) => ({
       campo,
       etiqueta,
-      de: campo === 'sucursal' ? sucursalDe(ruta) : ruta[campo],
-      a: campo === 'sucursal' ? sucursalDe(destino) : destino[campo],
+      de: valorDeAlcance(ruta, campo),
+      a: valorDeAlcance(destino, campo),
     }))
-    .filter(f => (f.de || '') !== (f.a || ''))
+    .filter(f => f.de !== f.a)
 
   return (
     <div className="pl-overlay" style={{ zIndex: 1300 }} onClick={onCancelar}>
@@ -80,7 +80,7 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
                   <span style={{ fontSize: 11.5, color: 'var(--text-muted)', textDecoration: 'line-through' }}>{f.de || '—'}</span>
                   <ArrowRight size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: f.a ? '#0C2D40' : 'var(--text-muted)' }}>
-                    {f.a || 'Sin cargo'}
+                    {f.a || 'Sin cargos'}
                   </span>
                 </div>
               </div>
@@ -116,8 +116,11 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
 
           {liberaPuesto && (
             <Nota icon={Briefcase}>
-              <strong>{describirPuesto(ruta)}</strong> se queda sin ruta vigente: los próximos ingresos de
-              ese puesto no reciben ninguna hasta que actives otra.
+              {/* Se nombran los cargos que suelta y no los que tenía: con varios, el cambio
+                  puede ser parcial —deja uno y conserva el resto—. */}
+              <strong>{describirPuesto({ ...ruta, cargos: cargosLiberados })}</strong> se queda sin ruta vigente:
+              los próximos ingresos de {cargosLiberados.length === 1 ? 'ese puesto' : 'esos puestos'} no reciben
+              ninguna hasta que actives otra.
             </Nota>
           )}
 
@@ -125,8 +128,8 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
               diciendo Activo: el estado afirmaría algo que dejó de ser cierto. */}
           {quedaSinCargo && (
             <Nota icon={UserRoundX}>
-              La ruta queda en <strong>Activo</strong> pero sin cargo, así que no le llega a nadie.
-              Elige un cargo del área nueva para volver a ponerla en circulación.
+              La ruta queda en <strong>Activo</strong> pero sin ningún cargo, así que no le llega a nadie.
+              Elige al menos un cargo del área nueva para volver a ponerla en circulación.
             </Nota>
           )}
 
@@ -138,7 +141,7 @@ export default function CambiarAlcanceRutaModal({ ruta, impacto, enCurso = 0, on
               <strong>{enCurso} {enCurso === 1 ? 'colaborador sigue' : 'colaboradores siguen'}</strong> con la
               versión que empezaron y {enCurso === 1 ? 'la termina' : 'la terminan'} igual. En sus registros,
               eso sí, esta ruta pasará a figurar como{' '}
-              <strong>{destino.cargo ? describirPuesto(destino) : `${destino.area}, sin cargo`}</strong>.
+              <strong>{quedaSinCargo ? `${destino.area}, sin cargos` : describirPuesto(destino)}</strong>.
             </Nota>
           )}
         </div>

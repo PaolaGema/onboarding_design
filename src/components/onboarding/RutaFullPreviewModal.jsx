@@ -4,10 +4,10 @@ import { useConfig } from '../../context/ConfigContext'
 import { useUser } from '../../context/UserContext'
 import { colaboradoresData } from '../../pages/personas/colaboradoresData'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
-import { estadoRuta, normalizarStatus, REGLA_ESTADO, ESTADOS_EN_CURSO, impactoDeAlcance } from '../../utils/rutaEstados'
+import { estadoRuta, normalizarStatus, reglaEstado, ESTADOS_EN_CURSO, impactoDeAlcance, cargosDe, nombrarCargos } from '../../utils/rutaEstados'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import PilaAvatares from './PilaAvatares'
-import { TextoEnLinea, ListaEnLinea } from './CamposEnLinea'
+import { TextoEnLinea, ListaEnLinea, ListaMultiEnLinea } from './CamposEnLinea'
 import CambiarAlcanceRutaModal from './CambiarAlcanceRutaModal'
 import { areas, cargosPorArea, sucursales, tiposRuta, TODAS_LAS_AREAS } from './RutaMetaFields'
 
@@ -64,7 +64,10 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
     tipo: plantilla.tipo || 'Onboarding',
     sucursal: plantilla.sucursal || 'Todas las sucursales',
     area: plantilla.area,
-    cargo: plantilla.cargo || '',
+    cargos: cargosDe(plantilla),
+    // El `cargo` suelto de las rutas viejas se borra al guardar: ya se lee desde `cargos`, y
+    // dejarlo escrito es un dato que contradice al que manda.
+    cargo: undefined,
     esGlobal: !!plantilla.esGlobal,
     ...cambios,
   }, desplazadas)
@@ -80,7 +83,7 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
     if (!impacto.hay) { guardar(cambios); return }
     setAlcanceConfirm({ cambios, impacto })
   }
-  const estado = { ...estadoRuta(plantilla.status), regla: REGLA_ESTADO[normalizarStatus(plantilla.status)] || REGLA_ESTADO.borrador }
+  const estado = { ...estadoRuta(plantilla.status), regla: reglaEstado(normalizarStatus(plantilla.status), plantilla) || reglaEstado('borrador', plantilla) }
   const [showAddModal, setShowAddModal] = useState(false)
   const [addSearch, setAddSearch] = useState('')
   const [selectedToAdd, setSelectedToAdd] = useState([])
@@ -352,15 +355,16 @@ export default function RutaFullPreviewModal({ plantilla, responsables, canManag
                             <ListaEnLinea
                               value={plantilla.area}
                               opciones={[TODAS_LAS_AREAS, ...areas]}
-                              onChange={area => guardarAlcance({ area, cargo: '' })}
+                              onChange={area => guardarAlcance({ area, cargos: [] })}
                               editable={editable}
                             />
                           </FilaInfo>
-                          <FilaInfo icono={UserRound} etiqueta="Cargo">
-                            <ListaEnLinea
-                              value={plantilla.cargo}
+                          <FilaInfo icono={UserRound} etiqueta="Cargos">
+                            <ListaMultiEnLinea
+                              values={cargosDe(plantilla)}
+                              resumen={nombrarCargos(plantilla)}
                               opciones={cargosPorArea[plantilla.area] || []}
-                              onChange={cargo => guardarAlcance({ cargo })}
+                              onChange={cargos => guardarAlcance({ cargos })}
                               editable={editable}
                               desactivado={plantilla.area === TODAS_LAS_AREAS}
                               placeholder={plantilla.area === TODAS_LAS_AREAS ? 'Todos los cargos' : 'Sin cargo'}

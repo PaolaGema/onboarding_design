@@ -2,8 +2,10 @@ import { useState, useMemo } from 'react'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Search, X, Filter, Check, ChevronLeft, ChevronRight,
-  ChevronDown, Calendar, Rocket, AlertTriangle
+  ChevronDown, Calendar, Rocket, AlertTriangle, Flag
 } from 'lucide-react'
+import { duracionEnDias, fechaFinRuta } from '../../utils/duracionRuta'
+import { cargosDe } from '../../utils/rutaEstados'
 
 const colaboradoresDisponibles = [
   { name: 'Luciana Paredes', depto: 'Ventas', cargo: 'Pasante Comercial', sucursal: 'La Paz', ingreso: '2026-06-24', initials: 'LP', color: '#0d9488' },
@@ -25,6 +27,10 @@ const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 's
 function formatFechaCorta(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function formatFechaLarga(date) {
+  return `${date.getDate()} de ${MONTHS[date.getMonth()].toLowerCase()} de ${date.getFullYear()}`
 }
 
 function MiniCalendar({ value, onChange }) {
@@ -59,9 +65,6 @@ function MiniCalendar({ value, onChange }) {
   }
 
   const canPrev = viewYear > today.getFullYear() || (viewYear === today.getFullYear() && viewMonth > today.getMonth())
-  const selectedLabel = value
-    ? (() => { const d = new Date(value + 'T00:00:00'); return `${d.getDate()} de ${MONTHS[d.getMonth()]} ${d.getFullYear()}` })()
-    : null
 
   return (
     <>
@@ -95,12 +98,6 @@ function MiniCalendar({ value, onChange }) {
           </div>
         </div>
       </div>
-      {selectedLabel && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '8px 12px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-          <Calendar size={12} style={{ color: '#16a34a' }} />
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#166534' }}>{selectedLabel}</span>
-        </div>
-      )}
     </>
   )
 }
@@ -169,6 +166,7 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
   }
   const isColabSelected = (c) => selectedColabs.some(s => s.name === c.name)
   const selectedRuta = rutasAsignar.find(r => r.id === onbSelected) || null
+  const diasRuta = duracionEnDias(selectedRuta?.etapasData)
   const canConfirm = selectedColabs.length > 0 && onbSelected && onbFecha
 
   return (
@@ -320,7 +318,10 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
               {rutasAsignar
-                .filter(r => (onbArea === 'Todas' || r.area === onbArea) && (onbCargo === 'Todos' || r.name.toLowerCase().includes(onbCargo.toLowerCase())) && r.name.toLowerCase().includes(onbSearch.toLowerCase()))
+                /* El filtro por cargo mira los cargos de la ruta y ya no su nombre: buscaba el
+                   texto del cargo dentro del título, así que una ruta que apunta a tres cargos
+                   solo aparecía en el que alguien se acordó de escribir en el nombre. */
+                .filter(r => (onbArea === 'Todas' || r.area === onbArea) && (onbCargo === 'Todos' || cargosDe(r).includes(onbCargo)) && r.name.toLowerCase().includes(onbSearch.toLowerCase()))
                 .map(r => (
                   <button key={r.id} onClick={() => selectRuta(r)} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
@@ -475,6 +476,43 @@ export default function AsignarRutaModal({ onClose, onConfirm, preselectedRutaId
                   </span>
                 </div>
               )
+            )}
+
+            {/* CUÁNDO TERMINA — no se pregunta, se calcula: la ruta ya dice cuánto dura cada
+                etapa, así que elegir el inicio alcanza para saber el último día. */}
+            {onbFecha && (
+              <div style={{ borderRadius: 10, border: '1px solid #bbf7d0', background: '#f0fdf4', padding: '10px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <Calendar size={12} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: '#4d7c5a' }}>Inicio del onboarding</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#166534' }}>
+                      {formatFechaLarga(new Date(onbFecha + 'T00:00:00'))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ borderTop: '1px dashed #bbf7d0', margin: '8px 0' }} />
+                {diasRuta > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <Flag size={12} style={{ color: '#16a34a', flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: '#4d7c5a' }}>Fin del onboarding</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#166534' }}>
+                        {formatFechaLarga(fechaFinRuta(onbFecha, diasRuta))}
+                      </div>
+                      <div style={{ fontSize: 9, color: '#4d7c5a', marginTop: 2 }}>
+                        {diasRuta} {diasRuta === 1 ? 'día' : 'días'} de ruta · {selectedRuta.etapas} {selectedRuta.etapas === 1 ? 'etapa' : 'etapas'}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 9.5, color: '#4d7c5a', lineHeight: 1.4 }}>
+                    {selectedRuta
+                      ? 'Esta ruta todavía no tiene etapas, así que no se puede calcular cuándo termina.'
+                      : 'Elige una ruta arriba y aparece la fecha de término.'}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

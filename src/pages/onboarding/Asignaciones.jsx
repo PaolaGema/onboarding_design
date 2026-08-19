@@ -12,6 +12,7 @@ import AsignarBuddyModal from '../../components/onboarding/AsignarBuddyModal'
 import EnviarRecordatorioModal from '../../components/onboarding/EnviarRecordatorioModal'
 import PausarOnboardingModal from '../../components/onboarding/PausarOnboardingModal'
 import { statusLabels, statusCls, barColor } from '../../utils/estadoAsignacion'
+import { duracionEnDias } from '../../utils/duracionRuta'
 import OnboardingCard from '../../components/onboarding/OnboardingCard'
 import EmptyState from '../../components/layout/EmptyState'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
@@ -119,7 +120,8 @@ export default function Asignaciones() {
       version: ruta.versionActual || 1,
       etapasData: JSON.parse(JSON.stringify(ruta.etapasData || [])),
       dia: 0,
-      totalDias: 30,
+      // Lo que dura la ruta de verdad; 30 solo si la ruta todavía no tiene etapas.
+      totalDias: duracionEnDias(ruta.etapasData) || 30,
       pct: 0,
       status: 'pendiente',
       fechaInicio: fecha || 'Por definir',

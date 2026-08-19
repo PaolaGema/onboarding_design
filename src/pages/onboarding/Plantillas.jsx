@@ -17,10 +17,42 @@ import OnboardingCard from '../../components/onboarding/OnboardingCard'
 import RutaMetaFields, { areas, cargosPorArea, tiposRuta, faltaAlgo } from '../../components/onboarding/RutaMetaFields'
 import { colaboradoresData } from '../personas/colaboradoresData'
 import { getGlobalEtapas } from '../../utils/globalEtapas'
-import { estadoRuta, normalizarStatus, rutasEnConflicto, describirPuesto, marcarDesplazada, limpiarDesplazada, motivoDesplazo, ESTADOS_EN_CURSO, SUCURSAL_TODAS } from '../../utils/rutaEstados'
+import { duracionEnDias } from '../../utils/duracionRuta'
+import { estadoRuta, normalizarStatus, rutasEnConflicto, describirPuesto, marcarDesplazada, limpiarDesplazada, motivoDesplazo, cargosDe, nombrarCargos, ESTADOS_EN_CURSO, SUCURSAL_TODAS } from '../../utils/rutaEstados'
 
 const colores = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#f97316', '#ec4899', '#0d9488', '#d946ef', '#ef4444']
 
+
+/* Piezas del aviso de "este lugar ya está ocupado". El rótulo del momento va en versaditas y
+   angosto para que las dos filas queden alineadas y se lean como una tabla de dos tiempos. */
+const Momento = ({ children }) => (
+  <span style={{
+    fontSize: 9, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase',
+    color: '#b45309', whiteSpace: 'nowrap',
+  }}>
+    {children}
+  </span>
+)
+
+const Detalle = ({ children }) => (
+  <span style={{ fontSize: 10.5, color: '#92400e', lineHeight: 1.55 }}>{children}</span>
+)
+
+/* La píldora de la lista usa fondo de color, y sobre el ámbar del aviso el amarillo de
+   "Borrador" desaparece. Acá va en blanco con el color del estado en el texto y el borde:
+   se despega del fondo y se sigue reconociendo. */
+const PildoraAviso = ({ estado }) => {
+  const e = estadoRuta(estado)
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
+      fontSize: 9.5, fontWeight: 700, padding: '1px 7px', borderRadius: 20,
+      background: '#fff', color: e.color, border: `1px solid ${e.color}40`,
+    }}>
+      {e.label}
+    </span>
+  )
+}
 
 /* Ítem del menú de acciones de una ruta. Lo comparten la cuadrícula y la tabla:
    escrito dos veces, el estado apagado de "Activar" existía solo en una. */
@@ -59,7 +91,13 @@ export default function Plantillas() {
 
   const { plantillas: allPlantillas, setPlantillas: setAllPlantillas, asignaciones, setAsignaciones, addFeedEntry } = useOnboardingData()
   const isAdmin = !isAreaRole
-  const rutaGeneral = allPlantillas.find(p => p.esGlobal) || null
+  /* "La" ruta general es la que está en uso. Ahora puede haber más de una marcada —la vigente
+     y el borrador que la va a suceder— y quien pregunta por ella quiere saber cuál se está
+     anteponiendo hoy, no cuál se está escribiendo. Si ninguna está activa, se muestra igual la
+     que haya, porque el KPI necesita distinguir "no hay" de "hay pero todavía no propaga". */
+  const rutaGeneral = allPlantillas.find(p => p.esGlobal && normalizarStatus(p.status) === 'activa')
+    || allPlantillas.find(p => p.esGlobal)
+    || null
   // Alcance de la ruta general: como se antepone a todas las rutas, aplica a todos los
   // colaboradores en onboarding. Total real = suma de asignados de las rutas activas (no generales).
   const alcanceGeneral = allPlantillas
@@ -154,14 +192,14 @@ export default function Plantillas() {
 
   const hasRutaFilters = filterStatus !== 'todas' || filterTipo !== 'todos' || filterArea !== 'todas' || filterCargo !== 'todos'
   const fuenteRutas = plantillas
-  const cargosDeArea = [...new Set(fuenteRutas.filter(p => filterArea === 'todas' || p.area === filterArea).map(p => p.cargo).filter(Boolean))]
+  const cargosDeArea = [...new Set(fuenteRutas.filter(p => filterArea === 'todas' || p.area === filterArea).flatMap(cargosDe))]
   const filtered = fuenteRutas.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.area.toLowerCase().includes(search.toLowerCase())
     const matchStatus = filterStatus === 'todas' || normalizarStatus(p.status) === filterStatus
     const matchTipo = filterTipo === 'todos' || (p.tipo || 'Onboarding') === filterTipo
     const matchArea = filterArea === 'todas' || p.area === filterArea
-    const matchCargo = filterCargo === 'todos' || p.cargo === filterCargo
+    const matchCargo = filterCargo === 'todos' || cargosDe(p).includes(filterCargo)
     return matchSearch && matchStatus && matchTipo && matchArea && matchCargo
   }).sort((a, b) => (b.esGlobal ? 1 : 0) - (a.esGlobal ? 1 : 0))
   function clearRutaFilters() { setFilterStatus('todas'); setFilterTipo('todos'); setFilterArea('todas'); setFilterCargo('todos'); setPage(1) }
@@ -175,12 +213,8 @@ export default function Plantillas() {
      el aviso llega recién al final, la persona se entera después de haber armado
      la ruta entera. Acá informa, no bloquea — el cambio se confirma al activar. */
   const conflictoForm = modal
-    ? rutasEnConflicto(allPlantillas, { id: form.id, cargo: form.cargo, sucursal: form.sucursal })
+    ? rutasEnConflicto(allPlantillas, { id: form.id, cargos: form.cargos, sucursal: form.sucursal, esGlobal: form.esGlobal })
     : []
-
-  /* Se pidió una ruta general cuando ya hay una. Solo puede existir una, así que el modal
-     no pide nada más: informa cuál es la vigente y de ahí no pasa. */
-  const generalBloqueada = modal === 'crear' && form.esGlobal && !!rutaGeneral
 
   // `normalizarStatus` para que una ruta guardada como "archivada" antes de que ese estado
   // desapareciera cuente donde corresponde y no quede fuera de los tres contadores.
@@ -200,7 +234,7 @@ export default function Plantillas() {
       tipo: 'Onboarding',
       sucursal: 'Todas las sucursales',
       area: isManager ? managerArea : 'Ventas',
-      cargo: '',
+      cargos: [],
       /* Qué se está creando. La general no se apunta a nadie —va para todos— así que no
          tiene sucursal, área ni cargo; declararlo aquí evita crear una ruta común y tener
          que acordarse después de marcarla desde el menú de acciones. */
@@ -212,7 +246,7 @@ export default function Plantillas() {
   function openEdit(p) {
     // Arrastra `esGlobal` para que a la ruta general tampoco se le pidan aquí sucursal, área
     // ni cargo: son datos que no usa. Cambiar la marca sigue siendo cosa del menú de acciones.
-    const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargo: p.cargo || '', esGlobal: !!p.esGlobal, id: p.id }
+    const initial = { name: p.name, descripcion: p.descripcion || '', tipo: p.tipo || 'Onboarding', sucursal: p.sucursal || 'Todas las sucursales', area: p.area, cargos: cargosDe(p), esGlobal: !!p.esGlobal, id: p.id }
     setForm(initial)
     setOriginalForm(initial)
     setModal('editar')
@@ -236,7 +270,7 @@ export default function Plantillas() {
            las rutas") la lee sin tener que preguntar aparte si es la general. */
         sucursal: form.esGlobal ? SUCURSAL_TODAS : (form.sucursal || SUCURSAL_TODAS),
         area: form.esGlobal ? 'Todas las áreas' : form.area,
-        cargo: form.esGlobal ? '' : (form.cargo || ''),
+        cargos: form.esGlobal ? [] : (form.cargos || []),
         etapas: etapasData?.length || 0,
         tareas: etapasData ? etapasData.reduce((s, e) => s + e.actividades.reduce((ss, a) => ss + a.tareas.length, 0), 0) : 0,
         asignados: 0,
@@ -268,7 +302,9 @@ export default function Plantillas() {
       setPlantillas(plantillas.map(p => {
         if (p.id !== form.id) return p
         return {
-          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, sucursal: form.sucursal, area: form.area, updated: 'Ahora',
+          /* `cargos` se guarda acá también: el formulario deja editarlo y la comparación de
+             abajo lo cuenta como cambio, pero el guardado lo dejaba afuera y volvía sin efecto. */
+          ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, sucursal: form.sucursal, area: form.area, cargos: form.cargos || [], updated: 'Ahora',
           updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
         }
       }))
@@ -287,7 +323,7 @@ export default function Plantillas() {
       tipo: form.tipo,
       sucursal: form.sucursal,
       area: form.area,
-      cargo: form.cargo || '',
+      cargos: form.cargos || [],
     }
     setPlantillas(plantillas.map(pl => pl.id === form.id ? updated : pl))
     setModal(null)
@@ -337,7 +373,8 @@ export default function Plantillas() {
       version: ruta.versionActual || 1,
       etapasData: JSON.parse(JSON.stringify(ruta.etapasData || [])),
       dia: 0,
-      totalDias: 30,
+      // Lo que dura la ruta de verdad; 30 solo si la ruta todavía no tiene etapas.
+      totalDias: duracionEnDias(ruta.etapasData) || 30,
       pct: 0,
       status: 'pendiente',
       fechaInicio: fecha || 'Por definir',
@@ -681,7 +718,7 @@ export default function Plantillas() {
           <OnboardingCard
             key={p.id}
             nombre={p.name}
-            cargo={p.cargo}
+            cargo={nombrarCargos(p)}
             area={p.area}
             destacado={p.esGlobal}
             avatar={
@@ -888,7 +925,11 @@ export default function Plantillas() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#0C2D40' }}>{p.area}</span>
-                      {p.cargo && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.cargo}</span>}
+                      {/* Con varios cargos se nombran dos y el resto se cuenta: la celda tiene
+                          ancho fijo y la lista entera la desbordaba. El título los trae todos. */}
+                      {cargosDe(p).length > 0 && (
+                        <span title={cargosDe(p).join(', ')} style={{ fontSize: 11, color: 'var(--text-muted)' }}>{nombrarCargos(p)}</span>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -1137,52 +1178,71 @@ export default function Plantillas() {
                 </div>
               )}
 
-              {/* Solo puede haber una. Si ya existe, no se piden datos que no van a poder
-                  guardarse: se explica dónde está la vigente y se corta aquí. */}
-              {generalBloqueada ? (
-                <div className="pl-aviso-bloqueo">
-                  <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
-                  <span>
-                    Ya existe una ruta general: <strong>{rutaGeneral.name}</strong>. Solo puede haber
-                    una, así que para cambiar lo que se aplica a toda la empresa edita esa —o quítale
-                    la marca desde su menú de acciones y vuelve aquí.
-                  </span>
-                </div>
-              ) : (
-              <>
               <RutaMetaFields form={form} setForm={setForm} autoFocus />
 
-              {/* La general se aplica a todos: no hay a quién apuntarla ni con quién chocar. */}
+              {/* La general se aplica a todos: no hay a quién apuntarla. */}
               {form.esGlobal && (
                 <div className="pl-aviso-general">
                   <ShieldCheck size={14} style={{ color: '#475569', flexShrink: 0, marginTop: 1 }} />
+                  {/* Dos frases y no cuatro. "Es lo común a toda la empresa" repetía lo que
+                      "se anteponen a las de todas las rutas" ya dice. Y que aparezcan en gris y
+                      solo se editen desde aquí se cuenta en la vista previa de la ruta y en el
+                      panel del constructor —los dos lugares donde el gris está en pantalla—:
+                      aquí es un dato de algo que todavía no existe, dicho antes de tiempo. */}
                   <span>
                     Sus etapas se anteponen a las de <strong>todas</strong> las rutas, sin importar
-                    cargo, área ni sucursal. Por eso no se elige a quién apuntarla: es lo común a
-                    toda la empresa. En las otras rutas aparecen en gris y solo se editan desde aquí.
+                    cargo, área ni sucursal. Por eso aquí no se elige a quién apuntarla.
                   </span>
                 </div>
               )}
 
-              {!form.esGlobal && conflictoForm.length > 0 && (
-                <div style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
-                  padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a',
-                }}>
-                  <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 10.5, color: '#92400e', lineHeight: 1.5 }}>
-                    <strong>{describirPuesto({ cargo: form.cargo, sucursal: form.sucursal })}</strong> ya tiene
-                    {conflictoForm.length > 1 ? ` ${conflictoForm.length} rutas vigentes` : ' una ruta vigente'}:{' '}
-                    <strong>{conflictoForm.map(c => c.name).join(', ')}</strong>. Puedes crear esta igual: nace en
-                    Borrador y no cambia nada todavía. Al activarla{' '}
-                    {conflictoForm.length > 1 ? 'reemplazará a esas rutas' : 'reemplazará a esa ruta'}, que
-                    {conflictoForm.length > 1 ? ' quedarán' : ' quedará'} en Inactivo y{' '}
-                    {conflictoForm.length > 1 ? 'podrás reactivarlas' : 'podrás reactivarla'} cuando quieras.
-                  </span>
-                </div>
-              )}
-              </>
-              )}
+              {/* El mismo aviso para el choque de cargo y para el de la general: en los dos
+                  casos el lugar ya está ocupado y la salida es idéntica —nace en Borrador y se
+                  resuelve al activar—. Antes la general se bloqueaba en seco y este aviso solo
+                  existía para las rutas por cargo. */}
+              {/* El aviso separa los dos momentos en vez de encadenarlos en un párrafo. Todo
+                  esto ya se decía, pero seguido: primero que el lugar está ocupado, después que
+                  igual se puede crear, después qué pasa al activar. Son dos tiempos distintos
+                  —lo que pasa ahora y lo que pasa después— y en prosa corrida quien lee tiene
+                  que separarlos solo, justo cuando lo que quiere saber es si puede seguir.
+
+                  Los estados van con la misma píldora de la lista de rutas: quien las vio ahí
+                  reconoce "Borrador" e "Inactivo" sin leer la frase entera. */}
+              {conflictoForm.length > 0 && (() => {
+                const varias = conflictoForm.length > 1
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4,
+                    padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a',
+                  }}>
+                    <AlertTriangle size={13} style={{ color: '#b45309', flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10.5, color: '#92400e', lineHeight: 1.5 }}>
+                        <strong>{describirPuesto({ cargos: form.cargos, sucursal: form.sucursal, esGlobal: form.esGlobal })}</strong> ya
+                        {varias ? ` tiene ${conflictoForm.length} rutas vigentes` : ' tiene una ruta vigente'}:{' '}
+                        <strong>{conflictoForm.map(c => c.name).join(', ')}</strong>.
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '5px 9px', marginTop: 8, alignItems: 'baseline' }}>
+                        <Momento>Ahora</Momento>
+                        <Detalle>
+                          Esta se crea en <PildoraAviso estado="borrador" /> y no cambia nada.
+                        </Detalle>
+                        {/* "Cuando quieras" prometía de más: reactivarla no es libre, es volver a
+                            disputar el mismo lugar. Si para entonces hay otra ocupándolo, vuelve
+                            a pasar esto mismo. Se dice la condición en vez de la promesa. */}
+                        <Momento>Al activarla</Momento>
+                        <Detalle>
+                          {varias ? 'Esas rutas pasan' : 'Esa ruta pasa'} a <PildoraAviso estado="inactiva" />.{' '}
+                          {varias ? 'Podrás volver a activarlas' : 'Podrás volver a activarla'}{' '}
+                          {form.esGlobal
+                            ? 'cuando ninguna otra sea la ruta general.'
+                            : 'cuando el puesto no tenga otra vigente.'}
+                        </Detalle>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             <div className="pl-modal-footer" style={modal === 'editar' ? { justifyContent: 'space-between' } : undefined}>
@@ -1211,17 +1271,17 @@ export default function Plantillas() {
                 onClick={handleSave}
                 disabled={
                   /* Qué es obligatorio lo decide `faltaAlgo`, junto a los campos: a la general
-                     solo se le pide el nombre. Acá se suma lo único que es de esta pantalla —no
-                     dejar crear una segunda general— y que editar sin cambios no haga nada. */
+                     solo se le pide el nombre. Acá se suma lo único que es de esta pantalla: que
+                     editar sin cambios no haga nada. Una segunda ruta general ya no se bloquea
+                     —nace en Borrador, como cualquier ruta cuyo lugar está ocupado. */
                   faltaAlgo(form) ||
-                  (modal === 'crear' && form.esGlobal && !!rutaGeneral) ||
                   (modal === 'editar' && originalForm &&
                     form.name === originalForm.name &&
                     form.descripcion === originalForm.descripcion &&
                     form.tipo === originalForm.tipo &&
                     form.sucursal === originalForm.sucursal &&
                     form.area === originalForm.area &&
-                    form.cargo === originalForm.cargo)
+                    (form.cargos || []).join('|') === (originalForm.cargos || []).join('|'))
                 }
               >
                 {modal === 'crear' ? 'Crear y diseñar ruta' : 'Guardar cambios'}
@@ -1236,7 +1296,9 @@ export default function Plantillas() {
       {previewRuta && (
         <RutaFullPreviewModal
           plantilla={(() => {
-            const globales = (previewRuta.esGlobal || previewRuta._versionPreview) ? [] : getGlobalEtapas(allPlantillas, previewRuta.id)
+            // Igual que en el constructor: la ruta general se antepone salvo que esta ruta la haya sacado.
+            const globales = (previewRuta.esGlobal || previewRuta._versionPreview || previewRuta.config?.incluirGeneral === false)
+              ? [] : getGlobalEtapas(allPlantillas, previewRuta.id)
             return globales.length ? { ...previewRuta, etapasData: [...globales, ...(previewRuta.etapasData || [])] } : previewRuta
           })()}
           responsables={responsables[previewRuta.id] || []}

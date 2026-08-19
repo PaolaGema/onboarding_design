@@ -794,8 +794,10 @@ export default function Colaboradores() {
                     if (ruta) {
                       const src = rutasData[1]
                       const etapas = JSON.parse(JSON.stringify(src.etapas))
-                      const globalEtapas = getGlobalEtapas(plantillas, null)
-                      etapas.unshift(...globalEtapas)
+                      // La ruta puede haber sacado la general de su alcance: ahí no se antepone.
+                      if (ruta.config?.incluirGeneral !== false) {
+                        etapas.unshift(...getGlobalEtapas(plantillas, null))
+                      }
                       activarRuta(etapas, { nombre: ruta.name, area: ruta.area })
                       asignarRuta(onbModal, ruta)
                     }

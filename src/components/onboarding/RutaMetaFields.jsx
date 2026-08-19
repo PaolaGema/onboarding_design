@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
+import { nombrarCargos } from '../../utils/rutaEstados'
 
 /* Los datos que identifican a una ruta: cómo se llama y a quién apunta.
    Viven aquí y no dentro de una pantalla porque se editan en dos lugares —el modal de alta y
@@ -32,7 +33,28 @@ export function faltaAlgo(form) {
   if (!form.name?.trim()) return true
   if (form.esGlobal) return false
   if (!form.tipo || !form.area) return true
-  return form.area !== TODAS_LAS_AREAS && !form.cargo
+  // Al menos un cargo: una ruta de área sin ningún puesto no le llega a nadie.
+  return form.area !== TODAS_LAS_AREAS && !(form.cargos?.length)
+}
+
+/* La casilla de una opción que se marca de a varias. Se dibuja acá y no con un <input
+   type="checkbox"> porque la opción entera ya es el botón que alterna: un control dentro de
+   otro control duplica el punto de clic y deja la mitad de los píxeles sin hacer nada. */
+export function Casilla({ marcada }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+        border: `1.5px solid ${marcada ? 'var(--blue)' : 'var(--border-dark)'}`,
+        background: marcada ? 'var(--blue)' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all .12s',
+      }}
+    >
+      {marcada && <Check size={10} strokeWidth={3.5} style={{ color: '#fff' }} />}
+    </span>
+  )
 }
 
 /* `compacto` es para paneles angostos, como el costado de la vista previa: ahí dos columnas
@@ -46,6 +68,7 @@ export default function RutaMetaFields({ form, setForm, autoFocus = false, compa
   const [dropCargo, setDropCargo] = useState(false)
   const [areaSearch, setAreaSearch] = useState('')
   const [cargoSearch, setCargoSearch] = useState('')
+  const cajaCargos = useRef(null)
 
   const cerrarTodos = () => { setDropTipo(false); setDropSucursal(false); setDropArea(false); setDropCargo(false) }
   const set = (k, v) => setForm({ ...form, [k]: v })
@@ -53,6 +76,26 @@ export default function RutaMetaFields({ form, setForm, autoFocus = false, compa
   const areasFiltradas = [TODAS_LAS_AREAS, ...areas].filter(a => a.toLowerCase().includes(areaSearch.toLowerCase()))
   const todasLasAreas = form.area === TODAS_LAS_AREAS
   const cargosFiltrados = (cargosPorArea[form.area] || []).filter(c => c.toLowerCase().includes(cargoSearch.toLowerCase()))
+
+  /* Una ruta puede apuntar a varios cargos, así que el campo elige de a varios: el menú no se
+     cierra al marcar uno —cerrarlo obligaba a reabrirlo para el segundo— y el campo resume lo
+     elegido en su propia línea.
+
+     Sin fichas debajo: con cuatro o cinco cargos crecían hacia abajo y le movían el piso al
+     resto del formulario, para repetir lo que el menú ya muestra marcado. El campo mide
+     siempre lo mismo y la lista entera está en el título. */
+  const cargosElegidos = form.cargos || []
+  const toggleCargo = (c) => set('cargos', cargosElegidos.includes(c)
+    ? cargosElegidos.filter(x => x !== c)
+    : [...cargosElegidos, c])
+
+  // El menú de cargos se queda abierto entre marca y marca, así que necesita su propio cierre.
+  useEffect(() => {
+    if (!dropCargo) return
+    const fuera = e => { if (cajaCargos.current && !cajaCargos.current.contains(e.target)) setDropCargo(false) }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [dropCargo])
 
   return (
     <>
@@ -164,7 +207,7 @@ export default function RutaMetaFields({ form, setForm, autoFocus = false, compa
                         key={a}
                         type="button"
                         className={`pl-dropdown-item${form.area === a ? ' selected' : ''}`}
-                        onClick={() => { setForm({ ...form, area: a, cargo: '' }); setAreaSearch(''); setDropArea(false) }}
+                        onClick={() => { setForm({ ...form, area: a, cargos: [] }); setAreaSearch(''); setDropArea(false) }}
                       >
                         <span>{a}</span>
                         {form.area === a && <Check size={14} />}
@@ -178,33 +221,59 @@ export default function RutaMetaFields({ form, setForm, autoFocus = false, compa
               </div>
             </div>
 
-            <div className="pl-label">
-              <span>Cargo <span style={{ color: '#ef4444' }}>*</span></span>
-              <div className="pl-dropdown-wrap">
-                <input
-                  type="text"
-                  className="pl-input"
-                  placeholder={todasLasAreas ? 'Todos los cargos' : 'Buscar cargo…'}
+            {/* `minWidth: 0` para que la columna no se estire con el resumen: sin eso el texto
+                largo empuja la grilla y le come el ancho al Área de al lado. */}
+            <div className="pl-label" style={{ minWidth: 0 }}>
+              <span>Cargos <span style={{ color: '#ef4444' }}>*</span></span>
+              <div className="pl-dropdown-wrap" ref={cajaCargos}>
+                <button
+                  type="button"
+                  className={`pl-dropdown-trigger${dropCargo ? ' open' : ''}`}
                   disabled={todasLasAreas}
-                  value={dropCargo ? cargoSearch : form.cargo}
-                  onFocus={() => { setCargoSearch(''); cerrarTodos(); setDropCargo(true) }}
-                  onChange={e => { setCargoSearch(e.target.value); if (!dropCargo) setDropCargo(true) }}
-                  onBlur={() => setDropCargo(false)}
+                  title={cargosElegidos.length > 1 ? cargosElegidos.join(', ') : undefined}
+                  onClick={() => { const v = !dropCargo; cerrarTodos(); setCargoSearch(''); setDropCargo(v) }}
                   style={todasLasAreas ? { opacity: 0.5, cursor: 'default' } : undefined}
-                />
+                >
+                  <span style={{
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    color: cargosElegidos.length ? undefined : 'var(--text-muted)',
+                    fontWeight: cargosElegidos.length ? undefined : 500,
+                  }}>
+                    {todasLasAreas ? 'Todos los cargos'
+                      : cargosElegidos.length ? nombrarCargos({ cargos: cargosElegidos })
+                        : 'Elegir uno o varios'}
+                  </span>
+                  <ChevronDown size={14} className="pl-dropdown-chevron" />
+                </button>
                 {dropCargo && !todasLasAreas && (
-                  <div className="pl-dropdown-menu" onMouseDown={e => e.preventDefault()}>
-                    {cargosFiltrados.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        className={`pl-dropdown-item${form.cargo === c ? ' selected' : ''}`}
-                        onClick={() => { set('cargo', c); setCargoSearch(''); setDropCargo(false) }}
-                      >
-                        <span>{c}</span>
-                        {form.cargo === c && <Check size={14} />}
-                      </button>
-                    ))}
+                  <div className="pl-dropdown-menu" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                    {/* El buscador vive dentro del menú: afuera competía con el resumen por la
+                        única línea que tiene el campo. */}
+                    <input
+                      type="text"
+                      className="pl-input"
+                      placeholder="Buscar cargo…"
+                      value={cargoSearch}
+                      onChange={e => setCargoSearch(e.target.value)}
+                      autoFocus
+                      style={{ marginBottom: 4 }}
+                    />
+                    {/* Casilla y no palomita al final: el cuadradito se lee antes que la opción
+                        y dice, sin texto, que acá se marca más de uno. */}
+                    {cargosFiltrados.map(c => {
+                      const elegido = cargosElegidos.includes(c)
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`pl-dropdown-item${elegido ? ' selected' : ''}`}
+                          onClick={() => toggleCargo(c)}
+                        >
+                          <Casilla marcada={elegido} />
+                          <span style={{ flex: 1 }}>{c}</span>
+                        </button>
+                      )
+                    })}
                     {cargosFiltrados.length === 0 && (
                       <div style={{ padding: '8px 9px', fontSize: 11.5, color: 'var(--text-muted)' }}>Sin resultados</div>
                     )}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Lock, Users, ToggleLeft, Pencil } from 'lucide-react'
-import { transicionesDe, describirPuesto, rutasEnConflicto } from '../../utils/rutaEstados'
+import { transicionesDe, describirPuesto, rutasEnConflicto, cargosDe } from '../../utils/rutaEstados'
 
 /* Un solo lugar para mover el estado de una ruta.
 
@@ -54,7 +54,7 @@ export default function CambiarEstadoRutaModal({ ruta, plantillas, enCurso = 0, 
               </h2>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '4px 0 0' }}>
                 <strong style={{ color: 'var(--text-heading)' }}>{ruta.name}</strong>
-                {ruta.cargo && <> — {describirPuesto(ruta)}</>}
+                {cargosDe(ruta).length > 0 && <> — {describirPuesto(ruta)}</>}
               </p>
               {/* El estado de ahora, como dato de la cabecera y no como una opción más de la
                   lista: no es algo a lo que se pueda "cambiar". */}

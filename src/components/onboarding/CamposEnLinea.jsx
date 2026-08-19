@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
+import { Casilla } from './RutaMetaFields'
 
 /* Edición en el lugar: el dato se ve como texto y se convierte en campo recién al tocarlo.
    Es lo contrario de un formulario siempre abierto —una pantalla que existe para leer no
@@ -50,6 +51,73 @@ export function TextoEnLinea({ value, onChange, placeholder, multilinea = false,
           if (e.key === 'Escape') { setBorrador(value); e.currentTarget.blur() }
         }}
       />
+}
+
+/* Igual que `ListaEnLinea` pero para un campo que admite varios valores, como los cargos de
+   una ruta. Dos diferencias que no son cosméticas: el menú no se cierra al marcar —elegir
+   tres cargos serían tres aperturas— y lo elegido se confirma al cerrar y no en cada clic,
+   porque guardar por marca dispararía la confirmación de alcance una vez por cargo. */
+export function ListaMultiEnLinea({ values = [], opciones, onChange, editable = true, placeholder = '—', desactivado = false, resumen }) {
+  const [abierta, setAbierta] = useState(false)
+  const [borrador, setBorrador] = useState(values)
+  const caja = useRef(null)
+  const clave = values.join('|')
+
+  // Seguir el valor de afuera solo mientras no se está eligiendo, para no pisar el borrador.
+  useEffect(() => { if (!abierta) setBorrador(clave ? clave.split('|') : []) }, [clave, abierta])
+
+  useEffect(() => {
+    if (!abierta) return
+    const fuera = e => {
+      if (caja.current && !caja.current.contains(e.target)) {
+        setAbierta(false)
+        if (borrador.join('|') !== clave) onChange(borrador)
+      }
+    }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [abierta, borrador, clave, onChange])
+
+  const texto = resumen || (values.length ? values.join(', ') : placeholder)
+
+  if (!editable || desactivado) {
+    return <span style={{ padding: '3px 6px', color: '#334155', fontWeight: 600 }}>{texto}</span>
+  }
+
+  const alternar = (o) => setBorrador(prev => prev.includes(o) ? prev.filter(x => x !== o) : [...prev, o])
+
+  return (
+    <span className="cel-lista" ref={caja}>
+      <button
+        type="button"
+        className={`cel-campo cel-disparador${abierta ? ' on' : ''}`}
+        title={values.length > 1 ? values.join(', ') : undefined}
+        onClick={() => {
+          if (abierta && borrador.join('|') !== clave) onChange(borrador)
+          setAbierta(v => !v)
+        }}
+      >
+        {texto}
+        <ChevronDown size={11} className="cel-chevron" />
+      </button>
+      {abierta && (
+        <div className="cel-menu">
+          {opciones.map(o => (
+            <button
+              key={o}
+              type="button"
+              className={`cel-opcion${borrador.includes(o) ? ' on' : ''}`}
+              onClick={() => alternar(o)}
+            >
+              <Casilla marcada={borrador.includes(o)} />
+              <span style={{ flex: 1 }}>{o}</span>
+            </button>
+          ))}
+          {opciones.length === 0 && <div className="cel-vacio">Sin opciones</div>}
+        </div>
+      )}
+    </span>
+  )
 }
 
 export function ListaEnLinea({ value, opciones, onChange, editable = true, placeholder = '—', desactivado = false }) {

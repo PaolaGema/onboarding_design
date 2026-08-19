@@ -48,13 +48,20 @@ export default function ActivarRutaModal({ ruta, anteriores, onConfirmar, onCanc
               <ArrowLeftRight size={17} style={{ color: '#0C2D40' }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
+              {/* La general no ocupa un puesto sino el lugar de lo común, así que el título y la
+                  regla se nombran distinto: hablarle de "este puesto" a una ruta que no tiene
+                  cargo describe mal justo lo que está por pasar. */}
               <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0C2D40', lineHeight: 1.35, margin: 0 }}>
-                Reemplazar la ruta de este puesto
+                {ruta.esGlobal ? 'Reemplazar la ruta general' : 'Reemplazar la ruta de este puesto'}
               </h2>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, margin: '4px 0 0' }}>
-                Un puesto tiene una sola ruta vigente a la vez.{' '}
-                <strong style={{ color: '#0C2D40' }}>{describirPuesto(ruta)}</strong> ya{' '}
-                {varias ? `tiene ${anteriores.length} rutas activas` : 'tiene una'}.
+                {ruta.esGlobal
+                  ? 'La empresa tiene una sola ruta general a la vez, y hoy'
+                  : 'Un puesto tiene una sola ruta vigente a la vez.'}{' '}
+                {!ruta.esGlobal && <strong style={{ color: '#0C2D40' }}>{describirPuesto(ruta)}</strong>}
+                {ruta.esGlobal
+                  ? (varias ? `hay ${anteriores.length} marcadas como tal.` : 'ya hay una.')
+                  : <> ya {varias ? `tiene ${anteriores.length} rutas activas` : 'tiene una'}.</>}
               </p>
             </div>
           </div>

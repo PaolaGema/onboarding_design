@@ -1289,6 +1289,7 @@ select.pl-input:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 9px;
   text-align: left;
   transition: all .1s;
 }
@@ -2200,6 +2201,64 @@ select.pl-input:focus {
   box-shadow: var(--shadow-card);
 }
 
+/* Encabezado de etapa en modo selección: marcar acá se lleva la etapa entera. */
+/* Interruptor de la ruta general en la barra del constructor. Muestra el estado sin abrir
+   nada: el punto a la derecha dice si esta ruta la trae puesta o no. */
+.jb-gral-chip { display: inline-flex; align-items: center; gap: 7px; }
+.jb-gral-switch {
+  width: 26px;
+  height: 14px;
+  border-radius: 99px;
+  background: var(--border-dark);
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  transition: background .15s;
+}
+.jb-gral-switch.on { background: #00E091; }
+.jb-gral-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s;
+}
+.jb-gral-switch.on .jb-gral-dot { transform: translateX(12px); }
+
+/* Grupo plegable de las etapas heredadas, en el índice del constructor. */
+.jb-sb-grupo-gral { margin-bottom: 6px; }
+.jb-sb-grupo-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px dashed var(--border-dark);
+  border-radius: 9px;
+  background: var(--input-bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.jb-sb-grupo-btn:hover { background: var(--surface-hover); }
+.jb-sb-grupo-nombre { flex: 1; text-align: left; }
+.jb-sb-grupo-chevron { transition: transform .15s; flex-shrink: 0; }
+.jb-sb-grupo-chevron.abierto { transform: rotate(90deg); }
+.jb-sb-grupo-hint {
+  margin: 5px 2px 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.jb-etapa-header.seleccionable { cursor: pointer; }
+.jb-etapa-header.marcada {
+  background: var(--blue-bg);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
 .jb-etapa-num {
   width: 36px;
   height: 36px;
@@ -2492,6 +2551,29 @@ select.pl-input:focus {
   box-shadow: 0 2px 12px rgba(12, 45, 64, 0.1);
 }
 
+/* Actividad marcada para borrar. La casilla va adentro de la píldora, antes del nombre: la
+   actividad no tiene un nodo propio donde colgarla, y arriba a la izquierda quedaría flotando
+   sobre el camino. */
+.jb-actividad-pill.marcada {
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.jb-act-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-dark);
+  background: var(--surface-card);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.jb-act-check.on { background: var(--blue); border-color: var(--blue); }
+
 .jb-actividad-edit-ico {
   opacity: 0;
   transition: opacity .15s;
@@ -2772,6 +2854,7 @@ select.pl-input:focus {
 .jb-duo-node-wrap[draggable="true"]:active { cursor: grabbing; }
 
 .jb-duo-node-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2779,6 +2862,68 @@ select.pl-input:focus {
   transition: transform .3s ease;
   margin: 10px 0;
 }
+
+/* Selección múltiple de tareas: la casilla se dibuja pegada al nodo y no adentro para no
+   taparle el ícono, que es lo que dice de qué tarea se trata. No recibe clics: el que manda es
+   el nodo entero, que es un blanco mucho más grande que un cuadradito de 18px. */
+.jb-duo-check {
+  position: absolute;
+  top: -2px;
+  /* Justo afuera del círculo de 64px: encima le tapaba el ícono, que es lo que dice de qué
+     tarea se trata. */
+  left: calc(50% - 51px);
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-dark);
+  background: var(--surface-card);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+  transition: all .12s;
+}
+.jb-duo-check.on { background: var(--blue); border-color: var(--blue); }
+.jb-duo-node.marcada .jb-duo-circle { box-shadow: 0 0 0 3px var(--blue); }
+/* Las tareas heredadas de la ruta general no se pueden borrar, así que en modo selección se
+   apagan en vez de quedar clicables sin efecto. */
+.jb-seleccionando .jb-duo-node.locked { opacity: .35; }
+
+.jb-sel-bar {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 14px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 10px 30px rgba(0,0,0,.16);
+}
+.jb-sel-bar-count { font-size: 12.5px; font-weight: 700; color: var(--text-heading); }
+.jb-sel-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-heading);
+  cursor: pointer;
+}
+.jb-sel-bar-btn:hover { background: var(--surface-hover); }
+.jb-sel-bar-btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
+.jb-sel-bar-btn.danger:disabled { opacity: .45; cursor: default; }
 
 
 .jb-duo-node {

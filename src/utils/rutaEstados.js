@@ -29,6 +29,16 @@ export const REGLA_ESTADO = {
   borrador: 'En construcción. No se asigna a nadie, ni a mano ni automáticamente.',
 }
 
+/* La general no apunta a un cargo: activarla no es que "los ingresos de este cargo la reciban"
+   sino que sus etapas se antepongan a todas las rutas. Los otros dos estados hacen lo mismo en
+   los dos casos, así que solo se reemplaza el que cambia. */
+const REGLA_ESTADO_GENERAL = {
+  activa: 'Sus etapas se anteponen a las de todas las rutas, para toda la empresa.',
+}
+
+export const reglaEstado = (key, ruta) =>
+  (ruta?.esGlobal && REGLA_ESTADO_GENERAL[key]) || REGLA_ESTADO[key]
+
 /* Las rutas guardadas antes de que Archivado desapareciera siguen teniendo ese estado
    escrito. Se traduce al leerlo en vez de migrar el almacenamiento: un dato viejo no debería
    obligar a tocar lo que ya está guardado, y así la lectura es válida venga de donde venga. */
@@ -45,29 +55,80 @@ export const ESTADOS_EN_CURSO = ['pendiente', 'en-curso', 'atrasado', 'en-riesgo
    anteriores al campo y omitirlo significa lo mismo que elegir "Todas". */
 export const sucursalDe = (ruta) => ruta?.sucursal || SUCURSAL_TODAS
 
+/* Una ruta apunta a uno o varios cargos: el mismo recorrido suele servir para más de un
+   puesto del área —"Pasante Comercial" y "SDR Junior" arrancan igual— y obligar a duplicar
+   la ruta para cada uno multiplica el mantenimiento por nada.
+
+   Se guarda en `cargos`. Las rutas creadas antes de esto tienen un `cargo` suelto y se leen
+   igual desde acá, sin migrar lo que ya está guardado: mismo criterio que `normalizarStatus`
+   con el viejo "archivada". */
+export const cargosDe = (ruta) => {
+  if (!ruta) return []
+  if (Array.isArray(ruta.cargos)) return ruta.cargos.filter(Boolean)
+  return ruta.cargo ? [ruta.cargo] : []
+}
+
+/* Cómo se nombran esos cargos dentro de una frase. Con más de dos se corta: este texto vive
+   en avisos y botones, y una lista larga ahí deja de leerse. */
+export function nombrarCargos(ruta, max = 2) {
+  const cargos = cargosDe(ruta)
+  if (!cargos.length) return ''
+  if (cargos.length <= max) return cargos.join(' y ')
+  const resto = cargos.length - max
+  return `${cargos.slice(0, max).join(', ')} y ${resto} cargo${resto === 1 ? '' : 's'} más`
+}
+
 /* Unicidad (RN-M60): un cargo tiene una sola ruta en Activo por sucursal.
    La clave es el par exacto cargo + sucursal, así que una ruta de "Todas las
    sucursales" y otra de una sucursal concreta NO chocan —conviven, y al asignar
    gana la más específica—. Solo chocan las que apuntan al mismo par.
 
-   Quedan fuera: la ruta general (es transversal, no ocupa ningún cargo) y las
-   rutas sin cargo, que no reclaman un puesto del organigrama. */
+   La regla es por cargo y no por ruta: como una ruta puede apuntar a varios, alcanza con que
+   compartan uno solo para que choquen. Si no fuera así, una ruta nueva de tres cargos podría
+   dejar activas otras tres para los mismos puestos.
+
+   La ruta general no ocupa ningún cargo, pero sí ocupa el único lugar que hay
+   para lo transversal: también admite una sola en Activo, y se resuelve igual
+   que las demás —la nueva nace en Borrador y desplaza al activarse—. Antes esto
+   se bloqueaba al crear, y para armar el reemplazo de la general vigente había
+   que quitarle la marca primero: dejar a la empresa sin ruta general para poder
+   preparar la que la sucede.
+
+   Quedan fuera las rutas sin cargo, que no reclaman un puesto del organigrama. */
 export function rutasEnConflicto(plantillas, ruta) {
-  if (!ruta?.cargo || ruta.esGlobal) return []
-  return (plantillas || []).filter(p =>
-    p.id !== ruta.id &&
-    normalizarStatus(p.status) === 'activa' &&
+  const activas = (plantillas || []).filter(p =>
+    p.id !== ruta?.id && normalizarStatus(p.status) === 'activa')
+  if (ruta?.esGlobal) return activas.filter(p => p.esGlobal)
+  const cargos = cargosDe(ruta)
+  if (!cargos.length) return []
+  return activas.filter(p =>
     !p.esGlobal &&
-    p.cargo === ruta.cargo &&
-    sucursalDe(p) === sucursalDe(ruta))
+    sucursalDe(p) === sucursalDe(ruta) &&
+    cargosDe(p).some(c => cargos.includes(c)))
+}
+
+/* Qué cargos de los que ocupa `ruta` se los lleva `otra`. Sirve para nombrar el choque sin
+   generalizar: dos rutas pueden compartir un cargo de cinco, y decir "te reemplaza" entero
+   sería falso. */
+export const cargosCompartidos = (ruta, otra) => {
+  const cargos = cargosDe(otra)
+  return cargosDe(ruta).filter(c => cargos.includes(c))
 }
 
 /* Los campos que deciden a quién le llega la ruta, con el nombre que llevan en la ficha.
    Nombre y descripción quedan fuera a propósito: corregir una palabra no mueve a nadie de
    lugar, así que no tienen por qué pasar por una confirmación. */
-export const CAMPOS_ALCANCE = { tipo: 'Tipo', sucursal: 'Sucursal', area: 'Área', cargo: 'Cargo' }
+export const CAMPOS_ALCANCE = { tipo: 'Tipo', sucursal: 'Sucursal', area: 'Área', cargos: 'Cargos' }
 
-const mismoPuesto = (a, b) => (a.cargo || '') === (b.cargo || '') && sucursalDe(a) === sucursalDe(b)
+/* El valor de un campo de alcance, listo para mostrar. `cargos` es una lista y `sucursal`
+   tiene un valor implícito cuando falta, así que ninguno se puede leer directo del objeto. */
+export const valorDeAlcance = (ruta, campo) =>
+  campo === 'sucursal' ? sucursalDe(ruta)
+    : campo === 'cargos' ? cargosDe(ruta).join(', ')
+      : ruta?.[campo] || ''
+
+const clavePuesto = (r) => [...cargosDe(r)].sort().join('|')
+const mismoPuesto = (a, b) => clavePuesto(a) === clavePuesto(b) && sucursalDe(a) === sucursalDe(b)
 
 /* Qué se lleva por delante cambiarle el alcance a una ruta.
 
@@ -85,16 +146,19 @@ export function impactoDeAlcance(ruta, cambios, plantillas) {
   const activa = normalizarStatus(ruta.status) === 'activa' && !ruta.esGlobal
   const seMudo = activa && !mismoPuesto(ruta, destino)
 
-  // A quiénes desplaza en el puesto nuevo. Sin cargo no reclama ninguno, y no desplaza nada.
+  // A quiénes desplaza en el puesto nuevo. Sin cargos no reclama ninguno, y no desplaza nada.
   const desplaza = seMudo ? rutasEnConflicto(plantillas, destino) : []
-  // El puesto que deja atrás se queda sin ruta vigente hasta que se active otra.
-  const liberaPuesto = seMudo && !!ruta.cargo
-  // Activa y sin cargo: no se le asigna a nadie, pero la píldora sigue diciendo Activo.
-  const quedaSinCargo = activa && !!ruta.cargo && !destino.cargo
+  /* Los cargos que suelta: los que tenía y ya no. Con varios cargos el cambio puede ser
+     parcial —suelta uno y conserva los otros—, así que se nombran en vez de decir "el puesto". */
+  const cargosLiberados = seMudo ? cargosDe(ruta).filter(c => !cargosDe(destino).includes(c)) : []
+  const liberaPuesto = cargosLiberados.length > 0
+  // Activa y sin ningún cargo: no se le asigna a nadie, pero la píldora sigue diciendo Activo.
+  const quedaSinCargo = activa && cargosDe(ruta).length > 0 && cargosDe(destino).length === 0
 
   return {
     destino,
     desplaza,
+    cargosLiberados,
     liberaPuesto,
     quedaSinCargo,
     hay: desplaza.length > 0 || liberaPuesto || quedaSinCargo,
@@ -129,17 +193,22 @@ export function transicionesDe(ruta) {
     } else if (key === 'activa' && sinTareas) {
       motivo = 'Agrega al menos una tarea antes de ponerla en uso.'
     }
-    return { key, ...ESTADOS_RUTA[key], regla: REGLA_ESTADO[key], actual: key === actual, motivo }
+    return { key, ...ESTADOS_RUTA[key], regla: reglaEstado(key, ruta), actual: key === actual, motivo }
   })
 }
 
-/* Cómo se nombra el puesto que se disputa, para los textos del modal y del aviso:
-   "Analista de Datos en La Paz" o "Analista de Datos, en todas las sucursales". */
+/* Cómo se nombra el lugar que se disputa, para los textos del modal y del aviso:
+   "Analista de Datos en La Paz" o "Analista de Datos, en todas las sucursales".
+   La general no disputa un cargo sino el lugar de lo común, así que se nombra por
+   su alcance —es lo único que la distingue— y no por un puesto que no tiene. */
 export function describirPuesto(ruta) {
+  if (ruta?.esGlobal) return 'Toda la empresa'
   const suc = sucursalDe(ruta)
+  const cargos = nombrarCargos(ruta)
+  if (!cargos) return suc === SUCURSAL_TODAS ? 'Sin cargo, en todas las sucursales' : `Sin cargo en ${suc}`
   return suc === SUCURSAL_TODAS
-    ? `${ruta.cargo}, en todas las sucursales`
-    : `${ruta.cargo} en ${suc}`
+    ? `${cargos}, en todas las sucursales`
+    : `${cargos} en ${suc}`
 }
 
 /* Motivo del Inactivo. Se llega ahí por dos caminos —alguien lo cambió a mano, o la desplazó

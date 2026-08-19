@@ -1,11 +1,10 @@
 import { useState, useRef } from 'react'
-import { useConfig } from '../../context/ConfigContext'
 import { useOnboardingData } from '../../context/OnboardingDataContext'
 import {
   Trophy, Bot, Megaphone, AlertTriangle, Info,
   Route, Zap,
   Pencil,
-  Clock, AlertCircle, X, Award, Upload, Eye, Trash2, Check
+  Clock, AlertCircle, X, Award, Upload, Eye, Trash2, Check, Save, CheckCircle2
 } from 'lucide-react'
 
 const toggleMessages = {
@@ -43,7 +42,6 @@ const initialConfig = [
     icon: Trophy,
     color: '#f59e0b',
     enabled: true,
-    defaults: {},
   },
   {
     key: 'buddy',
@@ -52,9 +50,6 @@ const initialConfig = [
     icon: Bot,
     color: '#8b5cf6',
     enabled: true,
-    defaults: {
-      modelo: 'Asistente general',
-    },
   },
   {
     key: 'menciones',
@@ -63,13 +58,6 @@ const initialConfig = [
     icon: Megaphone,
     color: '#3b82f6',
     enabled: true,
-    defaults: {
-      menciones: [
-        { key: 'inicio', label: 'Inicio de onboarding', desc: 'Cuando el colaborador comienza su primer día', activo: true },
-        { key: 'etapa', label: 'Etapa completada', desc: 'Cuando completa una etapa de su ruta', activo: false },
-        { key: 'graduacion', label: 'Graduación', desc: 'Cuando completa todas las tareas y se gradúa', activo: true },
-      ],
-    },
   },
   {
     key: 'riesgo',
@@ -78,9 +66,6 @@ const initialConfig = [
     icon: AlertTriangle,
     color: '#ef4444',
     enabled: true,
-    defaults: {
-      dias: 3,
-    },
   },
   {
     key: 'extension',
@@ -89,7 +74,6 @@ const initialConfig = [
     icon: Clock,
     color: '#0d9488',
     enabled: true,
-    defaults: {},
   },
   {
     key: 'certificado',
@@ -98,16 +82,25 @@ const initialConfig = [
     icon: Award,
     color: '#f97316',
     enabled: true,
-    defaults: {
-      color: '#0C2D40',
-      logo: null,
-      firmas: [
-        { nombre: '', cargo: '' },
-        { nombre: '', cargo: '' },
-      ],
-    },
   },
 ]
+
+/* Lo que cada ajuste vale por dentro (eventos de mención, días de riesgo, certificado) vive
+   en `configToggles` y no en las tarjetas: la pantalla arma un borrador con todo, se edita
+   entero y se guarda de una sola vez. */
+const eventosMencion = [
+  { key: 'inicio', label: 'Inicio de onboarding', desc: 'Cuando el colaborador comienza su primer día', porDefecto: true },
+  { key: 'etapa', label: 'Etapa completada', desc: 'Cuando completa una etapa de su ruta', porDefecto: false },
+  { key: 'graduacion', label: 'Graduación', desc: 'Cuando completa todas las tareas y se gradúa', porDefecto: true },
+]
+
+const modeloAsistente = 'Asistente general'
+
+const certPorDefecto = {
+  color: '#0C2D40',
+  logo: null,
+  firmas: [{ nombre: '', cargo: '' }, { nombre: '', cargo: '' }],
+}
 
 function hexToRgba(hex, alpha) {
   const clean = hex.replace('#', '')
@@ -138,102 +131,161 @@ const asignacionMessages = {
   auto: 'De ahora en adelante, cada vez que entre un colaborador nuevo, el sistema le asignará solo una ruta de onboarding automáticamente, el mismo día de su ingreso. La ruta se elige según el área y el cargo del colaborador, sin que nadie tenga que hacerlo a mano. Igual podrás entrar a Seguimiento o a la ficha del colaborador en Colaboradores para revisar o cambiar esa asignación.',
 }
 
+/* Qué cambió entre lo guardado y el borrador, en palabras. Sirve para dos cosas: contar los
+   cambios en la barra de guardado y explicar, antes de guardar, los que arrastran algo real
+   para toda la empresa. */
+function listarCambios(guardado, draft) {
+  const out = []
+  initialConfig.forEach(c => {
+    if (guardado[c.key] === draft[c.key]) return
+    out.push({
+      id: c.key,
+      titulo: `${draft[c.key] ? 'Se activa' : 'Se desactiva'} ${c.label}`,
+      detalle: toggleMessages[c.key]?.[draft[c.key] ? 'activar' : 'desactivar'] || '',
+      deEmpresa: true,
+    })
+  })
+  if (guardado.asignacion !== draft.asignacion) {
+    out.push({
+      id: 'asignacion',
+      titulo: `La asignación de ruta pasa a ser ${modoAsignacion.find(m => m.key === draft.asignacion)?.label.toLowerCase()}`,
+      detalle: asignacionMessages[draft.asignacion],
+      deEmpresa: true,
+    })
+  }
+  if (guardado.horaAsignacion !== draft.horaAsignacion) {
+    out.push({ id: 'hora', titulo: `La ruta se asigna a las ${draft.horaAsignacion}` })
+  }
+  if (guardado.riesgoDias !== draft.riesgoDias) {
+    out.push({ id: 'riesgoDias', titulo: `"En riesgo" a los ${draft.riesgoDias} días sin actividad` })
+  }
+  eventosMencion.forEach(e => {
+    if (guardado.mencionesEventos[e.key] === draft.mencionesEventos[e.key]) return
+    out.push({
+      id: `mencion-${e.key}`,
+      titulo: `${draft.mencionesEventos[e.key] ? 'Se publica' : 'Deja de publicarse'} la mención de ${e.label.toLowerCase()}`,
+    })
+  })
+  if (draft.cert.color !== guardado.cert.color) out.push({ id: 'certColor', titulo: 'Cambia el color del certificado' })
+  if (draft.cert.logo !== guardado.cert.logo) {
+    out.push({ id: 'certLogo', titulo: draft.cert.logo ? 'Cambia el logo del certificado' : 'Se quita el logo del certificado' })
+  }
+  if (JSON.stringify(draft.cert.firmas) !== JSON.stringify(guardado.cert.firmas)) {
+    out.push({ id: 'certFirmas', titulo: 'Cambian las firmas del certificado' })
+  }
+  return out
+}
+
 export default function Configuracion() {
   const { configToggles, setConfigToggles, plantillas: allPlantillas } = useOnboardingData()
-  const [config, setConfig] = useState(() =>
-    initialConfig.map(c => ({ ...c, enabled: configToggles[c.key] ?? c.enabled }))
-  )
-  const [asignacion, setAsignacion] = useState(configToggles.asignacion || 'manual')
-  const [horaAsignacion, setHoraAsignacion] = useState(configToggles.horaAsignacion || '08:00')
-  const { setGamificacion, setAsistenteIA } = useConfig()
-  const [toggleConfirm, setToggleConfirm] = useState(null)
-  const [asignacionConfirm, setAsignacionConfirm] = useState(null)
+
+  /* Un solo borrador para toda la pantalla. Antes cada interruptor abría su propio modal y
+     guardaba al instante —seis confirmaciones para un ajuste que se piensa de una sola vez—
+     y los ajustes de adentro (eventos de mención, días de riesgo, certificado) no se
+     guardaban en ninguna parte: se perdían al salir de la pantalla. */
+  const [guardado, setGuardado] = useState(() => ({
+    ...Object.fromEntries(initialConfig.map(c => [c.key, configToggles[c.key] ?? c.enabled])),
+    asignacion: configToggles.asignacion || 'manual',
+    horaAsignacion: configToggles.horaAsignacion || '08:00',
+    riesgoDias: configToggles.riesgoDias ?? 3,
+    mencionesEventos: Object.fromEntries(
+      eventosMencion.map(e => [e.key, configToggles.mencionesEventos?.[e.key] ?? e.porDefecto])
+    ),
+    cert: {
+      ...certPorDefecto,
+      ...configToggles.cert,
+      firmas: (configToggles.cert?.firmas || certPorDefecto.firmas).map(f => ({ ...f })),
+    },
+  }))
+  const [draft, setDraft] = useState(guardado)
+  const [saveConfirm, setSaveConfirm] = useState(false)
+  const [avisoGuardado, setAvisoGuardado] = useState(false)
   const [certPreview, setCertPreview] = useState(false)
   const logoInputRef = useRef(null)
 
-  function requestToggle(key) {
-    const item = config.find(c => c.key === key)
-    const willEnable = !item.enabled
-    setToggleConfirm({ key, label: item.label, willEnable, message: toggleMessages[key]?.[willEnable ? 'activar' : 'desactivar'] || '' })
+  const cambios = listarCambios(guardado, draft)
+  const cambiosDeEmpresa = cambios.filter(c => c.deEmpresa)
+
+  function set(patch) {
+    setDraft(d => ({ ...d, ...patch }))
+    setAvisoGuardado(false)
   }
 
-  function confirmToggle() {
-    if (!toggleConfirm) return
-    const { key, willEnable } = toggleConfirm
-    setConfig(prev => {
-      const next = prev.map(c => c.key === key ? { ...c, enabled: willEnable } : c)
-      if (key === 'gamificacion') setGamificacion(willEnable)
-      if (key === 'buddy') setAsistenteIA(willEnable)
-      setConfigToggles(ct => ({ ...ct, [key]: willEnable }))
-      return next
-    })
-    setToggleConfirm(null)
+  function guardar() {
+    setConfigToggles(ct => ({ ...ct, ...draft }))
+    setGuardado(draft)
+    setSaveConfirm(false)
+    setAvisoGuardado(true)
   }
 
-  function updateAsignacion(val) {
-    setAsignacion(val)
-    setConfigToggles(ct => ({ ...ct, asignacion: val }))
+  /* Fricción solo cuando el cambio arrastra algo real: prender o apagar una función la cambia
+     para toda la empresa, y cambiar el modo de asignación cambia qué pasa con cada colaborador
+     que entre. Afinar un ajuste de adentro se guarda sin preguntar nada. */
+  function pedirGuardar() {
+    if (cambiosDeEmpresa.length) setSaveConfirm(true)
+    else guardar()
   }
 
-  function requestAsignacion(val) {
-    if (val === asignacion) return
-    setAsignacionConfirm({
-      val,
-      fromLabel: modoAsignacion.find(m => m.key === asignacion)?.label,
-      label: modoAsignacion.find(m => m.key === val)?.label,
-      message: asignacionMessages[val],
-    })
-  }
-
-  function confirmAsignacion() {
-    if (!asignacionConfirm) return
-    updateAsignacion(asignacionConfirm.val)
-    setAsignacionConfirm(null)
-  }
-
-  function updateHora(val) {
-    setHoraAsignacion(val)
-    setConfigToggles(ct => ({ ...ct, horaAsignacion: val }))
-  }
-
-  function updateCertColor(color) {
-    setConfig(prev => prev.map(c => c.key === 'certificado' ? { ...c, defaults: { ...c.defaults, color } } : c))
+  function descartar() {
+    setDraft(guardado)
+    setAvisoGuardado(false)
   }
 
   function updateCertLogo(file) {
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setConfig(prev => prev.map(c => c.key === 'certificado' ? { ...c, defaults: { ...c.defaults, logo: url } } : c))
-  }
-
-  function removeCertLogo() {
-    setConfig(prev => prev.map(c => c.key === 'certificado' ? { ...c, defaults: { ...c.defaults, logo: null } } : c))
+    /* DataURL y no objectURL: el logo se guarda junto con el resto de la configuración, y una
+       URL de blob queda muerta apenas se recarga la página. */
+    const reader = new FileReader()
+    reader.onload = () => set({ cert: { ...draft.cert, logo: reader.result } })
+    reader.readAsDataURL(file)
   }
 
   function updateFirma(idx, field, value) {
-    setConfig(prev => prev.map(c => {
-      if (c.key !== 'certificado') return c
-      const firmas = c.defaults.firmas.map((f, i) => i === idx ? { ...f, [field]: value } : f)
-      return { ...c, defaults: { ...c.defaults, firmas } }
-    }))
-  }
-
-  function toggleSubItem(configKey, listKey, idx) {
-    setConfig(prev => prev.map(c => {
-      if (c.key !== configKey) return c
-      const list = [...c.defaults[listKey]]
-      list[idx] = { ...list[idx], activo: !list[idx].activo }
-      return { ...c, defaults: { ...c.defaults, [listKey]: list } }
-    }))
+    const firmas = draft.cert.firmas.map((f, i) => i === idx ? { ...f, [field]: value } : f)
+    set({ cert: { ...draft.cert, firmas } })
   }
 
   return (
     <div className="content-scroll">
 
-      <div className="pl-header">
-        <div>
+      {/* ENCABEZADO — lleva el guardado, así que se queda arriba mientras se scrollea:
+          los ajustes que se tocan viven a mitad de la lista y el botón tiene que seguir a mano. */}
+      <div
+        className="pl-header bg-[#F8FAFC] dark:bg-[#07131D]"
+        style={{
+          position: 'sticky', top: -20, zIndex: 20, gap: 16,
+          /* El fondo se sale a los costados hasta el borde del área que scrollea (main tiene
+             16px de padding): si termina donde termina el texto, las tarjetas asoman por esos
+             dos costados al pasar por detrás y la franja se ve rota. */
+          padding: '20px 16px 14px', margin: '-20px -16px 0',
+          borderBottom: '1px solid var(--border-soft)',
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
           <h1 className="pl-title">Configuración avanzada</h1>
-          <p className="pl-subtitle">Define los valores por defecto para toda la empresa. Las rutas pueden personalizar o heredar cada ajuste.</p>
+          {/* Bajada corta y de una línea: el detalle de "esto aplica a toda la empresa" ya lo
+              dice el aviso azul de abajo, y repetirlo aquí empujaba el guardado a un segundo renglón. */}
+          <p className="pl-subtitle">Valores por defecto del módulo de onboarding.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {cambios.length > 0 ? (
+            <>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text-muted)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--yellow)' }} />
+                {cambios.length === 1 ? '1 cambio sin guardar' : `${cambios.length} cambios sin guardar`}
+              </span>
+              <button className="pl-btn-cancel" onClick={descartar}>Descartar</button>
+              <button className="pl-btn-save" onClick={pedirGuardar} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Save size={14} />
+                Guardar cambios
+              </button>
+            </>
+          ) : avisoGuardado ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: 'var(--green)' }}>
+              <CheckCircle2 size={15} />
+              Cambios guardados
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -274,12 +326,12 @@ export default function Configuracion() {
         {/* CARDS DE MODO */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {modoAsignacion.map(m => {
-            const selected = asignacion === m.key
+            const selected = draft.asignacion === m.key
             const Icon = m.icon
             return (
               <button
                 key={m.key}
-                onClick={() => requestAsignacion(m.key)}
+                onClick={() => set({ asignacion: m.key })}
                 style={{
                   position: 'relative', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
                   padding: '14px 16px', borderRadius: 12,
@@ -314,7 +366,7 @@ export default function Configuracion() {
         </div>
 
         {/* HORA — solo si es automática */}
-        {asignacion === 'auto' && (
+        {draft.asignacion === 'auto' && (
           <div style={{
             marginTop: 12, borderRadius: 10, border: '1px solid var(--border-soft)',
             background: 'var(--input-bg)', padding: '10px 12px',
@@ -322,12 +374,12 @@ export default function Configuracion() {
           }}>
             <Clock size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: 'var(--text-muted)', flex: 1, minWidth: 160 }}>
-              La ruta de onboarding se asigna a las <strong style={{ color: 'var(--text-heading)' }}>{horaAsignacion}</strong> del día de ingreso, según el área y el cargo del colaborador.
+              La ruta de onboarding se asigna a las <strong style={{ color: 'var(--text-heading)' }}>{draft.horaAsignacion}</strong> del día de ingreso, según el área y el cargo del colaborador.
             </span>
             <input
               type="time"
-              value={horaAsignacion}
-              onChange={e => updateHora(e.target.value)}
+              value={draft.horaAsignacion}
+              onChange={e => set({ horaAsignacion: e.target.value })}
               style={{
                 padding: '5px 10px', borderRadius: 7,
                 border: '1.5px solid var(--border-soft)',
@@ -343,10 +395,11 @@ export default function Configuracion() {
 
       {/* AJUSTES */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {config.map(c => {
+        {initialConfig.map(c => {
           const Icon = c.icon
+          const enabled = draft[c.key]
           const hasDefaults = ['buddy', 'menciones', 'riesgo', 'extension', 'certificado'].includes(c.key)
-          const isExpanded = hasDefaults && c.enabled
+          const isExpanded = hasDefaults && enabled
           return (
             <div
               key={c.key}
@@ -360,30 +413,30 @@ export default function Configuracion() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px' }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 10,
-                  background: c.enabled ? '#0C2D40' : 'var(--surface-hover)',
-                  color: c.enabled ? '#fff' : 'var(--text-muted)',
+                  background: enabled ? '#0C2D40' : 'var(--surface-hover)',
+                  color: enabled ? '#fff' : 'var(--text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, transition: 'background .2s',
                 }}>
                   <Icon size={17} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: c.enabled ? 'var(--text-heading)' : 'var(--text-muted)' }}>{c.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: enabled ? 'var(--text-heading)' : 'var(--text-muted)' }}>{c.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{c.desc}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 6,
-                    color: c.enabled ? 'var(--green)' : 'var(--text-muted)',
-                    background: c.enabled ? 'var(--green-tint)' : 'var(--surface-hover)',
+                    color: enabled ? 'var(--green)' : 'var(--text-muted)',
+                    background: enabled ? 'var(--green-tint)' : 'var(--surface-hover)',
                   }}>
-                    {c.enabled ? 'Activo' : 'Inactivo'}
+                    {enabled ? 'Activo' : 'Inactivo'}
                   </span>
                   <div
-                    onClick={() => requestToggle(c.key)}
+                    onClick={() => set({ [c.key]: !enabled })}
                     style={{
                       width: 40, height: 22, borderRadius: 99,
-                      background: c.enabled ? '#00E091' : 'var(--surface-hover)',
+                      background: enabled ? '#00E091' : 'var(--surface-hover)',
                       padding: 2, cursor: 'pointer',
                       transition: 'background .2s',
                       display: 'flex', alignItems: 'center',
@@ -394,7 +447,7 @@ export default function Configuracion() {
                       background: '#fff',
                       boxShadow: '0 1px 3px rgba(0,0,0,.15)',
                       transition: 'transform .2s',
-                      transform: c.enabled ? 'translateX(18px)' : 'translateX(0)',
+                      transform: enabled ? 'translateX(18px)' : 'translateX(0)',
                     }} />
                   </div>
                 </div>
@@ -419,7 +472,7 @@ export default function Configuracion() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 3 }}>
-                          {c.defaults.modelo}
+                          {modeloAsistente}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 10 }}>
                           Responde preguntas de los colaboradores usando los documentos de tus Recursos corporativos.
@@ -441,8 +494,8 @@ export default function Configuracion() {
                           Publica automáticamente en el muro cuando ocurre:
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {c.defaults.menciones.map((m, i) => (
-                            <button key={m.key} onClick={() => toggleSubItem('menciones', 'menciones', i)} style={{
+                          {eventosMencion.map(e => ({ ...e, activo: draft.mencionesEventos[e.key] })).map(m => (
+                            <button key={m.key} onClick={() => set({ mencionesEventos: { ...draft.mencionesEventos, [m.key]: !m.activo } })} style={{
                               display: 'flex', alignItems: 'center', gap: 12,
                               padding: '10px 12px', borderRadius: 10,
                               background: m.activo ? 'var(--surface-card)' : 'transparent',
@@ -506,7 +559,8 @@ export default function Configuracion() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <input
                             type="number"
-                            defaultValue={c.defaults.dias}
+                            value={draft.riesgoDias}
+                            onChange={e => set({ riesgoDias: Math.min(30, Math.max(1, Number(e.target.value) || 1)) })}
                             min={1} max={30}
                             style={{
                               width: 60, padding: '7px 0', borderRadius: 8,
@@ -572,11 +626,11 @@ export default function Configuracion() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <input
                               type="color"
-                              value={c.defaults.color}
-                              onChange={e => updateCertColor(e.target.value)}
+                              value={draft.cert.color}
+                              onChange={e => set({ cert: { ...draft.cert, color: e.target.value } })}
                               style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', padding: 0, background: 'none' }}
                             />
-                            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{c.defaults.color}</span>
+                            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{draft.cert.color}</span>
                           </div>
                         </div>
 
@@ -592,13 +646,13 @@ export default function Configuracion() {
                             style={{ display: 'none' }}
                             onChange={e => { if (e.target.files[0]) updateCertLogo(e.target.files[0]); e.target.value = '' }}
                           />
-                          {c.defaults.logo ? (
+                          {draft.cert.logo ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fff', border: '1px solid var(--border-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                                <img src={c.defaults.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                <img src={draft.cert.logo} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                               </div>
                               <button onClick={() => logoInputRef.current?.click()} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-heading)', background: 'var(--surface-hover)', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '7px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>Cambiar</button>
-                              <button onClick={removeCertLogo} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--red)' }}>
+                              <button onClick={() => set({ cert: { ...draft.cert, logo: null } })} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border-soft)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--red)' }}>
                                 <Trash2 size={13} />
                               </button>
                             </div>
@@ -623,7 +677,7 @@ export default function Configuracion() {
                       }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 10 }}>Firmas (hasta 2)</div>
                         <div style={{ display: 'flex', gap: 14 }}>
-                          {c.defaults.firmas.map((f, i) => (
+                          {draft.cert.firmas.map((f, i) => (
                             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                               <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-muted)' }}>Firma {i + 1}{i === 1 ? ' (opcional)' : ''}</span>
                               <input
@@ -671,88 +725,52 @@ export default function Configuracion() {
         })}
       </div>
 
-      {/* MODAL CONFIRMACIÓN TOGGLE */}
-      {toggleConfirm && (
-        <div className="pl-overlay" onClick={() => setToggleConfirm(null)}>
-          <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+      {/* MODAL CONFIRMACIÓN AL GUARDAR — uno solo, y solo por lo que cambia para toda la empresa */}
+      {saveConfirm && (
+        <div className="pl-overlay" onClick={() => setSaveConfirm(false)}>
+          <div className="pl-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <div className="pl-modal-header">
-              <h2>{toggleConfirm.willEnable ? 'Activar' : 'Desactivar'} {toggleConfirm.label}</h2>
-              <button className="pl-modal-close" onClick={() => setToggleConfirm(null)}>
+              <h2>Confirmar cambios de configuración</h2>
+              <button className="pl-modal-close" onClick={() => setSaveConfirm(false)}>
                 <X size={18} />
               </button>
             </div>
             <div className="pl-modal-body">
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
-                padding: '12px 14px', borderRadius: 10,
-                background: toggleConfirm.willEnable ? 'var(--green-tint)' : 'var(--red-bg)',
-                border: '1px solid var(--border-soft)',
-              }}>
-                <Info size={16} style={{ color: toggleConfirm.willEnable ? 'var(--green)' : 'var(--red)', flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: toggleConfirm.willEnable ? 'var(--green)' : 'var(--red)' }}>
-                  {toggleConfirm.willEnable ? 'Esta función se activará para toda la empresa' : 'Esta función se desactivará para toda la empresa'}
-                </span>
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
-                {toggleConfirm.message}
-              </p>
-            </div>
-            <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setToggleConfirm(null)}>Cancelar</button>
-              <button
-                onClick={confirmToggle}
-                style={{
-                  padding: '9px 20px', borderRadius: 10, border: 'none',
-                  background: toggleConfirm.willEnable ? '#00E091' : 'var(--red)',
-                  color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
-                  fontSize: 13, fontWeight: 700,
-                }}
-              >
-                {toggleConfirm.willEnable ? 'Activar' : 'Desactivar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CONFIRMACIÓN ASIGNACIÓN */}
-      {asignacionConfirm && (
-        <div className="pl-overlay" onClick={() => setAsignacionConfirm(null)}>
-          <div className="pl-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <h2>¿Estás seguro de cambiar de {asignacionConfirm.fromLabel} a {asignacionConfirm.label}?</h2>
-              <button className="pl-modal-close" onClick={() => setAsignacionConfirm(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
                 padding: '12px 14px', borderRadius: 10,
                 background: 'var(--blue-bg)', border: '1px solid var(--border-soft)',
               }}>
                 <Info size={16} style={{ color: 'var(--blue)', flexShrink: 0 }} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)' }}>
-                  Este cambio aplica a todos los colaboradores nuevos
+                  {cambiosDeEmpresa.length === 1
+                    ? 'Este cambio aplica a toda la empresa'
+                    : 'Estos cambios aplican a toda la empresa'}
                 </span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: 0 }}>
-                {asignacionConfirm.message}
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {cambiosDeEmpresa.map(cambio => (
+                  <div key={cambio.id} style={{ borderLeft: '2px solid var(--border-dark)', paddingLeft: 12 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-heading)' }}>{cambio.titulo}</div>
+                    {cambio.detalle && (
+                      <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.6, margin: '4px 0 0' }}>
+                        {cambio.detalle}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {cambios.length > cambiosDeEmpresa.length && (
+                <p style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.6, margin: '16px 0 0' }}>
+                  Se guardan también {cambios.length - cambiosDeEmpresa.length === 1
+                    ? 'otro ajuste'
+                    : `otros ${cambios.length - cambiosDeEmpresa.length} ajustes`} de esta pantalla.
+                </p>
+              )}
             </div>
             <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setAsignacionConfirm(null)}>Cancelar</button>
-              <button
-                onClick={confirmAsignacion}
-                style={{
-                  padding: '9px 20px', borderRadius: 10, border: 'none',
-                  background: '#0C2D40',
-                  color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
-                  fontSize: 13, fontWeight: 700,
-                }}
-              >
-                Confirmar
-              </button>
+              <button className="pl-btn-cancel" onClick={() => setSaveConfirm(false)}>Cancelar</button>
+              <button className="pl-btn-save" onClick={guardar}>Guardar cambios</button>
             </div>
           </div>
         </div>
@@ -760,7 +778,7 @@ export default function Configuracion() {
 
       {/* MODAL PREVIEW CERTIFICADO */}
       {certPreview && (() => {
-        const cert = config.find(c => c.key === 'certificado').defaults
+        const cert = draft.cert
         const firmasActivas = cert.firmas.filter(f => f.nombre.trim())
         const fechaEmision = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
         const rutaEjemplo = allPlantillas.find(p => p.status === 'activa')?.name || 'Ejecutiva Comercial · Ventas'

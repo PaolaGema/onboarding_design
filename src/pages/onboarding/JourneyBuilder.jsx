@@ -13,16 +13,18 @@ import { colaboradoresData } from '../personas/colaboradoresData'
 import RutaPreviewModal, { TaskPreviewModal } from '../../components/onboarding/RutaPreviewModal'
 import PilaAvatares from '../../components/onboarding/PilaAvatares'
 import ElegirBaseRutaModal from '../../components/onboarding/ElegirBaseRutaModal'
+import EtapaFormModal from '../../components/onboarding/EtapaFormModal'
 import {
   ArrowLeft, Eye, Save, ChevronRight, ChevronDown, Check,
   Lock, CheckCircle2, GripVertical, Plus, MoreVertical,
   BookOpen, Video, Headphones, FileText, HelpCircle,
   ClipboardList,
   UserCheck, Calendar, ExternalLink,
-  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, GitBranch, LayoutTemplate
+  ShieldCheck, X, Pencil, Trash2, Settings2, Layers, Search, Copy, FolderOpen, Smile, Info, Upload, Link2, AlertTriangle, GitBranch, LayoutTemplate, CheckSquare
 } from 'lucide-react'
 import imagenIdea from '../../assets/imagenes/imagen_idea.png'
 import ConfirmarAccionModal from '../../components/layout/ConfirmarAccionModal'
+import { duracionEnDias } from '../../utils/duracionRuta'
 
 const pulsoPreguntasSugeridas = [
   '¿Cómo te sientes con tu proceso de onboarding hasta ahora?',
@@ -133,6 +135,13 @@ const rutaConfigOpciones = [
   { key: 'asistenteIA', label: 'Asistente IA', hint: 'Un asistente inteligente que guía al nuevo colaborador',
     onMsg: 'Los colaboradores tendrán disponible el asistente inteligente para guiarlos.',
     offMsg: 'El asistente inteligente dejará de estar disponible para guiarlos en esta ruta.' },
+  /* Hasta acá la ruta general se anteponía siempre, sin preguntar. Hay puestos que no la
+     necesitan —un reboarding de alguien que ya pasó por la inducción, una ruta de una sola
+     tarea— y obligarlos a arrastrarla los deja con etapas que no se pueden ni editar ni sacar.
+     Se decide por ruta, y por defecto sigue viniendo puesta: es lo común. */
+  { key: 'incluirGeneral', label: 'Incluir la ruta general', hint: 'Antepone las etapas comunes de la empresa',
+    onMsg: 'Las etapas de la ruta general se van a anteponer a esta ruta.',
+    offMsg: 'Esta ruta deja de incluir las etapas de la ruta general: sus colaboradores solo harán las etapas propias.' },
 ]
 const defaultRutaConfig = Object.fromEntries(rutaConfigOpciones.map(o => [o.key, true]))
 
@@ -195,19 +204,22 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      ocurrir al confirmar el aviso sino al final de `commitSave`. */
   const exitNavRef = useRef(null)
 
+  const configInicial = { ...defaultRutaConfig, ...(plantilla.config || {}) }
+  // La ruta general se antepone salvo que esta ruta haya decidido no incluirla.
+  const traeGenerales = !plantilla.esGlobal && configInicial.incluirGeneral !== false
   const [rutaState, setRutaState] = useState(() => {
     const src = empty
       ? emptyRuta
       : (plantilla.etapasData?.length ? { etapas: plantilla.etapasData } : (rutasData[plantilla.id] || defaultRuta))
     const data = JSON.parse(JSON.stringify(src))
-    if (!plantilla.esGlobal) {
-      const globalEtapas = getGlobalEtapas(plantillas, plantilla.id)
-      data.etapas = [...globalEtapas, ...data.etapas.filter(e => !e.locked)]
-    }
+    const propias = data.etapas.filter(e => !e.locked)
+    data.etapas = traeGenerales
+      ? [...getGlobalEtapas(plantillas, plantilla.id), ...propias]
+      : propias
     data.etapas = normalizarEtapas(data.etapas)
     return data
   })
-  const [rutaConfig, setRutaConfig] = useState(() => ({ ...defaultRutaConfig, ...(plantilla.config || {}) }))
+  const [rutaConfig, setRutaConfig] = useState(configInicial)
   /* Dos interruptores mandan sobre los puntos y basta con que uno esté apagado: el global
      apaga la gamificación en toda la plataforma, el de la ruta solo en esta. Si no se
      miran los dos, desactivarla en "Configuración de la ruta" no cambia nada en el lienzo. */
@@ -254,8 +266,21 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
   const [editingActividad, setEditingActividad] = useState(null)
   const [actividadMenu, setActividadMenu] = useState(null)
   const [showNewEtapa, setShowNewEtapa] = useState(false)
-  const [newEtapaName, setNewEtapaName] = useState('')
-  const [newEtapaDays, setNewEtapaDays] = useState(7)
+  /* Las etapas que vienen de la ruta general arrancan plegadas en el índice. Mezcladas con las
+     propias, lo primero que provocan es la pregunta "¿de dónde salieron estas?" —y encima no se
+     pueden editar—, así que se muestran juntas, contadas y con su origen escrito. */
+  const [verGenerales, setVerGenerales] = useState(false)
+  /* Borrado en masa. El menú de cada nodo alcanza para corregir una tarea, pero limpiar media
+     etapa son quince menús y quince confirmaciones escribiendo "eliminar" cada vez. En modo
+     selección el clic en el nodo marca en lugar de abrir su menú, y se borra todo junto. */
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccion, setSeleccion] = useState([])
+  /* Las actividades se marcan por su lugar (`etapa:actividad`) porque no tienen id propio.
+     Alcanza porque en modo selección no se puede arrastrar ni reordenar: nada les mueve el
+     índice entre que se marcan y se borran. */
+  const [seleccionActs, setSeleccionActs] = useState([])
+  const [seleccionEtapas, setSeleccionEtapas] = useState([])
+  const [deleteMultiConfirm, setDeleteMultiConfirm] = useState(false)
   const [etapaMenu, setEtapaMenu] = useState(null)
   const [editingEtapaSb, setEditingEtapaSb] = useState(null)
   const [dragEtapa, setDragEtapa] = useState(null)
@@ -403,7 +428,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
      aviso de la cabecera y el modal de alcance, que tienen que decir el mismo número. */
   const enCursoAlEntrar = asignadosEnCurso().length
   // Mismo `duracion` con el que se arman los tramos "Día 8 — Día 15" de cada etapa.
-  const totalDias = rutaState.etapas.reduce((s, e) => s + (e.duracion || 7), 0)
+  const totalDias = duracionEnDias(rutaState.etapas)
   const proximaVersion = (plantilla.versionActual || plantilla.versiones?.length || 1) + 1
   const hayEnCurso = !esBorrador && enCursoAlEntrar > 0
 
@@ -586,6 +611,36 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
   const etapa = rutaState.etapas[selEtapa]
 
+  /* Cómo se nombra lo marcado, y qué se lleva puesto. Lo que está adentro de algo ya marcado
+     no se cuenta aparte —sumarlo dos veces inflaría el número justo en el aviso que pide
+     confirmar un borrado—, pero sí se cuenta como arrastre: cuántas actividades y tareas se van
+     sin haberlas tocado es lo que nadie tiene en la cabeza al marcar una etapa. */
+  const contenidoDeEtapas = seleccionEtapas.reduce((acc, ei) => {
+    const e = rutaState.etapas[ei]
+    acc.actividades += e?.actividades.length || 0
+    acc.tareas += e?.actividades.reduce((s, a) => s + a.tareas.length, 0) || 0
+    return acc
+  }, { actividades: 0, tareas: 0 })
+  const tareasDeActsMarcadas = seleccionActs.reduce((s, k) => {
+    const [ei, ai] = k.split(':').map(Number)
+    return s + (rutaState.etapas[ei]?.actividades[ai]?.tareas.length || 0)
+  }, 0)
+  const haySeleccion = seleccion.length > 0 || seleccionActs.length > 0 || seleccionEtapas.length > 0
+  const nombrar = (n, singular, plural) => n && `${n} ${n === 1 ? singular : plural}`
+  const unir = (partes) => {
+    const l = partes.filter(Boolean)
+    return l.length > 1 ? `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}` : (l[0] || '')
+  }
+  const resumenSeleccion = unir([
+    nombrar(seleccionEtapas.length, 'etapa', 'etapas'),
+    nombrar(seleccionActs.length, 'actividad', 'actividades'),
+    nombrar(seleccion.length, 'tarea', 'tareas'),
+  ])
+  const arrastre = unir([
+    nombrar(contenidoDeEtapas.actividades, 'actividad', 'actividades'),
+    nombrar(contenidoDeEtapas.tareas + tareasDeActsMarcadas, 'tarea', 'tareas'),
+  ])
+
   function deleteTarea(tareaId) {
     setRutaState(prev => {
       const next = JSON.parse(JSON.stringify(prev))
@@ -598,6 +653,116 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
     })
     if (selTarea?.id === tareaId) { setSelTarea(null); setTareaForm(null) }
     setDeleteTaskConfirm(null)
+  }
+
+  /* Lo marcado se hereda hacia abajo: marcar una etapa marca sus actividades y sus tareas, y
+     marcar una actividad marca sus tareas. Se calcula al dibujar en vez de copiarse a las
+     listas, para que destildar la etapa devuelva todo a su estado anterior sin rastros. */
+  const etapaMarcada = (ei) => seleccionEtapas.includes(ei)
+  const actMarcada = (ei, ai) => etapaMarcada(ei) || seleccionActs.includes(`${ei}:${ai}`)
+
+  const idsDeEtapa = (e) => e.actividades.flatMap(a => a.tareas.map(t => t.id))
+  const keysDeEtapa = (e, ei) => e.actividades.map((_, ai) => `${ei}:${ai}`)
+
+  /* Un ajuste de la ruta que además cambia el lienzo: quitar la ruta general saca sus etapas
+     de la vista en el momento, y volver a ponerla las trae de nuevo adelante. El resto de los
+     ajustes solo guardan su valor. */
+  function aplicarConfig(key, valor) {
+    setRutaConfig(prev => ({ ...prev, [key]: valor }))
+    if (key !== 'incluirGeneral' || plantilla.esGlobal) return
+    setRutaState(prev => {
+      const propias = prev.etapas.filter(e => !e.locked)
+      const etapas = valor ? [...getGlobalEtapas(plantillas, plantilla.id), ...propias] : propias
+      return { ...prev, etapas: normalizarEtapas(etapas) }
+    })
+    setSelEtapa(0)
+    setSelTarea(null)
+    setTareaForm(null)
+  }
+
+  function toggleSeleccion(tareaId) {
+    setSeleccion(prev => prev.includes(tareaId) ? prev.filter(x => x !== tareaId) : [...prev, tareaId])
+  }
+
+  function toggleEtapa(ei) {
+    const e = rutaState.etapas[ei]
+    if (!e || e.locked) return
+    const marcada = etapaMarcada(ei)
+    setSeleccionEtapas(prev => marcada ? prev.filter(x => x !== ei) : [...prev, ei])
+    if (marcada) return
+    // Lo de adentro ya se va con ella: dejarlo marcado aparte lo contaría dos veces.
+    const keys = keysDeEtapa(e, ei)
+    const ids = idsDeEtapa(e)
+    setSeleccionActs(prev => prev.filter(k => !keys.includes(k)))
+    setSeleccion(prev => prev.filter(id => !ids.includes(id)))
+  }
+
+  function toggleActividad(ei, ai) {
+    const e = rutaState.etapas[ei]
+    const key = `${ei}:${ai}`
+    /* Destildar una actividad de una etapa marcada saca la etapa y deja marcadas las otras
+       actividades: lo que se está diciendo es "esta se queda", no "olvidate de la etapa". */
+    if (etapaMarcada(ei)) {
+      setSeleccionEtapas(prev => prev.filter(x => x !== ei))
+      setSeleccionActs(prev => [...new Set([...prev, ...keysDeEtapa(e, ei).filter(k => k !== key)])])
+      return
+    }
+    const tareas = e?.actividades[ai]?.tareas || []
+    setSeleccionActs(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+    setSeleccion(prev => prev.filter(id => !tareas.some(t => t.id === id)))
+  }
+
+  // Misma idea un nivel más abajo: destildar una tarea rescata solo a esa.
+  function toggleTareaEnActividad(ei, ai, tareaId) {
+    const e = rutaState.etapas[ei]
+    const key = `${ei}:${ai}`
+    const tareas = e?.actividades[ai]?.tareas || []
+    const otras = tareas.filter(t => t.id !== tareaId).map(t => t.id)
+
+    if (etapaMarcada(ei)) {
+      setSeleccionEtapas(prev => prev.filter(x => x !== ei))
+      setSeleccionActs(prev => [...new Set([...prev, ...keysDeEtapa(e, ei).filter(k => k !== key)])])
+      setSeleccion(prev => [...new Set([...prev, ...otras])])
+      return
+    }
+    if (seleccionActs.includes(key)) {
+      setSeleccionActs(prev => prev.filter(k => k !== key))
+      setSeleccion(prev => [...new Set([...prev, ...otras])])
+      return
+    }
+    toggleSeleccion(tareaId)
+  }
+
+  function salirSeleccion() {
+    setModoSeleccion(false)
+    setSeleccion([])
+    setSeleccionActs([])
+    setSeleccionEtapas([])
+  }
+
+
+  function deleteSeleccionadas() {
+    const ids = new Set(seleccion)
+    const acts = new Set(seleccionActs)
+    const etapasFuera = new Set(seleccionEtapas)
+    setRutaState(prev => {
+      const next = JSON.parse(JSON.stringify(prev))
+      next.etapas.forEach((e, ei) => {
+        if (e.locked) return
+        e.actividades = e.actividades.filter((_, ai) => !acts.has(`${ei}:${ai}`))
+        e.actividades.forEach(a => { a.tareas = a.tareas.filter(t => !ids.has(t.id)) })
+      })
+      next.etapas = next.etapas.filter((e, ei) => e.locked || !etapasFuera.has(ei))
+      // Sin las etapas borradas, los tramos "Día 8 — Día 15" de las que quedan cambian.
+      next.etapas = recalcularDias(next.etapas)
+      return next
+    })
+    // La etapa abierta puede haber sido una de las borradas: se vuelve a la primera.
+    if (etapasFuera.size) setSelEtapa(0)
+    setSelTarea(null)
+    setTareaForm(null)
+    setDeleteMultiConfirm(false)
+    salirSeleccion()
   }
 
   function duplicateTarea(tareaId) {
@@ -1060,6 +1225,30 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               desaparecía apenas agregabas una etapa, justo cuando ya sabías qué querías armar y
               te acordabas de que había una plantilla parecida. Abrirlo no cambia nada todavía —
               el modal muestra el contenido y pide confirmación antes de pisar lo que hay. */}
+          {/* La ruta general, en la barra: se ve sin abrir nada si esta ruta la trae puesta, que
+              es la primera pregunta de quien abre el constructor y encuentra etapas que no armó. */}
+          {!plantilla.esGlobal && (
+            <button
+              className="jb-btn-outline jb-gral-chip"
+              onClick={() => setConfigConfirm({
+                key: 'incluirGeneral',
+                label: 'Incluir la ruta general',
+                next: !rutaConfig.incluirGeneral,
+                msg: rutaConfig.incluirGeneral
+                  ? 'Esta ruta deja de incluir las etapas de la ruta general: sus colaboradores solo harán las etapas propias.'
+                  : 'Las etapas de la ruta general se van a anteponer a esta ruta.',
+              })}
+              title={rutaConfig.incluirGeneral
+                ? 'Las etapas comunes de la empresa se anteponen a esta ruta. Clic para sacarlas.'
+                : 'Esta ruta no incluye las etapas comunes de la empresa. Clic para agregarlas.'}
+            >
+              <Lock size={12} />
+              Ruta general
+              <span className={`jb-gral-switch${rutaConfig.incluirGeneral ? ' on' : ''}`}>
+                <span className="jb-gral-dot" />
+              </span>
+            </button>
+          )}
           <button
             className="jb-btn-outline jb-btn-icon"
             onClick={() => setElegirBase(true)}
@@ -1070,6 +1259,18 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
           </button>
           <button className="jb-btn-outline jb-btn-icon" onClick={() => setShowConfig(true)} title="Configuración de la ruta">
             <Settings2 size={14} />
+          </button>
+          {/* Entrar y salir del modo selección. Es un modo y no un menú porque cambia lo que
+              hace el clic en todo el lienzo: eso tiene que poder apagarse desde el mismo botón
+              que lo prendió. */}
+          <button
+            className="jb-btn-outline jb-btn-icon"
+            onClick={() => (modoSeleccion ? salirSeleccion() : setModoSeleccion(true))}
+            title={modoSeleccion ? 'Salir de selección múltiple' : 'Seleccionar varias tareas para eliminar'}
+            aria-label={modoSeleccion ? 'Salir de selección múltiple' : 'Seleccionar varias tareas para eliminar'}
+            style={modoSeleccion ? { background: 'var(--blue-bg)', borderColor: 'var(--blue)', color: 'var(--blue)' } : undefined}
+          >
+            <CheckSquare size={14} />
           </button>
           <button
             className="jb-btn-outline"
@@ -1137,7 +1338,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
 
       {/* CANVAS COMPLETO */}
       <div className="jb-panels">
-        <div className="jb-canvas">
+        <div className={`jb-canvas${modoSeleccion ? ' jb-seleccionando' : ''}`}>
             <div
               ref={canvasRef}
               className="jb-canvas-body jb-pizarra"
@@ -1162,7 +1363,29 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                 </div>
                 <p className="jb-sb-hint">Haz clic en una etapa para ir a ella</p>
                 <div className="jb-sb-list">
+                  {rutaState.etapas.some(e => e.locked) && (
+                    <div className="jb-sb-grupo-gral">
+                      <button
+                        type="button"
+                        className="jb-sb-grupo-btn"
+                        onClick={() => setVerGenerales(v => !v)}
+                        aria-expanded={verGenerales}
+                      >
+                        <ChevronRight size={12} className={`jb-sb-grupo-chevron${verGenerales ? ' abierto' : ''}`} />
+                        <Lock size={10} />
+                        <span className="jb-sb-grupo-nombre">De la ruta general</span>
+                        <span className="jb-sb-count">{rutaState.etapas.filter(e => e.locked).length}</span>
+                      </button>
+                      {!verGenerales && (
+                        <p className="jb-sb-grupo-hint">
+                          Etapas comunes a toda la empresa. Se editan en la ruta general, no aquí.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {rutaState.etapas.map((e, i) => {
+                    // Plegadas: se saltean del listado, pero siguen en la ruta y en el lienzo.
+                    if (e.locked && !verGenerales) return null
                     const done = e.actividades.every(a => a.tareas.every(t => t.done))
                     const progress = e.actividades.some(a => a.tareas.some(t => t.done))
                     const canDrag = !e.locked && editingEtapaSb !== i
@@ -1253,10 +1476,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                     )
                   })}
                 </div>
-                <button className="jb-sb-add" onClick={() => { setNewEtapaName(''); setNewEtapaDays(7); setShowNewEtapa(true) }}>
+                <button className="jb-sb-add" onClick={() => setShowNewEtapa(true)}>
                   <Plus size={14} />
                   Agregar etapa
                 </button>
+
               </div>
 
               {/* CARD TIPOS DE TAREA — derecha.
@@ -1381,7 +1605,21 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                   className={`jb-etapa-block${selEtapa === ei ? ' active' : ''}`}
                   onMouseDown={() => { if (selEtapa !== ei) setSelEtapa(ei) }}
                 >
-              <div className="jb-etapa-header" style={{ alignItems: 'stretch', ...(isLocked ? { background: '#EEF1F5', boxShadow: 'inset 0 0 0 1px #cdd5df' } : {}) }}>
+              <div
+                className={`jb-etapa-header${modoSeleccion && !isLocked ? ' seleccionable' : ''}${etapaMarcada(ei) ? ' marcada' : ''}`}
+                style={{ alignItems: 'stretch', ...(isLocked ? { background: '#EEF1F5', boxShadow: 'inset 0 0 0 1px #cdd5df' } : {}) }}
+                onClick={modoSeleccion && !isLocked ? () => toggleEtapa(ei) : undefined}
+              >
+                {/* La casilla de la etapa va en su encabezado, que es la única parte que
+                    representa a la etapa entera; marcarla se lleva sus actividades y tareas. */}
+                {modoSeleccion && !isLocked && (
+                  <span
+                    className={`jb-act-check ${etapaMarcada(ei) ? 'on' : ''}`}
+                    style={{ width: 16, height: 16, alignSelf: 'center', marginRight: 10 }}
+                  >
+                    {etapaMarcada(ei) && <Check size={11} strokeWidth={3.5} />}
+                  </span>
+                )}
                 <div className={`jb-etapa-num ${isLocked ? 'locked' : ''}`}>
                   {isLocked ? <Lock size={14} /> : ei + 1}
                 </div>
@@ -1459,6 +1697,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                             }}
                             onClick={e => e.stopPropagation()}
                           />
+                        ) : modoSeleccion ? (
+                          /* En modo selección la píldora marca en vez de renombrar: si siguiera
+                             abriendo el input, el clic significaría dos cosas distintas según
+                             dónde caiga dentro de la misma píldora. */
+                          <span
+                            className={`jb-actividad-pill jb-actividad-pill--admin ${actMarcada(ei, ai) ? 'marcada' : ''}`}
+                            onClick={() => toggleActividad(ei, ai)}
+                            title={`${actividad.name} — marcar para eliminar, con sus ${actividad.tareas.length} ${actividad.tareas.length === 1 ? 'tarea' : 'tareas'}`}
+                          >
+                            <span className={`jb-act-check ${actMarcada(ei, ai) ? 'on' : ''}`}>
+                              {actMarcada(ei, ai) && <Check size={10} strokeWidth={3.5} />}
+                            </span>
+                            {actividad.name}
+                          </span>
                         ) : (
                           <span
                             className="jb-actividad-pill jb-actividad-pill--admin"
@@ -1506,6 +1758,8 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                       const tipo = tipoMap[tarea.tipo] || tiposTarea[0]
                       const Icon = tipo.icon
                       const isSelected = selTarea?.id === tarea.id
+                      // Marcada de a una, o de arrastre por estar dentro de una actividad marcada.
+                      const marcada = seleccion.includes(tarea.id) || actMarcada(ei, ai)
                       const status = 'active'
                       const xOff = positions[i % positions.length]
 
@@ -1544,14 +1798,26 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                           key={tarea.id}
                           className={`jb-duo-node-wrap ${dragNode === `${ei}:${i}` ? 'dragging-node' : ''}`}
                           style={{ '--x-off': `${xOff}px` }}
-                          draggable={!isLocked}
+                          /* Mientras se marca no se arrastra: el mismo gesto no puede significar
+                             dos cosas, y reordenar sin querer en medio de una limpieza es peor
+                             que no poder arrastrar por un rato. */
+                          draggable={!isLocked && !modoSeleccion}
                           onDragStart={e => { if (isLocked) { e.preventDefault(); return } e.dataTransfer.setData('reorder', String(i)); e.dataTransfer.setData('reorderEtapa', String(ei)); e.dataTransfer.effectAllowed = 'move'; setDragNode(`${ei}:${i}`); setTimeout(() => setIsDragging(true), 0) }}
                           onDragEnd={() => { setDragNode(null); setIsDragging(false); setDropTarget(null) }}
                         >
+                          {modoSeleccion && !isLocked && (
+                            <span className={`jb-duo-check ${marcada ? 'on' : ''}`}>
+                              {marcada && <Check size={12} strokeWidth={3.5} />}
+                            </span>
+                          )}
                           <button
-                            className={`jb-duo-node ${status} ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
-                            onClick={e => { e.stopPropagation(); isLocked ? setPreviewTask({ ...tarea, _locked: true }) : openTaskNodeMenu(e.currentTarget.getBoundingClientRect(), tarea.id) }}
-                            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (isLocked) setLockedMsg({ x: e.clientX, y: e.clientY }); else setContextMenu({ id: tarea.id, x: e.clientX, y: e.clientY }) }}
+                            className={`jb-duo-node ${status} ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''} ${marcada ? 'marcada' : ''}`}
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (modoSeleccion) { if (!isLocked) toggleTareaEnActividad(ei, ai, tarea.id); return }
+                              isLocked ? setPreviewTask({ ...tarea, _locked: true }) : openTaskNodeMenu(e.currentTarget.getBoundingClientRect(), tarea.id)
+                            }}
+                            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); if (modoSeleccion) return; if (isLocked) setLockedMsg({ x: e.clientX, y: e.clientY }); else setContextMenu({ id: tarea.id, x: e.clientX, y: e.clientY }) }}
                             title={isLocked ? `${tarea.name} — protegida (ruta general)` : tarea.name}
                           >
                             <span className="jb-duo-num">{i + 1}</span>
@@ -1624,8 +1890,20 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
       {tareaForm && (() => {
         const tipo = tipoMap[tareaForm.tipo] || tiposTarea[0]
         const totalDias = etapa.duracion || 7
-        const desde = tareaForm.diaDesde || 1
-        const hasta = tareaForm.diaHasta || desde
+        /* Los días de la tarea se cuentan como los cuenta la etapa: si su encabezado dice
+           "Día 36 — Día 47", el desplegable ofrece del 36 al 47 y no del 1 al 12. Dos
+           numeraciones para lo mismo obligan a hacer la resta de cabeza en cada tarea, y era
+           además lo que dejaba el campo en blanco: la tarea traía "Día 30" y la lista llegaba
+           hasta el 7, así que el navegador no mostraba nada —un valor que no está entre las
+           opciones no se dibuja—.
+
+           Lo guardado se recorta al tramo de la etapa, que cubre el otro caso: acortar la etapa
+           después, con tareas ya puestas más allá del nuevo final. */
+        const inicioEtapa = Number(String(etapa.days || '').match(/\d+/)?.[0] || 1)
+        const finEtapa = inicioEtapa + totalDias - 1
+        const enTramo = (dia) => Math.min(Math.max(Number(dia) || inicioEtapa, inicioEtapa), finEtapa)
+        const desde = enTramo(tareaForm.diaDesde)
+        const hasta = Math.max(desde, enTramo(tareaForm.diaHasta || tareaForm.diaDesde))
         const duracion = hasta - desde + 1
         return (
           <div className="pl-overlay">
@@ -2414,7 +2692,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                         }}
                       >
                         {Array.from({ length: totalDias }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>Día {i + 1}</option>
+                          <option key={inicioEtapa + i} value={inicioEtapa + i}>Día {inicioEtapa + i}</option>
                         ))}
                       </select>
                       <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>al</span>
@@ -2424,7 +2702,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
                         style={{ flex: 1, background: '#fff' }}
                         onChange={e => updateForm('diaHasta', Number(e.target.value))}
                       >
-                        {Array.from({ length: totalDias - desde + 1 }, (_, i) => (
+                        {Array.from({ length: finEtapa - desde + 1 }, (_, i) => (
                           <option key={desde + i} value={desde + i}>Día {desde + i}</option>
                         ))}
                       </select>
@@ -2914,7 +3192,11 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             </div>
             <div className="pl-modal-body">
               <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px' }}>Activa o desactiva cada ajuste para esta ruta. Por defecto, todos están activos.</p>
-              {rutaConfigOpciones.map((cfg) => (
+              {/* "Incluir la ruta general" no está en esta lista: vive en la barra de arriba,
+                  a la vista. Es el único ajuste que cambia lo que se ve en el lienzo, y adentro
+                  de un modal de seis interruptores se perdía. Sigue definido en
+                  `rutaConfigOpciones` para que su valor por defecto salga del mismo lugar. */}
+              {rutaConfigOpciones.filter(cfg => cfg.key !== 'incluirGeneral').map((cfg) => (
                 <div key={cfg.key} className="jb-field-toggle" onClick={() => setConfigConfirm({ key: cfg.key, label: cfg.label, next: !rutaConfig[cfg.key], msg: !rutaConfig[cfg.key] ? cfg.onMsg : cfg.offMsg })} style={{ cursor: 'pointer' }}>
                   <div>
                     <span>{cfg.label}</span>
@@ -2969,7 +3251,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
               <button className="pl-btn-cancel" onClick={() => setConfigConfirm(null)}>Cancelar</button>
               <button
                 className="pl-btn-save"
-                onClick={() => { setRutaConfig(prev => ({ ...prev, [configConfirm.key]: configConfirm.next })); setConfigConfirm(null) }}
+                onClick={() => { aplicarConfig(configConfirm.key, configConfirm.next); setConfigConfirm(null) }}
               >
                 {configConfirm.next ? 'Activar' : 'Desactivar'}
               </button>
@@ -3095,6 +3377,45 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
             })}
           </div>
         </div>
+      )}
+
+      {/* BARRA DE SELECCIÓN MÚLTIPLE.
+          Flota sobre el lienzo y no en la barra de arriba porque lo que cuenta —cuántas van
+          marcadas— se mira mientras se marca, con la vista abajo, en los nodos. */}
+      {modoSeleccion && (
+        <div className="jb-sel-bar">
+          <span className="jb-sel-bar-count">
+            {resumenSeleccion || 'Toca lo que quieras eliminar: etapas, actividades o tareas'}
+          </span>
+
+          <button className="jb-sel-bar-btn" onClick={salirSeleccion}>Cancelar</button>
+          <button
+            className="jb-sel-bar-btn danger"
+            disabled={!haySeleccion}
+            onClick={() => setDeleteMultiConfirm(true)}
+          >
+            <Trash2 size={13} />
+            Eliminar
+          </button>
+        </div>
+      )}
+
+      {/* CONFIRMAR ELIMINAR VARIAS */}
+      {deleteMultiConfirm && (
+        <ConfirmarAccionModal
+          titulo={`¿Estás seguro de eliminar ${resumenSeleccion}?`}
+          descripcion={
+            <>
+              Se va a eliminar <strong>{resumenSeleccion}</strong> de esta ruta.
+              {arrastre && <> Con eso se van también <strong>{arrastre}</strong> que estaban adentro.</>}
+              {' '}Esta acción no se puede deshacer.
+            </>
+          }
+          palabra="eliminar"
+          textoConfirmar="Eliminar"
+          onConfirmar={deleteSeleccionadas}
+          onCancelar={() => setDeleteMultiConfirm(false)}
+        />
       )}
 
       {/* CONFIRMAR ELIMINAR TAREA */}
@@ -3235,7 +3556,7 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
              que se copia, así que no viajan en la copia ni deben perderse al traerla. */
           onUsar={(etapasData) => {
             const copia = JSON.parse(JSON.stringify(etapasData)).filter(e => !e.locked)
-            const globales = plantilla.esGlobal ? [] : getGlobalEtapas(plantillas, plantilla.id)
+            const globales = rutaConfig.incluirGeneral === false || plantilla.esGlobal ? [] : getGlobalEtapas(plantillas, plantilla.id)
             setRutaState(prev => ({ ...prev, etapas: normalizarEtapas([...globales, ...copia]) }))
             setSelEtapa(globales.length)
             setElegirBase(false)
@@ -3310,177 +3631,46 @@ export default function JourneyBuilder({ plantilla, onBack, empty, backLabel, ed
         </div>
       )}
 
-      {/* MODAL EDITAR ETAPA */}
+      {/* Alta y edición de etapa comparten formulario: el mismo componente en los dos modos.
+          Ver `EtapaFormModal`. */}
       {editEtapaModal && (
-        <div className="pl-overlay" onClick={() => setEditEtapaModal(null)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8,
-                  background: 'rgba(255,255,255,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Pencil size={15} style={{ color: '#fff' }} />
-                </div>
-                <h2>Editar etapa</h2>
-              </div>
-              <button className="pl-modal-close" onClick={() => setEditEtapaModal(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              <label className="pl-label">
-                Nombre de la etapa
-                <input
-                  type="text"
-                  className="pl-input"
-                  value={editEtapaModal.name}
-                  onChange={e => setEditEtapaModal(prev => ({ ...prev, name: e.target.value }))}
-                  autoFocus
-                />
-              </label>
-              <label className="pl-label">
-                Duración (días)
-                <input
-                  type="number"
-                  className="pl-input"
-                  min="1"
-                  value={editEtapaModal.days}
-                  onChange={e => setEditEtapaModal(prev => ({ ...prev, days: Math.max(1, Number(e.target.value)) }))}
-                />
-              </label>
-            </div>
-            <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setEditEtapaModal(null)}>Cancelar</button>
-              <button
-                className="pl-btn-save"
-                disabled={!editEtapaModal.name.trim()}
-                onClick={() => {
-                  const { idx, name, days } = editEtapaModal
-                  setRutaState(prev => {
-                    const next = JSON.parse(JSON.stringify(prev))
-                    next.etapas[idx].name = name.trim()
-                    next.etapas[idx].duracion = days
-                    let acum = 1
-                    next.etapas.forEach(e => {
-                      const d = e.duracion || 7
-                      e.days = d === 1 ? `Día ${acum}` : `Día ${acum} — Día ${acum + d - 1}`
-                      acum += d
-                    })
-                    return next
-                  })
-                  setEditEtapaModal(null)
-                }}
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
+        <EtapaFormModal
+          modo="editar"
+          valorInicial={{ name: editEtapaModal.name, days: editEtapaModal.days }}
+          onCerrar={() => setEditEtapaModal(null)}
+          onGuardar={({ name, days }) => {
+            const { idx } = editEtapaModal
+            setRutaState(prev => {
+              const next = JSON.parse(JSON.stringify(prev))
+              next.etapas[idx].name = name
+              next.etapas[idx].duracion = days
+              next.etapas = recalcularDias(next.etapas)
+              return next
+            })
+            setEditEtapaModal(null)
+          }}
+        />
       )}
 
-      {/* MODAL NUEVA ETAPA */}
+
       {showNewEtapa && (
-        <div className="pl-overlay" onClick={() => setShowNewEtapa(false)}>
-          <div className="pl-modal pl-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="pl-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8,
-                  background: 'rgba(255,255,255,0.12)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Plus size={16} style={{ color: '#fff' }} />
-                </div>
-                <h2>Nueva etapa</h2>
-              </div>
-              <button className="pl-modal-close" onClick={() => setShowNewEtapa(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pl-modal-body">
-              <label className="pl-label">
-                Nombre de la etapa
-                <input
-                  type="text"
-                  className="pl-input"
-                  placeholder="Ej: Mi primera semana, Conoce el área..."
-                  value={newEtapaName}
-                  onChange={e => setNewEtapaName(e.target.value)}
-                  autoFocus
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && newEtapaName.trim()) {
-                      const n = rutaState.etapas.length
-                      const dias = Math.max(1, newEtapaDays)
-                      setRutaState(prev => {
-                        const next = JSON.parse(JSON.stringify(prev))
-                        let acum = 1
-                        next.etapas.forEach(et => { acum += et.duracion || 7 })
-                        next.etapas.push({
-                          name: newEtapaName.trim(),
-                          locked: false,
-                          duracion: dias,
-                          days: dias === 1 ? `Día ${acum}` : `Día ${acum} — Día ${acum + dias - 1}`,
-                          actividades: [],
-                        })
-                        return next
-                      })
-                      setSelEtapa(n)
-                      setSelTarea(null)
-                      setTareaForm(null)
-                      setShowNewEtapa(false)
-                    }
-                  }}
-                />
-              </label>
-              <label className="pl-label">
-                Duración (días)
-                <input
-                  type="number"
-                  className="pl-input"
-                  min="1"
-                  value={newEtapaDays}
-                  onChange={e => setNewEtapaDays(Math.max(1, Number(e.target.value)))}
-                />
-              </label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: -4 }}>
-                Define cuántos días dura esta etapa dentro de la ruta de onboarding.
-              </div>
-            </div>
-            <div className="pl-modal-footer">
-              <button className="pl-btn-cancel" onClick={() => setShowNewEtapa(false)}>Cancelar</button>
-              <button
-                className="pl-btn-save"
-                disabled={!newEtapaName.trim()}
-                onClick={() => {
-                  if (!newEtapaName.trim()) return
-                  const n = rutaState.etapas.length
-                  const dias = Math.max(1, newEtapaDays)
-                  setRutaState(prev => {
-                    const next = JSON.parse(JSON.stringify(prev))
-                    let acum = 1
-                    next.etapas.forEach(et => { acum += et.duracion || 7 })
-                    next.etapas.push({
-                      name: newEtapaName.trim(),
-                      locked: false,
-                      duracion: dias,
-                      days: dias === 1 ? `Día ${acum}` : `Día ${acum} — Día ${acum + dias - 1}`,
-                      actividades: [],
-                    })
-                    return next
-                  })
-                  setSelEtapa(n)
-                  setSelTarea(null)
-                  setTareaForm(null)
-                  setShowNewEtapa(false)
-                }}
-              >
-                Crear etapa
-              </button>
-            </div>
-          </div>
-        </div>
+        <EtapaFormModal
+          modo="crear"
+          onCerrar={() => setShowNewEtapa(false)}
+          onGuardar={({ name, days }) => {
+            const n = rutaState.etapas.length
+            setRutaState(prev => {
+              const next = JSON.parse(JSON.stringify(prev))
+              next.etapas.push({ name, locked: false, duracion: days, actividades: [] })
+              next.etapas = recalcularDias(next.etapas)
+              return next
+            })
+            setSelEtapa(n)
+            setSelTarea(null)
+            setTareaForm(null)
+            setShowNewEtapa(false)
+          }}
+        />
       )}
 
       {/* MODAL EDITOR DE CUESTIONARIO (quiz task) */}

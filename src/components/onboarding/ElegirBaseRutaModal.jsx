@@ -4,6 +4,7 @@ import { rutaPlantillas } from '../../data/rutaPlantillas'
 import { useConfig } from '../../context/ConfigContext'
 import { RutaPath, TaskPreviewModal } from './RutaPreviewModal'
 import ReemplazarContenidoModal from './ReemplazarContenidoModal'
+import { nombrarCargos } from '../../utils/rutaEstados'
 
 /* De dónde sale el contenido de una ruta: una plantilla del catálogo o una copia de otra ruta
    ya armada.
@@ -51,7 +52,7 @@ export default function ElegirBaseRutaModal({ rutaActualId, rutas = [], etapasAc
      nada y ofrecerlo obliga a descartar la opción a mano. */
   const copiables = rutas
     .filter(r => r.id !== rutaActualId && r.etapasData?.length && !r.esGlobal && coincide(r.name, r.area))
-    .map(r => ({ id: `ruta-${r.id}`, nombre: r.name, area: r.area, cargo: r.cargo, etapas: propias(r.etapasData) }))
+    .map(r => ({ id: `ruta-${r.id}`, nombre: r.name, area: r.area, cargo: nombrarCargos(r), etapas: propias(r.etapasData) }))
     .filter(r => r.etapas.length)
 
   const lista = pestana === 'plantillas' ? plantillasBase : copiables
