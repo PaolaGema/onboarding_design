@@ -48,7 +48,7 @@ export default function Layout() {
   const [mobileTab, setMobileTab] = useState(tabInicial)
 
   /* Un módulo abierto desde Zona HR ocupa la pantalla completa: el lanzador te saca del
-     árbol de pestañas, así que dejar la barra abajo sugiere que seguís dentro de ella.
+     árbol de pestañas, así que dejar la barra abajo sugiere que sigues dentro de ella.
      Y la pestaña "Onboarding" es transitoria — cuando la persona se gradúa desaparece y
      Zona HR queda como única puerta, así que ese camino tiene que verse bien sin barra. */
   const [origenHR, setOrigenHR] = useState(false)

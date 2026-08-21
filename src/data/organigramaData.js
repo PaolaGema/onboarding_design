@@ -20,25 +20,19 @@ export const sucursales = [
   { id: 'cbb', nombre: 'Sucursal', ciudad: 'Cochabamba' },
 ]
 
-/* Paleta de las áreas: el usuario elige de aquí al crear una unidad nueva. */
-export const COLORES_UNIDAD = [
-  '#0C2D40', '#06b6d4', '#d946ef', '#ec4899',
-  '#3b82f6', '#8b5cf6', '#f97316', '#10b981',
-]
-
 /* `corto` es la etiqueta de la píldora "Pertenece a" en la tabla, donde el nombre largo
    no entra. */
 export const unidades = [
-  { id: 'direccion', nombre: 'Dirección General', corto: 'Dir. General', padreId: null, color: '#0C2D40' },
-  { id: 'tecnologia', nombre: 'Tecnología', corto: 'Tecnología', padreId: 'direccion', color: '#06b6d4' },
-  { id: 'rrhh', nombre: 'Recursos Humanos', corto: 'RRHH', padreId: 'direccion', color: '#d946ef' },
-  { id: 'marketing', nombre: 'Marketing', corto: 'Marketing', padreId: 'direccion', color: '#ec4899' },
-  { id: 'mkt-digital', nombre: 'Marketing Digital', corto: 'Mkt. Digital', padreId: 'marketing', color: '#ec4899' },
-  { id: 'contenidos', nombre: 'Contenidos y Creatividad', corto: 'Contenidos', padreId: 'marketing', color: '#ec4899' },
-  { id: 'ventas', nombre: 'Ventas', corto: 'Ventas', padreId: 'direccion', color: '#3b82f6' },
-  { id: 'operaciones', nombre: 'Operaciones', corto: 'Operaciones', padreId: 'direccion', color: '#8b5cf6' },
-  { id: 'finanzas', nombre: 'Finanzas', corto: 'Finanzas', padreId: 'direccion', color: '#0C2D40' },
-  { id: 'diseno', nombre: 'Diseño', corto: 'Diseño', padreId: 'direccion', color: '#f97316' },
+  { id: 'direccion', nombre: 'Dirección General', corto: 'Dir. General', padreId: null },
+  { id: 'tecnologia', nombre: 'Tecnología', corto: 'Tecnología', padreId: 'direccion' },
+  { id: 'rrhh', nombre: 'Recursos Humanos', corto: 'RRHH', padreId: 'direccion' },
+  { id: 'marketing', nombre: 'Marketing', corto: 'Marketing', padreId: 'direccion' },
+  { id: 'mkt-digital', nombre: 'Marketing Digital', corto: 'Mkt. Digital', padreId: 'marketing' },
+  { id: 'contenidos', nombre: 'Contenidos y Creatividad', corto: 'Contenidos', padreId: 'marketing' },
+  { id: 'ventas', nombre: 'Ventas', corto: 'Ventas', padreId: 'direccion' },
+  { id: 'operaciones', nombre: 'Operaciones', corto: 'Operaciones', padreId: 'direccion' },
+  { id: 'finanzas', nombre: 'Finanzas', corto: 'Finanzas', padreId: 'direccion' },
+  { id: 'diseno', nombre: 'Diseño', corto: 'Diseño', padreId: 'direccion' },
 ]
 
 /* Los cuatro tipos de cargo. `staff` y `outsourcing` cuelgan de lado en vez de bajar en la
@@ -51,7 +45,7 @@ export const TIPOS_CARGO = [
   { key: 'colaborador', label: 'Colaborador', desc: 'Puesto sin gente a cargo', lateral: false },
   { key: 'jefe', label: 'Jefe / Director', desc: 'Puesto con línea de mando', lateral: false },
   { key: 'staff', label: 'Staff', desc: 'Asiste a un cargo sin estar en su línea de mando', lateral: true },
-  { key: 'outsourcing', label: 'Outsourcing', desc: 'Servicio prestado por alguien externo', lateral: true },
+  { key: 'outsourcing', label: 'Outsourcing', desc: 'Lo cubre un prestador de servicios', lateral: true },
 ]
 
 /* `sucursalIds` es una lista y no un id suelto a propósito: una gerencia responsable de dos
@@ -59,7 +53,7 @@ export const TIPOS_CARGO = [
 export const cargos = [
   { id: 'gg', nombre: 'Gerente General', unidadId: 'direccion', reportaA: null, ocupanteId: 28, destacado: true, sucursalIds: ['central', 'lpz', 'cbb'] },
   { id: 'asist-dir', nombre: 'Asistente de Dirección', unidadId: 'direccion', reportaA: 'gg', ocupanteId: 29, tipo: 'staff', sucursalIds: ['central'] },
-  { id: 'legal-ext', nombre: 'Asesoría Legal Externa', unidadId: 'direccion', reportaA: 'gg', ocupanteId: null, tipo: 'outsourcing', motivoContratacion: 'Servicio legal permanente sin plaza interna', sucursalIds: ['central', 'lpz', 'cbb'] },
+  { id: 'legal-ext', nombre: 'Asesoría Legal Externa', unidadId: 'direccion', reportaA: 'gg', ocupanteId: null, tipo: 'outsourcing', sucursalIds: ['central', 'lpz', 'cbb'] },
 
   { id: 'dir-tec', nombre: 'Dirección de Tecnología', unidadId: 'tecnologia', reportaA: 'gg', ocupanteId: null, sucursalIds: ['central'] },
   { id: 'dev-back', nombre: 'Desarrollador Backend', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: 1, sucursalIds: ['central'] },
@@ -67,7 +61,7 @@ export const cargos = [
   { id: 'qa', nombre: 'QA Engineer', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: 4, sucursalIds: ['central'] },
   { id: 'devops', nombre: 'DevOps Engineer', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: 14, sucursalIds: ['central'] },
   { id: 'data', nombre: 'Data Analyst', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: 20, sucursalIds: ['central'] },
-  { id: 'soporte-ext', nombre: 'Soporte de Infraestructura', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: null, tipo: 'outsourcing', motivoContratacion: 'Guardia 24/7 de servidores, fuera del horario del equipo', sucursalIds: ['central'] },
+  { id: 'soporte-ext', nombre: 'Soporte de Infraestructura', unidadId: 'tecnologia', reportaA: 'dir-tec', ocupanteId: null, tipo: 'outsourcing', sucursalIds: ['central'] },
 
   { id: 'dir-rrhh', nombre: 'Especialista RRHH', unidadId: 'rrhh', reportaA: 'gg', ocupanteId: 9, sucursalIds: ['central', 'lpz'] },
   { id: 'nominas', nombre: 'Analista de Nóminas', unidadId: 'rrhh', reportaA: 'dir-rrhh', ocupanteId: 15, sucursalIds: ['central'] },
@@ -82,7 +76,7 @@ export const cargos = [
   { id: 'marca', nombre: 'Ejecutiva de Marca', unidadId: 'contenidos', reportaA: 'dir-mkt', ocupanteId: 27, sucursalIds: ['cbb'] },
 
   { id: 'lider-ventas', nombre: 'Ejecutivo Senior', unidadId: 'ventas', reportaA: 'gg', ocupanteId: 12, sucursalIds: ['central', 'lpz', 'cbb'] },
-  { id: 'ejec-com', nombre: 'Ejecutiva Comercial', unidadId: 'ventas', reportaA: 'lider-ventas', ocupanteId: 2, sucursalIds: ['central'] },
+  { id: 'ejec-com', nombre: 'Ejecutiva Comercial', unidadId: 'ventas', reportaA: 'lider-ventas', ocupantes: [2], sucursalIds: ['central'] },
   { id: 'account', nombre: 'Account Manager', unidadId: 'ventas', reportaA: 'lider-ventas', ocupanteId: 7, sucursalIds: ['lpz'] },
   { id: 'sdr', nombre: 'SDR Junior', unidadId: 'ventas', reportaA: 'lider-ventas', ocupanteId: 18, sucursalIds: ['cbb'] },
   { id: 'pasante', nombre: 'Pasante Comercial', unidadId: 'ventas', reportaA: 'lider-ventas', ocupanteId: 5, sucursalIds: ['central'] },
@@ -90,7 +84,7 @@ export const cargos = [
   { id: 'coord-log', nombre: 'Coordinador Logístico', unidadId: 'operaciones', reportaA: 'gg', ocupanteId: 16, sucursalIds: ['central', 'cbb'] },
   { id: 'analista-proc', nombre: 'Analista de Procesos', unidadId: 'operaciones', reportaA: 'coord-log', ocupanteId: 8, sucursalIds: ['central'] },
   { id: 'asist-op', nombre: 'Asistente Operativo', unidadId: 'operaciones', reportaA: 'coord-log', ocupanteId: 22, sucursalIds: ['cbb'] },
-  { id: 'limpieza-ext', nombre: 'Servicio de Limpieza', unidadId: 'operaciones', reportaA: 'coord-log', ocupanteId: null, tipo: 'outsourcing', motivoContratacion: 'Contrato con empresa tercerizada por sede', sucursalIds: ['central', 'lpz', 'cbb'] },
+  { id: 'limpieza-ext', nombre: 'Servicio de Limpieza', unidadId: 'operaciones', reportaA: 'coord-log', ocupanteId: null, tipo: 'outsourcing', sucursalIds: ['central', 'lpz', 'cbb'] },
 
   { id: 'tesorero', nombre: 'Tesorero', unidadId: 'finanzas', reportaA: 'gg', ocupanteId: 23, sucursalIds: ['central'] },
   { id: 'contador', nombre: 'Contador General', unidadId: 'finanzas', reportaA: 'tesorero', ocupanteId: 10, sucursalIds: ['central'] },
@@ -140,10 +134,28 @@ export const getUnidad = (id, org = orgSeed) => org.unidades.find(u => u.id === 
    agregar un tercer tipo lateral no obligue a tocar el algoritmo del árbol. */
 const esLateral = c => c.tipo === 'staff' || c.tipo === 'outsourcing'
 
+/* Un cargo lo pueden ocupar VARIAS personas: "Ejecutiva Comercial" puede tener tres. Por eso
+   los ocupantes son una lista y no un id suelto, que obligaba a duplicar el cuadro —con su
+   tipo, sus sedes y mañana su ruta de onboarding— una vez por persona.
+
+   No hay un número de plazas declarado: se probó y confundía más de lo que aclaraba. Vacante
+   vuelve a ser lo que se entiende sin explicación —el puesto no tiene a nadie—, y cuántos
+   caben es una decisión de RRHH, no un campo del organigrama.
+
+   El campo viejo de un solo ocupante se sigue leyendo: hay organigramas guardados con él y
+   no hace falta migrarlos para que se vean bien. */
+export const ocupantesDe = cargo => (
+  cargo.ocupantes ?? (cargo.ocupanteId != null ? [cargo.ocupanteId] : [])
+)
+
+const estadoDeOcupantes = cargo => {
+  const ocupantes = ocupantesDe(cargo).map(getPersona).filter(Boolean)
+  return { ocupantes, vacante: ocupantes.length === 0 }
+}
+
 const nodoSuelto = cargo => ({
   tipo: 'cargo', id: cargo.id, cargo,
-  ocupante: getPersona(cargo.ocupanteId),
-  vacante: cargo.ocupanteId == null,
+  ...estadoDeOcupantes(cargo),
   staff: [], hijos: [],
 })
 
@@ -194,14 +206,81 @@ export function buildOrgTree(modo = 'completo', org = orgSeed) {
     return { tipo: 'empresa', id: 'empresa', empresa, staff: [], hijos: org.unidades.filter(u => u.padreId === null).map(nodoUnidad) }
   }
 
-  const raiz = org.cargos.find(c => c.reportaA === null)
-  if (!raiz) return { tipo: 'empresa', id: 'empresa', empresa, staff: [], hijos: [] }
+  /* RAÍCES, en plural. Antes se tomaba solo la primera y cualquier otro cargo sin jefe —con
+     todo lo que colgara de él— desaparecía del dibujo: se guardaba y no se veía. Un organigrama
+     a medio armar tiene varias piezas todavía sin enganchar, y hay que poder verlas para
+     engancharlas.
 
-  const nodoRaiz = nodoCargo(raiz, org, modo === 'completo', new Set())
-  const hijos = modo === 'completo'
-    ? [{ tipo: 'unidad', id: 'u-direccion', unidad: getUnidad(raiz.unidadId, org), staff: [], hijos: [nodoRaiz] }]
-    : [nodoRaiz]
-  return { tipo: 'empresa', id: 'empresa', empresa, staff: [], hijos }
+     `vistos` es uno solo para todas: corta ciclos y además evita que un cargo aparezca dos
+     veces si el dato quedó encadenado de forma rara. */
+  const raices = org.cargos.filter(c => c.reportaA === null)
+  const vistos = new Set()
+  const nodos = raices.map(r => nodoCargo(r, org, modo === 'completo', vistos))
+
+  /* "Ver por cargos" es solo la línea de mando: ahí no se dibuja ninguna unidad, ni siquiera
+     las que todavía no tienen a nadie. */
+  if (modo !== 'completo') {
+    return { tipo: 'empresa', id: 'empresa', empresa, staff: [], hijos: nodos }
+  }
+
+  /* En "completo" cada raíz entra envuelta en la píldora de su unidad, igual que cualquier
+     otro cargo que abre unidad. Las que comparten unidad comparten píldora. */
+  const grupos = []
+  const porUnidad = new Map()
+  for (const nodo of nodos) {
+    const uid = nodo.cargo.unidadId
+    let grupo = porUnidad.get(uid)
+    if (!grupo) {
+      grupo = { tipo: 'unidad', id: `u-raiz-${uid}`, unidad: getUnidad(uid, org), staff: [], hijos: [] }
+      porUnidad.set(uid, grupo)
+      grupos.push(grupo)
+    }
+    grupo.hijos.push(nodo)
+  }
+  return { tipo: 'empresa', id: 'empresa', empresa, staff: [], hijos: colgarUnidadesVacias(grupos, org) }
+}
+
+/* Una unidad sin ningún cargo no tiene de dónde colgarse en un árbol que se arma desde los
+   cargos. Antes se agregaban todas al pie, en fila, y ahí aparecía el problema de verdad: se
+   creaba una sub-unidad dentro de Marketing y se dibujaba AL LADO de Marketing, no debajo. El
+   dato estaba bien; el dibujo decía otra cosa.
+
+   Ahora cada una se engancha a la píldora de su unidad madre cuando esa píldora está dibujada,
+   y las vacías se anidan entre ellas —que es el caso de un organigrama recién empezado, donde
+   todavía no hay ni un cargo y toda la estructura son unidades—. Solo queda al pie lo que
+   cuelga de la empresa o lo que perdió a su madre. */
+function colgarUnidadesVacias(hijosRaiz, org) {
+  const vacias = org.unidades.filter(u => !org.cargos.some(c => c.unidadId === u.id))
+  if (!vacias.length) return hijosRaiz
+
+  /* Dónde quedó dibujada cada unidad que sí tiene cargos. Una unidad puede aparecer en más de
+     un lugar del árbol —abre píldora cada vez que un jefe de otra unidad tiene hijos suyos—;
+     se toma la primera para no duplicar la sub-unidad en todas. */
+  const pildoras = new Map()
+  const recorrer = nodos => {
+    for (const n of nodos) {
+      if (n.tipo === 'unidad' && n.unidad && !pildoras.has(n.unidad.id)) pildoras.set(n.unidad.id, n)
+      if (n.hijos?.length) recorrer(n.hijos)
+    }
+  }
+  recorrer(hijosRaiz)
+
+  const idsVacias = new Set(vacias.map(u => u.id))
+  const construir = u => ({
+    tipo: 'unidad', id: `u-${u.id}`, unidad: u, staff: [], sinCargos: true,
+    hijos: vacias.filter(x => x.padreId === u.id).map(construir),
+  })
+
+  /* Las cimas son las vacías cuya madre NO es otra vacía: las demás ya entran anidadas dentro
+     de ellas y colocarlas otra vez las dibujaría dos veces. */
+  const alPie = []
+  for (const u of vacias.filter(x => !x.padreId || !idsVacias.has(x.padreId))) {
+    const nodo = construir(u)
+    const madre = u.padreId ? pildoras.get(u.padreId) : null
+    if (madre) madre.hijos.push(nodo)
+    else alPie.push(nodo)
+  }
+  return [...hijosRaiz, ...alPie]
 }
 
 /* Forma común de una fila/tarjeta de cargo: la comparten la tabla, las cards y el buscador. */
@@ -210,8 +289,7 @@ const datosFila = (cargo, org) => ({
   unidad: getUnidad(cargo.unidadId, org),
   tipo: tipoDe(cargo, org),
   sedes: sucursalesDe(cargo, org),
-  ocupante: getPersona(cargo.ocupanteId),
-  vacante: cargo.ocupanteId == null,
+  ...estadoDeOcupantes(cargo),
   jefeNombre: cargo.reportaA ? (org.cargos.find(c => c.id === cargo.reportaA)?.nombre ?? null) : null,
 })
 
@@ -424,6 +502,40 @@ export function descendientesDe(cargoId, org) {
   return dentro
 }
 
+/* Los pares de un cargo: los que se dibujan en su misma fila. Se pregunta por la lateralidad
+   y no por el tipo porque el árbol dibuja dos filas distintas —la línea de mando abajo, los
+   laterales al costado— y mover un staff entre los reportes de su jefe no lo movería de lugar
+   en el dibujo. Salen en el orden en que se dibujan, que es el de la lista de cargos. */
+export function paresDe(cargo, org) {
+  if (!cargo) return []
+  const lateral = esLateral(cargo)
+  return org.cargos.filter(c => c.reportaA === cargo.reportaA && esLateral(c) === lateral)
+}
+
+/* Mover un cargo entre sus pares. El orden del dibujo ES el orden de la lista de cargos, así
+   que no hace falta un campo nuevo: se reordena la lista. Los pares vuelven a los mismos
+   lugares que ocupaban —solo cambia cuál va en cada uno— para no alterar la posición de nadie
+   más ni el orden en que se leen las otras ramas.
+
+   Y sí cambia el dibujo de verdad: entre los laterales, el orden decide de qué lado del jefe
+   cae cada uno; entre los reportes, quién queda a la izquierda. */
+export function moverEntrePares(cargoId, nuevaPos, org) {
+  const cargo = org.cargos.find(c => c.id === cargoId)
+  const pares = paresDe(cargo, org)
+  const actual = pares.findIndex(c => c.id === cargoId)
+  const destino = Math.max(0, Math.min(pares.length - 1, nuevaPos))
+  if (actual < 0 || actual === destino) return org
+
+  const orden = pares.filter(c => c.id !== cargoId)
+  orden.splice(destino, 0, cargo)
+
+  const huecos = []
+  org.cargos.forEach((c, i) => { if (pares.some(p => p.id === c.id)) huecos.push(i) })
+  const cargos = [...org.cargos]
+  huecos.forEach((hueco, i) => { cargos[hueco] = orden[i] })
+  return { ...org, cargos }
+}
+
 /* Al borrar un cargo sus subordinados suben un escalón y quedan colgando del jefe que
    tenía el borrado, en vez de desaparecer del árbol. */
 export function eliminarCargo(cargoId, org) {
@@ -444,10 +556,10 @@ export function eliminarCargo(cargoId, org) {
    vea venir. Devuelve el motivo por el que está bloqueada, o null si se puede borrar. */
 export function bloqueoUnidad(unidadId, org) {
   const conCargos = org.cargos.filter(c => c.unidadId === unidadId).length
-  if (conCargos > 0) return `Primero movés o borrás sus ${conCargos} ${conCargos === 1 ? 'cargo' : 'cargos'}.`
+  if (conCargos > 0) return `Primero mueve o elimina sus ${conCargos} ${conCargos === 1 ? 'cargo' : 'cargos'}.`
   const subs = subunidadesDe(unidadId, org).length
-  if (subs > 0) return `Primero movés o borrás sus ${subs} ${subs === 1 ? 'sub-área' : 'sub-áreas'}.`
-  if (org.unidades.length === 1) return 'Es la única área: la empresa necesita al menos una.'
+  if (subs > 0) return `Primero mueve o elimina sus ${subs} ${subs === 1 ? 'sub-unidad' : 'sub-unidades'}.`
+  if (org.unidades.length === 1) return 'Es la única unidad: la empresa necesita al menos una.'
   return null
 }
 

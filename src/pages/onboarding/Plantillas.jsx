@@ -302,7 +302,7 @@ export default function Plantillas() {
       setPlantillas(plantillas.map(p => {
         if (p.id !== form.id) return p
         return {
-          /* `cargos` se guarda acá también: el formulario deja editarlo y la comparación de
+          /* `cargos` se guarda aquí también: el formulario deja editarlo y la comparación de
              abajo lo cuenta como cambio, pero el guardado lo dejaba afuera y volvía sin efecto. */
           ...p, name: form.name.trim(), descripcion: form.descripcion?.trim() || '', tipo: form.tipo, sucursal: form.sucursal, area: form.area, cargos: form.cargos || [], updated: 'Ahora',
           updatedFecha: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),

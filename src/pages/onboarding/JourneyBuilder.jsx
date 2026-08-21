@@ -135,7 +135,7 @@ const rutaConfigOpciones = [
   { key: 'asistenteIA', label: 'Asistente IA', hint: 'Un asistente inteligente que guía al nuevo colaborador',
     onMsg: 'Los colaboradores tendrán disponible el asistente inteligente para guiarlos.',
     offMsg: 'El asistente inteligente dejará de estar disponible para guiarlos en esta ruta.' },
-  /* Hasta acá la ruta general se anteponía siempre, sin preguntar. Hay puestos que no la
+  /* Hasta aquí la ruta general se anteponía siempre, sin preguntar. Hay puestos que no la
      necesitan —un reboarding de alguien que ya pasó por la inducción, una ruta de una sola
      tarea— y obligarlos a arrastrarla los deja con etapas que no se pueden ni editar ni sacar.
      Se decide por ruta, y por defecto sigue viniendo puesta: es lo común. */

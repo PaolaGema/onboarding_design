@@ -42,7 +42,7 @@ function FilaUnidad({ datos, onEntrar }) {
           </div>
         )}
         <div style={{ fontSize: 5.5, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
-          {totalCargos} {totalCargos === 1 ? 'cargo' : 'cargos'} · {totalSub} {totalSub === 1 ? 'sub-área' : 'sub-áreas'}
+          {totalCargos} {totalCargos === 1 ? 'cargo' : 'cargos'} · {totalSub} {totalSub === 1 ? 'sub-unidad' : 'sub-unidades'}
         </div>
       </div>
       <ChevronRight size={11} style={{ color: 'rgba(255,255,255,.5)', flexShrink: 0 }} />
@@ -51,11 +51,12 @@ function FilaUnidad({ datos, onEntrar }) {
 }
 
 function TarjetaCargo({ fila }) {
-  const { cargo, tipo, ocupante, vacante, jefeNombre } = fila
+  const { cargo, tipo, ocupantes, vacante, jefeNombre } = fila
   const staff = tipo === 'staff'
-  // Un servicio tercerizado sin ocupante no es una vacante: no lleva la marca que pide acción.
+  // El color dice el tipo de puesto y la etiqueta dice si falta cubrirlo: un servicio
+  // tercerizado sin prestador sigue siendo violeta, y además va marcado como vacante.
   const externo = tipo === 'outsourcing'
-  const porCubrir = vacante && !externo
+  const porCubrir = vacante && !staff && !externo
   return (
     <div style={{
       position: 'relative',
@@ -64,13 +65,13 @@ function TarjetaCargo({ fila }) {
         : externo ? '1px dashed #a78bfa' : '1px solid #e2e8f0',
       borderRadius: 10, padding: '9px 10px', marginBottom: 6,
     }}>
-      {(porCubrir || externo) && (
+      {vacante && (
         <span style={{
           position: 'absolute', top: -5, right: 8,
-          background: externo ? '#ede9fe' : '#fef3c7', color: externo ? '#6d28d9' : '#b45309',
+          background: '#fef3c7', color: '#b45309',
           fontSize: 5, fontWeight: 800, letterSpacing: '.03em', textTransform: 'uppercase',
           padding: '1px 5px', borderRadius: 4,
-        }}>{externo ? 'Externo' : 'Vacante'}</span>
+        }}>Vacante</span>
       )}
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
@@ -93,24 +94,23 @@ function TarjetaCargo({ fila }) {
 
       <div style={{ height: 1, background: '#f1f5f9', margin: '7px 0 6px' }} />
 
-      {ocupante ? (
+      {ocupantes.length ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f1f5f9', borderRadius: 7, padding: '5px 7px' }}>
-          <span style={{
-            width: 15, height: 15, borderRadius: '50%', background: ocupante.color, color: '#fff',
-            fontSize: 5.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>{ocupante.initials}</span>
-          <span style={{ fontSize: 7, fontWeight: 600, color: '#0C2D40' }}>{ocupante.name}</span>
+          {ocupantes.slice(0, 3).map(p => (
+            <span key={p.id} style={{
+              width: 15, height: 15, borderRadius: '50%', background: p.color, color: '#fff',
+              fontSize: 5.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>{p.initials}</span>
+          ))}
+          <span style={{ fontSize: 7, fontWeight: 600, color: '#0C2D40' }}>
+            {ocupantes.length === 1 ? ocupantes[0].name : `${ocupantes.length} personas`}
+          </span>
         </div>
-      ) : externo ? (
-        <div style={{
-          background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 7,
-          padding: '5px 7px', fontSize: 6.5, fontWeight: 700, color: '#6d28d9',
-        }}>Lo cubre un proveedor externo</div>
       ) : (
         <div style={{
           background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 7,
           padding: '5px 7px', fontSize: 6.5, fontWeight: 700, color: '#b45309',
-        }}>Sin colaborador asignado</div>
+        }}>{externo ? 'Sin prestador asignado' : 'Sin colaborador asignado'}</div>
       )}
     </div>
   )

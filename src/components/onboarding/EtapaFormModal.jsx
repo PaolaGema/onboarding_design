@@ -9,7 +9,7 @@ import { Pencil, Plus, X } from 'lucide-react'
    acordarse de tres lugares, y bastaba con olvidar uno para que crear con Enter y crear con
    el botón dejaran de hacer lo mismo.
 
-   El borrador vive acá adentro. El constructor no necesita seguir cada tecla: lo que quiere
+   El borrador vive aquí adentro. El constructor no necesita seguir cada tecla: lo que quiere
    saber es el resultado, y lo recibe una vez, ya limpio. */
 export default function EtapaFormModal({ modo = 'crear', valorInicial, onGuardar, onCerrar }) {
   const crear = modo === 'crear'

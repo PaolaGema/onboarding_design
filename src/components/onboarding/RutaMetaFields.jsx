@@ -37,7 +37,7 @@ export function faltaAlgo(form) {
   return form.area !== TODAS_LAS_AREAS && !(form.cargos?.length)
 }
 
-/* La casilla de una opción que se marca de a varias. Se dibuja acá y no con un <input
+/* La casilla de una opción que se marca de a varias. Se dibuja aquí y no con un <input
    type="checkbox"> porque la opción entera ya es el botón que alterna: un control dentro de
    otro control duplica el punto de clic y deja la mitad de los píxeles sin hacer nada. */
 export function Casilla({ marcada }) {
@@ -259,7 +259,7 @@ export default function RutaMetaFields({ form, setForm, autoFocus = false, compa
                       style={{ marginBottom: 4 }}
                     />
                     {/* Casilla y no palomita al final: el cuadradito se lee antes que la opción
-                        y dice, sin texto, que acá se marca más de uno. */}
+                        y dice, sin texto, que aquí se marca más de uno. */}
                     {cargosFiltrados.map(c => {
                       const elegido = cargosElegidos.includes(c)
                       return (

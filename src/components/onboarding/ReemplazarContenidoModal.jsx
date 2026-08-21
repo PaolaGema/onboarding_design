@@ -10,7 +10,7 @@ import { Rotulo, Nota } from './PiezasAviso'
    separan: el intercambio se dibuja, y lo que no es el intercambio queda debajo como notas.
 
    Mismo lenguaje que `ActivarRutaModal`: una tarjeta por lado y una flecha en medio. Ahí el
-   intercambio es entre dos rutas y acá entre dos contenidos, pero la pregunta que responde es
+   intercambio es entre dos rutas y aquí entre dos contenidos, pero la pregunta que responde es
    la misma —qué se va y qué queda— y quien lo vio una vez lo reconoce sin leer. */
 export default function ReemplazarContenidoModal({ actual, entrante, nombreEntrante, enCurso = 0, onConfirmar, onCancelar }) {
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function ReemplazarContenidoModal({ actual, entrante, nombreEntra
         <div className="pl-modal-body" style={{ padding: '26px 24px 18px' }}>
           <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             {/* Advertencia y no intercambio: a diferencia de reemplazar una ruta por otra,
-                acá lo que sale se pierde. El ícono tiene que decir eso antes que el texto. */}
+                aquí lo que sale se pierde. El ícono tiene que decir eso antes que el texto. */}
             <div style={{
               width: 34, height: 34, borderRadius: 10, flexShrink: 0,
               background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center',

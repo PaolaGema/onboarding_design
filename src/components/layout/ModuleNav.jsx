@@ -62,6 +62,9 @@ const personasNav = [
   { section: 'Administración', items: [
     { label: 'Colaboradores', path: '/personas/colaboradores', icon: UserRound, end: true },
     { label: 'Organigrama', path: '/personas/organigrama', icon: Building2 },
+    /* La segunda versión del organigrama, en comparación con la primera. Entrada propia y no
+       un botón dentro de la pantalla: así se abren las dos en pestañas distintas y se miran
+       una al lado de la otra. Se va del menú junto con la versión que pierda. */
   ]},
 ]
 

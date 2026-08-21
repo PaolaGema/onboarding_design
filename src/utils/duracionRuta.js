@@ -1,6 +1,6 @@
 /* Cuánto dura una ruta no es un dato guardado: sale de sumar lo que dura cada etapa, con los
    mismos 7 días por defecto que usa el constructor para armar los tramos "Día 8 — Día 15".
-   Vive acá porque la miran tres lugares —el constructor, el modal de asignación y el alta de
+   Vive aquí porque la miran tres lugares —el constructor, el modal de asignación y el alta de
    la asignación—, y si cada uno la calculara distinto, la fecha de término que se le promete
    al colaborador dejaría de coincidir con su propio recorrido. */
 export function duracionEnDias(etapas) {

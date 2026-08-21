@@ -60,7 +60,7 @@ export const sucursalDe = (ruta) => ruta?.sucursal || SUCURSAL_TODAS
    la ruta para cada uno multiplica el mantenimiento por nada.
 
    Se guarda en `cargos`. Las rutas creadas antes de esto tienen un `cargo` suelto y se leen
-   igual desde acá, sin migrar lo que ya está guardado: mismo criterio que `normalizarStatus`
+   igual desde aquí, sin migrar lo que ya está guardado: mismo criterio que `normalizarStatus`
    con el viejo "archivada". */
 export const cargosDe = (ruta) => {
   if (!ruta) return []
